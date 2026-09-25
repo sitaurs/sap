@@ -50,10 +50,15 @@ export type DecideResult =
   | { ok: true; view: ReportView; replayed: boolean }
   | { ok: false; reason: DecideFailure };
 
-/** Radius (meters) within which a nearby report is offered as a duplicate candidate. */
-const DUPLICATE_RADIUS_METERS = 200;
-/** Reports whose incident times fall within this window earn a `temporal` reason code. */
-const TEMPORAL_WINDOW_MS = 72 * 60 * 60 * 1_000;
+/**
+ * Duplicate-candidate criteria (HOTSPOT_RULES §5): a nearby report is offered as
+ * a candidate only when it is within {@link DUPLICATE_RADIUS_METERS} AND its
+ * incident time is within {@link TEMPORAL_WINDOW_MS} of the subject. Both are
+ * suggestion filters, not automatic decisions — the admin still confirms.
+ */
+const DUPLICATE_RADIUS_METERS = 100;
+const TEMPORAL_WINDOW_MS = 24 * 60 * 60 * 1_000;
+const TEMPORAL_WINDOW_SECONDS = TEMPORAL_WINDOW_MS / 1_000;
 
 @Injectable()
 export class ModerationRepository {
@@ -252,9 +257,10 @@ export class ModerationRepository {
 
   /**
    * Suggest possible canonical duplicates for a report: other reports within
-   * {@link DUPLICATE_RADIUS_METERS} (PostGIS geography/ST_DWithin), ranked by
-   * distance, annotated with proximity/same-cell/temporal reason codes. Returns
-   * null when the subject report does not exist.
+   * {@link DUPLICATE_RADIUS_METERS} (PostGIS geography/ST_DWithin) AND within
+   * {@link TEMPORAL_WINDOW_MS} of the subject's occurredAt (HOTSPOT_RULES §5),
+   * ranked by distance, annotated with proximity/same-cell/temporal reason
+   * codes. Returns null when the subject report does not exist.
    */
   async listDuplicateCandidates(reportId: string): Promise<DuplicateCandidateView[] | null> {
     const subject = await this.sql<{ h3_cell: string; occurred_at: Date }[]>`
@@ -267,10 +273,11 @@ export class ModerationRepository {
       SELECT r.id, r.status, r.occurred_at, r.h3_cell,
              ST_Distance(r.location, subject.location) AS distance_meters
       FROM reports r
-      CROSS JOIN (SELECT location FROM reports WHERE id = ${reportId}) AS subject
+      CROSS JOIN (SELECT location, occurred_at FROM reports WHERE id = ${reportId}) AS subject
       WHERE r.id <> ${reportId}
         AND r.status <> 'duplicate'
         AND ST_DWithin(r.location, subject.location, ${DUPLICATE_RADIUS_METERS})
+        AND ABS(EXTRACT(EPOCH FROM (r.occurred_at - subject.occurred_at))) <= ${TEMPORAL_WINDOW_SECONDS}
       ORDER BY distance_meters ASC, r.id ASC
       LIMIT 50`;
     return rows.map((r) => {
