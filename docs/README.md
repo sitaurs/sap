@@ -49,6 +49,7 @@ Pilihan ini adalah keputusan rancangan tim untuk pemisahan frontend/backend yang
 | [CONTENT_OPERATIONS.md](CONTENT_OPERATIONS.md) | Verifikasi laporan dan moderasi |
 | [SOURCE_AUDIT.md](SOURCE_AUDIT.md) | Fitur asli yang ditemukan dan pengembangan SAP |
 | [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md) | Status verifikasi layanan eksternal dan konfigurasi environment tanpa rahasia |
+| [SAPA_ASSISTANT.md](SAPA_ASSISTANT.md) | **Addendum v1.1** — pet chatbot SAPA (usulan Zaka): brief UX + handoff backend, di luar kontrak v1.0 |
 | [contracts/openapi.json](contracts/openapi.json) | Sumber utama endpoint, enum dan schema v1 |
 | [contracts/fixtures.json](contracts/fixtures.json) | Contoh request/response sintetis untuk mock dan tes |
 
