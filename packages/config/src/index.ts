@@ -45,6 +45,17 @@ const schema = z.object({
   ML_PASSWORD: nonPlaceholder,
   ML_TIMEOUT_MS: z.coerce.number().int().min(1000).max(180000).default(90000),
   NEXT_PUBLIC_MAP_STYLE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
+}).superRefine((value, context) => {
+  if (value.SESSION_SECRET === value.CSRF_SECRET) {
+    context.addIssue({ code: 'custom', path: ['CSRF_SECRET'], message: 'must differ from SESSION_SECRET' });
+  }
+  if (value.NODE_ENV === 'production') {
+    for (const field of ['APP_ORIGIN', 'API_INTERNAL_URL'] as const) {
+      if (new URL(value[field]).protocol !== 'https:') {
+        context.addIssue({ code: 'custom', path: [field], message: 'must use HTTPS in production' });
+      }
+    }
+  }
 });
 
 export type AppConfig = z.infer<typeof schema>;

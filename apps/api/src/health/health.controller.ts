@@ -1,5 +1,4 @@
-import { Controller, Get, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { HealthService } from './health.service.js';
 
 @Controller('health')
@@ -7,9 +6,14 @@ export class HealthController {
   constructor(private readonly health: HealthService) {}
 
   @Get()
-  async getHealth(@Res({ passthrough: true }) response: Response) {
+  async getHealth() {
     const result = await this.health.check();
-    response.status(result.data.status === 'ok' ? 200 : 503);
+    if (result.status === 'degraded') {
+      throw new ServiceUnavailableException({
+        code: 'DEPENDENCY_UNAVAILABLE',
+        message: 'One or more required dependencies are unavailable.',
+      });
+    }
     return result;
   }
 }

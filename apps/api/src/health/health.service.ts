@@ -2,7 +2,6 @@ import { HeadBucketCommand, S3Client } from '@aws-sdk/client-s3';
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { getConfig } from '@sap/config';
 import { Redis } from 'ioredis';
-import { randomUUID } from 'node:crypto';
 import { createPostgresClient } from '../infrastructure/postgres.js';
 
 @Injectable()
@@ -30,10 +29,7 @@ export class HealthService implements OnModuleDestroy {
       this.withTimeout(this.s3.send(new HeadBucketCommand({ Bucket: this.config.S3_BUCKET })), 3_000),
     ]);
     const status = checks.every((item) => item.status === 'fulfilled') ? 'ok' : 'degraded';
-    return {
-      data: { status, contractVersion: this.config.CONTRACT_VERSION },
-      meta: { requestId: randomUUID() },
-    };
+    return { status, contractVersion: this.config.CONTRACT_VERSION } as const;
   }
 
   async onModuleDestroy() {

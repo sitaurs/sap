@@ -22,3 +22,19 @@ test('accepts the canonical environment contract', () => {
 test('rejects placeholders and short secrets', () => {
   assert.throws(() => getConfig({ ...valid, SESSION_SECRET: 'short', S3_ACCESS_KEY_ID: 'replace-me' }));
 });
+
+test('rejects shared application secrets without exposing their values', () => {
+  const shared = 'sensitive-value-that-must-never-appear';
+  assert.throws(
+    () => getConfig({ ...valid, SESSION_SECRET: shared, CSRF_SECRET: shared }),
+    (error) => error instanceof Error && error.message.includes('CSRF_SECRET') && !error.message.includes(shared),
+  );
+});
+
+test('requires HTTPS origins in production', () => {
+  assert.throws(() => getConfig({ ...valid, NODE_ENV: 'production' }), /APP_ORIGIN/);
+  assert.equal(
+    getConfig({ ...valid, NODE_ENV: 'production', APP_ORIGIN: 'https://sap.invalid', API_INTERNAL_URL: 'https://api.sap.invalid' }).NODE_ENV,
+    'production',
+  );
+});
