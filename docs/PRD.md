@@ -1,6 +1,6 @@
 # PRD — SAP
 
-v1.0 · Produk web lengkap · Pemilik produk/backend: Anda; UI/UX/frontend: teman Anda.
+v1.0 · Produk web lengkap · Pemilik produk/backend: Zamani; UI/UX/frontend: Zaka.
 
 ## 1. Tujuan
 
@@ -51,4 +51,4 @@ Keberhasilan scan yang mencapai terminal, rasio unknown/no_waste/failure, waktu 
 
 ## 9. Gerbang rilis
 
-Seluruh FR/NFR wajib lulus. Integrasi nyata layanan EcoLens ML self-hosted, kondisi degradasi, dan jalur laporan manual diperiksa; Hugging Face hanya provenance source/model. Frontend memakai generated types dan fixture yang sama dengan backend. Auth, state laporan, perhitungan area, privasi publik, dedup/poin, audit dan pemulihan diuji. Teman menyetujui UI/frontend; Anda menyetujui backend; keduanya menerima demo alur penuh.
+Seluruh FR/NFR wajib lulus. Integrasi nyata layanan EcoLens ML self-hosted, kondisi degradasi, dan jalur laporan manual diperiksa; Hugging Face hanya provenance source/model. Frontend memakai generated types dan fixture yang sama dengan backend. Auth, state laporan, perhitungan area, privasi publik, dedup/poin, audit dan pemulihan diuji. Zaka menyetujui UI/frontend; Zamani menyetujui backend; keduanya menerima demo alur penuh.

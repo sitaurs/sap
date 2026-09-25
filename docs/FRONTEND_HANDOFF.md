@@ -1,6 +1,6 @@
-# FRONTEND_HANDOFF — Pekerjaan teman Anda — SAP
+# FRONTEND_HANDOFF — Pekerjaan Zaka — SAP
 
-v1.0 · Anda memegang UI/UX dan implementasi frontend SAP. Backend ditangani pemilik proyek.
+v1.0 · Zamani memegang UI/UX dan implementasi frontend SAP. Backend ditangani pemilik proyek.
 
 ## 1. Stack dan struktur
 
@@ -51,4 +51,4 @@ Kode web EcoLens boleh menginspirasi alur kamera, preview, loading, empty/error 
 
 ## 7. Syarat selesai frontend
 
-Semua layar+state di DESIGN-UI-UX; keyboard/pembaca layar dan mobile; generated types tanpa any; fixture dan API staging nyata; tidak ada secret/direct call Gradio; formulir menampilkan error yang sesuai schema; 409 dan double click diuji. Source frontend hanya masuk target repo `sitaurs/sap`, tanpa checkout `ecoLens`/`ecoLens_ML`. Teman menyerahkan Figma, component library, source frontend, bukti e2e dan daftar isu yang belum ditutup.
+Semua layar+state di DESIGN-UI-UX; keyboard/pembaca layar dan mobile; generated types tanpa any; fixture dan API staging nyata; tidak ada secret/direct call Gradio; formulir menampilkan error yang sesuai schema; 409 dan double click diuji. Source frontend hanya masuk target repo `sitaurs/sap`, tanpa checkout `ecoLens`/`ecoLens_ML`. Zaka menyerahkan Figma, component library, source frontend, bukti e2e dan daftar isu yang belum ditutup.

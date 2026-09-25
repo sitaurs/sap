@@ -1,6 +1,6 @@
 # TASKS — Backlog SAP
 
-v1.0 · Checkbox hanya ditandai bila ada bukti aktual; dokumen/kontrak bukan bukti fitur aplikasi selesai. FE=teman(UI/UX+frontend); BE=Anda; BOTH=keduanya.
+v1.0 · Checkbox hanya ditandai bila ada bukti aktual; dokumen/kontrak bukan bukti fitur aplikasi selesai. FE=Zaka(UI/UX+frontend); BE=Zamani; BOTH=keduanya.
 
 ## Gerbang bersama
 
@@ -17,7 +17,7 @@ v1.0 · Checkbox hanya ditandai bila ada bukti aktual; dokumen/kontrak bukan buk
 - [ ] C-04 BOTH — Buat staging origin tunggal dan akun tes; FE memanggil API tanpa CORS/cookie mismatch. SetelahC-03,B-01.
 - [ ] C-05 BE — Tutup external readiness: koneksi Neon pooled/direct dari runtime target, BullMQ/reconnect/replay outbox, R2 presigned lifecycle, SMTP delivery, dan model-aware readiness; perbarui ENVIRONMENT_READINESS tanpa secret. SetelahC-03.
 
-## UI/UX dan frontend — teman
+## UI/UX dan frontend — Zaka
 
 - [ ] F-01 Brand SAP, sitemap/wireflow dan prototipe5 alur di DESIGN-UI-UX; review bersama. SetelahC-01.
 - [ ] F-02 Design tokens/komponen mobile+desktop dan aksesibilitas; semua state kontrol tersedia. SetelahF-01.
@@ -31,7 +31,7 @@ v1.0 · Checkbox hanya ditandai bila ada bukti aktual; dokumen/kontrak bukan buk
 - [ ] F-10 Account/re-auth/delete status; logout membersihkan cache. SetelahF-03.
 - [ ] F-11 Integrasikan API nyata, mobile320 px, keyboard/screen reader/reduced motion; tutup isu prioritas tinggi. SetelahB-10,F-03..F-10.
 
-## Backend — Anda
+## Backend — Zamani
 
 - [ ] B-01 NestJS config/env/health/error envelope/DTO/CSRF/session skeleton. SetelahC-01.
 - [ ] B-02 Migrations Postgres/PostGIS, taxonomy, role, seed development dan constraints. SetelahB-01.

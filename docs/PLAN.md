@@ -1,10 +1,10 @@
 # PLAN — Pelaksanaan SAP
 
-v1.0 · Dua jalur kerja paralel: teman = UI/UX dan frontend; Anda = backend. Rilis memuat seluruh kebutuhan wajib.
+v1.0 · Dua jalur kerja paralel: Zaka = UI/UX dan frontend; Zamani = backend. Rilis memuat seluruh kebutuhan wajib.
 
 ## 1. Pembagian pekerjaan
 
-| Area | Teman | Anda | Titik temu |
+| Area | Zaka | Zamani | Titik temu |
 | --- | --- | --- | --- |
 | Produk | Alur dan pengalaman | Aturan data/domain | PRD dan acceptance |
 | Desain | Brand SAP, Figma, sistem komponen | Umpan balik keterbatasan data/API | Inventaris layar/state |
@@ -16,14 +16,14 @@ v1.0 · Dua jalur kerja paralel: teman = UI/UX dan frontend; Anda = backend. Ril
 ## 2. Urutan kerja
 
 1. Bekukan kontrak v1, taxonomy, state laporan, mock dan repo/workspace. Catat hasil discovery Gradio aktual dan selesaikan acceptance spike yang masih pending.
-2. Teman menyusun brand/wireflow lalu layar auth/scan/dashboard. Anda membuat auth, upload, scan adapter, worker dan schema awal. Demo menggunakan fixture identik.
-3. Teman membuat form laporan, peta, area detail dan laporan saya. Anda membuat laporan, dedup, moderasi, audit dan agregasi H3.
-4. Teman membuat admin UI, leaderboard, responsive/error/accessibility states. Anda menyelesaikan ledger, streak, badges, privasi, cleanup dan operasi.
+2. Zaka menyusun brand/wireflow lalu layar auth/scan/dashboard. Zamani membuat auth, upload, scan adapter, worker dan schema awal. Demo menggunakan fixture identik.
+3. Zaka membuat form laporan, peta, area detail dan laporan saya. Zamani membuat laporan, dedup, moderasi, audit dan agregasi H3.
+4. Zaka membuat admin UI, leaderboard, responsive/error/accessibility states. Zamani menyelesaikan ledger, streak, badges, privasi, cleanup dan operasi.
 5. Integrasikan semua flow di staging; perbaiki perbedaan kontrak, uji layanan Gradio self-hosted nyata, lalu gerbang keamanan, aksesibilitas, performa dan restore.
 
 ## 3. Cara kerja mencegah mismatch
 
-Target implementasi adalah `https://github.com/sitaurs/sap`: `apps/web` milik teman, `apps/api` dan `apps/worker` milik Anda, `packages/api-client` hasil generate, `contracts` milik bersama, serta `db` dan `docs`. Checkout `ecoLens` dan `ecoLens_ML` hanya referensi read-only dan tidak boleh disalin, dijadikan submodule/subtree, atau di-commit. Folder tanggung jawab membantu koordinasi; tidak menghalangi perubahan lintas folder saat disepakati. PR perubahan kontrak wajib menyertakan schema, fixture, mapping UI dan tes. Hindari membangun frontend berdasarkan bentuk respons internal provider/MongoDB lama.
+Target implementasi adalah `https://github.com/sitaurs/sap`: `apps/web` milik Zaka, `apps/api` dan `apps/worker` milik Zamani, `packages/api-client` hasil generate, `contracts` milik bersama, serta `db` dan `docs`. Checkout `ecoLens` dan `ecoLens_ML` hanya referensi read-only dan tidak boleh disalin, dijadikan submodule/subtree, atau di-commit. Folder tanggung jawab membantu koordinasi; tidak menghalangi perubahan lintas folder saat disepakati. PR perubahan kontrak wajib menyertakan schema, fixture, mapping UI dan tes. Hindari membangun frontend berdasarkan bentuk respons internal provider/MongoDB lama.
 
 Demo bersama dua kali seminggu, review kontrak sebelum mulai fitur, triase integrasi setiap hari saat fase penggabungan. Definisi selesai: berfungsi dengan fixture dan API nyata, error states lengkap, acceptance lulus, tidak ada pending perubahan schema.
 

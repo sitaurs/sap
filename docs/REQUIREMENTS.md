@@ -1,6 +1,6 @@
 # REQUIREMENTS — SAP
 
-v1.0 · Semua FR-01 sampai FR-14 dan NFR berikut wajib untuk rilis lengkap. UI/UX/frontend milik teman; backend milik Anda. Schema mesin berada di contracts/openapi.json.
+v1.0 · Semua FR-01 sampai FR-14 dan NFR berikut wajib untuk rilis lengkap. UI/UX/frontend milik Zaka; backend milik Zamani. Schema mesin berada di contracts/openapi.json.
 
 | ID | Kebutuhan | Acceptance criteria |
 | --- | --- | --- |

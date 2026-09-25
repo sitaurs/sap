@@ -1,6 +1,6 @@
-# DESIGN-UI-UX — Brief redesign SAP untuk teman
+# DESIGN-UI-UX — Brief redesign SAP untuk Zaka
 
-v1.0 · **Pemilik UI/UX dan frontend: teman Anda.** Produk bernama SAP — Sustainable AI Platform. Dokumen ini brief dan kriteria handoff; desainer mengembangkan identitas visual serta implementasi frontend.
+v1.0 · **Pemilik UI/UX dan frontend: Zaka.** Produk bernama SAP — Sustainable AI Platform. Dokumen ini brief dan kriteria handoff; desainer mengembangkan identitas visual serta implementasi frontend.
 
 ## 1. Tujuan pengalaman
 
@@ -44,7 +44,7 @@ Mobile: Beranda/Dashboard, Scan, Laporan, Peta, Akun; achievements/leaderboard d
 
 A. Login → scan foto plastik → kandidat → dashboard/riwayat. B. Foto tidak dikenali → tetap buat laporan manual → pin/tanggal → submit → status menunggu. C. Admin review → verify → area muncul → in_progress → resolved dengan bukti → pelapor melihat timeline. D. Duplicate/rejected → alasan dan hitungan peta tidak bertambah. E. Session expired, layanan EcoLens ML timeout, GPS ditolak, peta gagal: user memahami cara melanjutkan.
 
-Setiap prototipe mencakup kembali, batal dan menjaga input yang belum dikirim; jangan membuat desain hanya jalur sukses. Teman menguji klik prototipe sebelum implementasi dan menguji kembali dengan backend nyata.
+Setiap prototipe mencakup kembali, batal dan menjaga input yang belum dikirim; jangan membuat desain hanya jalur sukses. Zaka menguji klik prototipe sebelum implementasi dan menguji kembali dengan backend nyata.
 
 ## 5. Pedoman visual yang dapat dieksplorasi
 
@@ -61,7 +61,7 @@ Button/loading/icon button; input/error/help; password/OTP; uploader/progress; c
 ## 7. Copy dan arti data
 
 - Unknown: "Jenis sampah belum bisa dikenali. Coba foto lain atau lanjutkan laporan."
-- ML failure: "Pemindaian sedang tidak tersedia. Anda tetap bisa membuat laporan."
+- ML failure: "Pemindaian sedang tidak tersedia. Zamani tetap bisa membuat laporan."
 - Submitted: "Laporan terkirim dan menunggu pemeriksaan."
 - Area: "5 kejadian terverifikasi pada 3 hari berbeda selama periode ini."
 - No data: "Belum ada laporan terverifikasi untuk area dan periode ini."
@@ -72,7 +72,7 @@ Jangan menampilkan persen peluang penumpukan, berat/CO₂/air/energi aktual, ata
 
 Focus visible, label field, error terhubung, urutan keyboard, alt yang berguna, live region untuk progres/status, stop polling announcement berulang, reduced motion. Foto/lokasi laporan tidak langsung publik; jelaskan sebelum submit. Peta mempunyai list alternatif yang memuat informasi yang sama. Dialog kamera/hapus kembali ke fokus pemicu ketika ditutup. Konfirmasi hapus tidak menggunakan pola manipulatif.
 
-## 9. Deliverable teman Anda
+## 9. Deliverable Zaka
 
 Figma dengan halaman Foundations, Components, User Flows, Screens, Prototype, Handoff; identitas SAP; desain mobile+desktop dan state matriks; asset/logo berizin; token; source Next.js; generated API client; MSW mock; mapping layar→operationId; pengujian aksesibilitas dan bukti integrasi. Token final dibagikan ke code sebagai CSS variables, tidak disalin manual per halaman.
 

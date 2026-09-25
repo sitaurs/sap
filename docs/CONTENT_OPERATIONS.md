@@ -1,6 +1,6 @@
 # CONTENT_OPERATIONS — Moderasi dan operasi SAP
 
-v1.0 · Pemilik teknis: Anda; admin operasional ditunjuk sebelum peluncuran. Dashboard frontend dikerjakan teman.
+v1.0 · Pemilik teknis: Zamani; admin operasional ditunjuk sebelum peluncuran. Dashboard frontend dikerjakan Zaka.
 
 ## 1. Alur pemeriksaan laporan
 

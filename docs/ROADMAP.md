@@ -2,7 +2,7 @@
 
 v1.0 · Estimasi relatif 14–18 minggu untuk dua kontributor dengan waktu kerja yang memadai. Ini baseline perencanaan, bukan janji tanggal; kapasitas dan pengalaman tim menentukan durasi.
 
-| Fase | Perkiraan | Teman: UI/UX + frontend | Anda: backend | Gerbang |
+| Fase | Perkiraan | Zaka: UI/UX + frontend | Zamani: backend | Gerbang |
 | --- | --- | --- | --- | --- |
 | 1. Kesepakatan & spike | M1–2 | Brand, sitemap, wireflow, setup Next.js/mock | Bootstrap repo SAP, NestJS/data, kontrak, Gradio acceptance spike | Taxonomy/state/API disepakati; discovery terbukti dan risiko provider tercatat |
 | 2. Fondasi & fitur asli | M3–5 | Auth, scan, dashboard, komponen | Auth/OTP, upload, queue, adapter Gradio, scan history | Scan dan akun end-to-end |

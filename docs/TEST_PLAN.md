@@ -4,7 +4,7 @@ v1.0 · Paket ini mendefinisikan pengujian; aplikasi belum diimplementasikan. Fi
 
 ## 1. Tingkat pengujian
 
-Unit: rules ledger/status/hotspot/mapping. Contract: request/response API dan field/privacy. Integration: Neon Postgres/PostGIS + Upstash Redis/BullMQ + Cloudflare R2 melalui S3-compatible API + worker. E2E: Next.js→NestJS→data dan Gradio self-hosted untuk smoke terkontrol. Visual/accessibility: teman memimpin, backend membantu data/state. Hindari semua tes memakai stub sehingga integrasi nyata tidak pernah diperiksa.
+Unit: rules ledger/status/hotspot/mapping. Contract: request/response API dan field/privacy. Integration: Neon Postgres/PostGIS + Upstash Redis/BullMQ + Cloudflare R2 melalui S3-compatible API + worker. E2E: Next.js→NestJS→data dan Gradio self-hosted untuk smoke terkontrol. Visual/accessibility: Zaka memimpin, backend membantu data/state. Hindari semua tes memakai stub sehingga integrasi nyata tidak pernah diperiksa.
 
 ## 2. Matriks acceptance
 

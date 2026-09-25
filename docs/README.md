@@ -6,7 +6,7 @@ Paket spesifikasi v1.0 · 24 September 2026 · Bahasa produk: Indonesia
 
 SAP adalah **rebuild dari awal** web EcoLens dengan identitas dan UI baru, mempertahankan kemampuan pengenalan sampah dari model EcoLens, serta menambah pelaporan penumpukan, peta area rawan berdasarkan kejadian terverifikasi, dan dashboard admin. Runtime inferensi produksi yang dipilih adalah layanan Gradio self-hosted; source Hugging Face/EcoLens tetap menjadi provenance model, bukan provider produksi. Semua kebutuhan wajib dalam paket ini masuk satu rilis lengkap; fase roadmap adalah urutan pengerjaan.
 
-**Teman Anda: UI/UX dan seluruh frontend. Anda: backend, database, integrasi ML, geospasial dan operasi.** Bobot, kategori dan pelatihan ML tidak menjadi pekerjaan rebuild ini. Area rawan adalah ringkasan kejadian historis, tanpa klaim memprediksi masa depan.
+**Zaka: UI/UX dan seluruh frontend. Zamani: backend, database, integrasi ML, geospasial dan operasi.** Bobot, kategori dan pelatihan ML tidak menjadi pekerjaan rebuild ini. Area rawan adalah ringkasan kejadian historis, tanpa klaim memprediksi masa depan.
 
 Dokumen ini menggantikan rancangan EcoLens sebelumnya yang berfokus pada sampah elektronik. Nama produk tampil sebagai **SAP — Sustainable AI Platform**. Nama EcoLens hanya dipakai sebagai referensi sumber. Paket berisi spesifikasi, kontrak dan data contoh; belum merupakan aplikasi, prototipe Figma, ataupun layanan yang sudah diuji operasional.
 
@@ -22,8 +22,8 @@ Pilihan ini adalah keputusan rancangan tim untuk pemisahan frontend/backend yang
 
 | Peran | Urutan utama |
 | --- | --- |
-| Teman — UI/UX + frontend | PRD → DESIGN-UI-UX → FRONTEND_HANDOFF → INTEGRATION_CONTRACT → API_SPEC → fixture |
-| Anda — backend | PRD → REQUIREMENTS → TECH_SPEC → DATABASE → API_SPEC → ML_INTEGRATION → HOTSPOT_RULES → BACKEND_HANDOFF |
+| Zaka — UI/UX + frontend | PRD → DESIGN-UI-UX → FRONTEND_HANDOFF → INTEGRATION_CONTRACT → API_SPEC → fixture |
+| Zamani — backend | PRD → REQUIREMENTS → TECH_SPEC → DATABASE → API_SPEC → ML_INTEGRATION → HOTSPOT_RULES → BACKEND_HANDOFF |
 | Bersama | SOURCE_AUDIT → PLAN → ROADMAP → TASKS → TEST_PLAN → DEPLOYMENT → CONTENT_OPERATIONS |
 
 ## Daftar dokumen
@@ -34,7 +34,7 @@ Pilihan ini adalah keputusan rancangan tim untuk pemisahan frontend/backend yang
 | [REQUIREMENTS.md](REQUIREMENTS.md) | Kebutuhan dan acceptance criteria |
 | [PLAN.md](PLAN.md) | Pendekatan kerja dua orang dan tanggung jawab |
 | [ROADMAP.md](ROADMAP.md) | Fase dengan dependensi dan gerbang |
-| [DESIGN-UI-UX.md](DESIGN-UI-UX.md) | Brief desain baru SAP untuk teman |
+| [DESIGN-UI-UX.md](DESIGN-UI-UX.md) | Brief desain baru SAP untuk Zaka |
 | [FRONTEND_HANDOFF.md](FRONTEND_HANDOFF.md) | Halaman, state, pemakaian API dan mock |
 | [BACKEND_HANDOFF.md](BACKEND_HANDOFF.md) | Modul, transaksi, keamanan dan operasi |
 | [TECH_SPEC.md](TECH_SPEC.md) | Arsitektur dan stack terpilih |
@@ -78,7 +78,7 @@ Domain publik, penyedia hosting/tiles/SMTP, kota cakupan awal, akun admin produk
 
 ## Serah terima
 
-Teman Anda mulai dari README ini, lalu desain dan frontend handoff. Dokumen handoff yang relevan boleh dimasukkan ke folder `docs/` repository SAP baru; salin `contracts/` ke root workspace agar dipakai kedua aplikasi. Jangan ikut menyalin checkout legacy `ecoLens` atau `ecoLens_ML`. Paket tidak memuat kunci API atau data pengguna, dan `.env` tidak pernah boleh di-commit.
+Zaka mulai dari README ini, lalu desain dan frontend handoff. Dokumen handoff yang relevan boleh dimasukkan ke folder `docs/` repository SAP baru; salin `contracts/` ke root workspace agar dipakai kedua aplikasi. Jangan ikut menyalin checkout legacy `ecoLens` atau `ecoLens_ML`. Paket tidak memuat kunci API atau data pengguna, dan `.env` tidak pernah boleh di-commit.
 
 ## Pemeriksaan paket
 
