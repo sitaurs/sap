@@ -1,5 +1,6 @@
-import { ArgumentsHost, Catch, HttpException, HttpStatus, type ExceptionFilter } from '@nestjs/common';
+import { ArgumentsHost, Catch, HttpException, HttpStatus, Logger, type ExceptionFilter } from '@nestjs/common';
 import type { Response } from 'express';
+import { safeLogRecord } from '../logging/redact.js';
 import type { SapRequest } from './request-context.js';
 
 type ErrorFields = Record<string, string[]>;
@@ -20,6 +21,8 @@ const codes: Partial<Record<number, string>> = {
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger('ApiException');
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const http = host.switchToHttp();
     const request = http.getRequest<SapRequest>();
@@ -27,6 +30,29 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
     const body = exception instanceof HttpException ? exception.getResponse() : undefined;
     const normalized = this.normalize(body, status);
+
+    // Unexpected server errors are logged with a redaction-safe record (requestId
+    // + route only) so operators get signal without leaking secrets/PII/coords.
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      this.logger.error(
+        safeLogRecord('unhandled_exception', {
+          requestId: request.requestId,
+          method: request.method,
+          route: request.route?.path ?? request.path,
+          status,
+          message: exception instanceof Error ? exception.message : 'unknown',
+        }),
+      );
+    }
+
+    // Rate-limit responses carry a Retry-After hint on the exception body; surface
+    // it as the header without leaking it into the JSON envelope.
+    if (status === HttpStatus.TOO_MANY_REQUESTS && typeof body === 'object' && body !== null) {
+      const retryAfter = (body as { retryAfter?: unknown }).retryAfter;
+      if (typeof retryAfter === 'number' && Number.isFinite(retryAfter)) {
+        response.setHeader('Retry-After', String(Math.max(1, Math.ceil(retryAfter))));
+      }
+    }
 
     response.status(status).json({
       error: normalized,

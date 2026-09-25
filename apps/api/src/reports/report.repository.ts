@@ -169,6 +169,14 @@ export class ReportRepository {
     return rows.map((row) => this.assemble(row, media, timeline));
   }
 
+  /** Count this user's reports created since `since` (for the per-account rate limit). */
+  async countRecentForUser(userId: string, since: Date): Promise<{ count: number; oldestAt: Date | null }> {
+    const rows = await this.sql<{ count: number; oldest: Date | null }[]>`
+      SELECT count(*)::int AS count, min(created_at) AS oldest
+      FROM reports WHERE reporter_id = ${userId} AND created_at >= ${since}`;
+    return { count: Number(rows[0]?.count ?? 0), oldestAt: rows[0]?.oldest ?? null };
+  }
+
   /**
    * Apply an owner edit to a still-submitted report with optimistic concurrency.
    * Locks the row, then enforces ownership, editable status, and the If-Match

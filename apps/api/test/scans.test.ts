@@ -33,7 +33,7 @@ interface Stub {
   created: number;
 }
 
-function makeService(opts: { ownedMedia?: boolean; replayed?: boolean; listRows?: ScanRecord[] } = {}): Stub {
+function makeService(opts: { ownedMedia?: boolean; replayed?: boolean; listRows?: ScanRecord[]; recentCount?: number } = {}): Stub {
   const enqueued: string[] = [];
   let created = 0;
   const media = {
@@ -48,6 +48,10 @@ function makeService(opts: { ownedMedia?: boolean; replayed?: boolean; listRows?
     },
     findByIdForOwner: async (id: string) => (id === 'scan-1' ? record('scan-1', '2026-09-25T00:00:00.000Z') : null),
     listByOwner: async (_u: string, limit: number) => (opts.listRows ?? []).slice(0, limit),
+    countRecentForUser: async (_u: string, _since: Date) => ({
+      count: opts.recentCount ?? 0,
+      oldestAt: opts.recentCount ? new Date(Date.now() - 30 * 60 * 1_000) : null,
+    }),
   };
   const queue = { enqueueScan: async (id: string) => void enqueued.push(id) };
   const service = new ScansService(scans as never, media as never, queue as never);
@@ -57,6 +61,12 @@ function makeService(opts: { ownedMedia?: boolean; replayed?: boolean; listRows?
 test('createScan rejects media the caller does not own with NOT_FOUND', async () => {
   const { service } = makeService({ ownedMedia: false });
   await assert.rejects(service.createScan('u1', { mediaId: 'm1' }, KEY), (e) => errorCode(e) === 'NOT_FOUND');
+});
+
+test('createScan enforces the per-account rate limit with RATE_LIMITED', async () => {
+  const { service, enqueued } = makeService({ recentCount: 10 });
+  await assert.rejects(service.createScan('u1', { mediaId: 'm1' }, KEY), (e) => errorCode(e) === 'RATE_LIMITED');
+  assert.deepEqual(enqueued, [], 'a throttled scan is never queued');
 });
 
 test('createScan enqueues a job for a fresh reservation', async () => {

@@ -56,6 +56,7 @@ function makeService(opts: {
   found?: ReportRecord | null;
   listRows?: ReportRecord[];
   updateResult?: UpdateReportResult;
+  recentCount?: number;
 } = {}): Stub {
   const state = { created: 0 };
   const updateArgs: Array<{ reportId: string; revision: number }> = [];
@@ -77,6 +78,10 @@ function makeService(opts: {
       updateArgs.push({ reportId, revision });
       return opts.updateResult ?? ({ ok: true, record: record() } as UpdateReportResult);
     },
+    countRecentForUser: async (_u: string, _since: Date) => ({
+      count: opts.recentCount ?? 0,
+      oldestAt: opts.recentCount ? new Date(Date.now() - 12 * 60 * 60 * 1_000) : null,
+    }),
   };
   const service = new ReportsService(reports as never, media as never, scans as never);
   return { service, state, updateArgs };
@@ -135,6 +140,12 @@ test('createReport creates a report for valid, owned input', async () => {
   const stub = makeService();
   await stub.service.createReport('u1', input(), KEY);
   assert.equal(stub.state.created, 1);
+});
+
+test('createReport enforces the per-account rate limit with RATE_LIMITED', async () => {
+  const stub = makeService({ recentCount: 10 });
+  await assert.rejects(stub.service.createReport('u1', input(), KEY), (e) => errorCode(e) === 'RATE_LIMITED');
+  assert.equal(stub.state.created, 0, 'a throttled report is never created');
 });
 
 test('getReport returns NOT_FOUND when the viewer cannot see it', async () => {

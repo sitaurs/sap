@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { MediaRepository } from '../media/media.repository.js';
+import { evaluateRateLimit, RateLimitException, REPORT_RATE_LIMIT } from '../platform/http/rate-limit.js';
 import { ScanRepository } from '../scans/scan.repository.js';
 import type { CategoryId } from '../scans/scan.types.js';
 import { toH3Cell } from './geo.js';
@@ -25,6 +26,8 @@ export class ReportsService {
   ) {}
 
   async createReport(userId: string, dto: ReportInputDto, idempotencyKey: string): Promise<ReportView> {
+    await this.enforceRateLimit(userId);
+
     const occurredAt = new Date(dto.occurredAt);
     if (!isOccurredAtValid(occurredAt)) {
       throw new UnprocessableEntityException({
@@ -158,6 +161,14 @@ export class ReportsService {
   private async assertOwnedScan(userId: string, scanId: string): Promise<void> {
     const scan = await this.scans.findByIdForOwner(scanId, userId);
     if (!scan) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Scan tidak ditemukan.' });
+  }
+
+  /** Baseline: 10 laporan/hari/account (TECH_SPEC §). 429 + Retry-After when exceeded. */
+  private async enforceRateLimit(userId: string): Promise<void> {
+    const now = Date.now();
+    const state = await this.reports.countRecentForUser(userId, new Date(now - REPORT_RATE_LIMIT.windowMs));
+    const decision = evaluateRateLimit(state, REPORT_RATE_LIMIT, now);
+    if (!decision.allowed) throw new RateLimitException(decision.retryAfterSeconds);
   }
 }
 

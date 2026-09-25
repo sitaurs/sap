@@ -22,14 +22,21 @@ export class HealthService implements OnModuleDestroy {
     },
   });
 
-  async check() {
-    const checks = await Promise.allSettled([
+  /**
+   * Readiness is DB-gated (DEPLOYMENT.md §7: "DB gagal → readiness 503"). The DB
+   * is the critical dependency; Redis/R2 being unreachable degrades scans/uploads
+   * but the API can still serve reads, so that reports `degraded` at HTTP 200.
+   */
+  async check(): Promise<{ status: 'ok' | 'degraded'; dbOk: boolean; contractVersion: '1.0.0' }> {
+    const [db, redis, s3] = await Promise.allSettled([
       this.withTimeout(this.sql`select 1`, 3_000),
       this.withTimeout(this.pingRedis(), 3_000),
       this.withTimeout(this.s3.send(new HeadBucketCommand({ Bucket: this.config.S3_BUCKET })), 3_000),
     ]);
-    const status = checks.every((item) => item.status === 'fulfilled') ? 'ok' : 'degraded';
-    return { status, contractVersion: this.config.CONTRACT_VERSION } as const;
+    const dbOk = db.status === 'fulfilled';
+    const auxiliaryOk = redis.status === 'fulfilled' && s3.status === 'fulfilled';
+    const status = dbOk && auxiliaryOk ? 'ok' : 'degraded';
+    return { status, dbOk, contractVersion: this.config.CONTRACT_VERSION } as const;
   }
 
   async onModuleDestroy() {

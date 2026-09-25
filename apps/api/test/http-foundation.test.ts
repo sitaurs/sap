@@ -69,7 +69,7 @@ before(async () => {
   class TestModule {}
 
   app = await NestFactory.create(TestModule, { logger: false });
-  app.get(HealthService).check = async () => ({ status: 'ok', contractVersion: '1.0.0' as const });
+  app.get(HealthService).check = async () => ({ status: 'ok', dbOk: true, contractVersion: '1.0.0' as const });
   bootstrapHttpApp(app, (await import('@sap/config')).getConfig(environment));
   await app.init();
   server = app.getHttpServer() as Server;

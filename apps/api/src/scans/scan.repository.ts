@@ -103,4 +103,12 @@ export class ScanRepository {
           LIMIT ${limit}`;
     return rows.map(mapScan);
   }
+
+  /** Count this user's scans created since `since` (for the per-account rate limit). */
+  async countRecentForUser(userId: string, since: Date): Promise<{ count: number; oldestAt: Date | null }> {
+    const rows = await this.sql<{ count: number; oldest: Date | null }[]>`
+      SELECT count(*)::int AS count, min(created_at) AS oldest
+      FROM scans WHERE user_id = ${userId} AND created_at >= ${since}`;
+    return { count: Number(rows[0]?.count ?? 0), oldestAt: rows[0]?.oldest ?? null };
+  }
 }
