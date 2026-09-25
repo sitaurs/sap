@@ -1,0 +1,21 @@
+{
+  "name": "sap-platform",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "build": "npm run build -w @sap/config && npm run build -w @sap/api && npm run build -w @sap/worker",
+    "dev:api": "npm run dev -w @sap/api",
+    "dev:worker": "npm run dev -w @sap/worker",
+    "typecheck": "npm run build -w @sap/config && npm run typecheck -w @sap/config && npm run typecheck -w @sap/api && npm run typecheck -w @sap/worker",
+    "test": "npm run test --workspaces --if-present",
+    "contracts:lint": "node scripts/check-contracts.mjs",
+    "contracts:check": "npm run contracts:lint",
+    "check": "npm run contracts:check && npm run typecheck && npm run test && npm run build"
+  },
+  "engines": { "node": ">=22" },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.3"
+  }
+}

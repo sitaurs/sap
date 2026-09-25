@@ -1,0 +1,928 @@
+{
+  "notice": "Semua fixture sintetis. Polygon ilustratif bukan hasil komputasi H3 nyata; untuk rendering/schema, bukan tes geospasial.",
+  "contractVersion": "1.0.0",
+  "cases": [
+    {
+      "name": "login_success",
+      "operationId": "login",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "id": "11111111-1111-4111-8111-111111111111",
+          "displayName": "Pengguna Contoh",
+          "email": "contoh@example.test",
+          "role": "user",
+          "emailVerified": true
+        },
+        "meta": {
+          "requestId": "fixture-login_success"
+        }
+      },
+      "request": {
+        "email": "contoh@example.test",
+        "password": "Contoh-Saja-1234"
+      }
+    },
+    {
+      "name": "csrf",
+      "operationId": "getCsrf",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "csrfToken": "synthetic-csrf-not-for-production",
+          "expiresAt": "2026-09-24T05:00:00Z"
+        },
+        "meta": {
+          "requestId": "fixture-csrf"
+        }
+      }
+    },
+    {
+      "name": "categories",
+      "operationId": "listCategories",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "items": [
+            {
+              "id": "battery",
+              "name": "Baterai"
+            },
+            {
+              "id": "biological",
+              "name": "Sampah organik"
+            },
+            {
+              "id": "cardboard",
+              "name": "Kardus"
+            },
+            {
+              "id": "clothes",
+              "name": "Pakaian"
+            },
+            {
+              "id": "glass",
+              "name": "Kaca"
+            },
+            {
+              "id": "metal",
+              "name": "Logam"
+            },
+            {
+              "id": "paper",
+              "name": "Kertas"
+            },
+            {
+              "id": "plastic",
+              "name": "Plastik"
+            },
+            {
+              "id": "shoes",
+              "name": "Sepatu"
+            },
+            {
+              "id": "trash",
+              "name": "Sampah lainnya"
+            }
+          ],
+          "nextCursor": null
+        },
+        "meta": {
+          "requestId": "fixture-categories"
+        }
+      }
+    },
+    {
+      "name": "scan_queued",
+      "operationId": "createScan",
+      "httpStatus": 202,
+      "response": {
+        "data": {
+          "id": "33333333-3333-4333-8333-333333333333",
+          "status": "queued",
+          "outcome": null,
+          "categoryId": null,
+          "predictions": [],
+          "errorCode": null,
+          "pointsAwarded": 0,
+          "createdAt": "2026-09-24T04:00:00Z",
+          "completedAt": null
+        },
+        "meta": {
+          "requestId": "fixture-scan_queued"
+        }
+      },
+      "request": {
+        "mediaId": "22222222-2222-4222-8222-222222222222"
+      }
+    },
+    {
+      "name": "scan_processing",
+      "operationId": "getScan",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "id": "33333333-3333-4333-8333-333333333333",
+          "status": "processing",
+          "outcome": null,
+          "categoryId": null,
+          "predictions": [],
+          "errorCode": null,
+          "pointsAwarded": 0,
+          "createdAt": "2026-09-24T04:00:00Z",
+          "completedAt": null
+        },
+        "meta": {
+          "requestId": "fixture-scan_processing"
+        }
+      }
+    },
+    {
+      "name": "scan_classified",
+      "operationId": "getScan",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "id": "33333333-3333-4333-8333-333333333333",
+          "status": "succeeded",
+          "outcome": "classified",
+          "categoryId": "plastic",
+          "predictions": [
+            {
+              "categoryId": "plastic",
+              "score": 0.88
+            },
+            {
+              "categoryId": "glass",
+              "score": 0.07
+            },
+            {
+              "categoryId": "metal",
+              "score": 0.03
+            }
+          ],
+          "errorCode": null,
+          "pointsAwarded": 10,
+          "createdAt": "2026-09-24T04:00:00Z",
+          "completedAt": "2026-09-24T04:00:00Z"
+        },
+        "meta": {
+          "requestId": "fixture-scan_classified"
+        }
+      }
+    },
+    {
+      "name": "scan_unknown",
+      "operationId": "getScan",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "id": "33333333-3333-4333-8333-333333333333",
+          "status": "succeeded",
+          "outcome": "unknown",
+          "categoryId": null,
+          "predictions": [],
+          "errorCode": null,
+          "pointsAwarded": 0,
+          "createdAt": "2026-09-24T04:00:00Z",
+          "completedAt": "2026-09-24T04:00:00Z"
+        },
+        "meta": {
+          "requestId": "fixture-scan_unknown"
+        }
+      }
+    },
+    {
+      "name": "scan_no_waste",
+      "operationId": "getScan",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "id": "33333333-3333-4333-8333-333333333333",
+          "status": "succeeded",
+          "outcome": "no_waste",
+          "categoryId": null,
+          "predictions": [],
+          "errorCode": null,
+          "pointsAwarded": 0,
+          "createdAt": "2026-09-24T04:00:00Z",
+          "completedAt": "2026-09-24T04:00:00Z"
+        },
+        "meta": {
+          "requestId": "fixture-scan_no_waste"
+        }
+      }
+    },
+    {
+      "name": "scan_failed",
+      "operationId": "getScan",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "id": "33333333-3333-4333-8333-333333333333",
+          "status": "failed",
+          "outcome": null,
+          "categoryId": null,
+          "predictions": [],
+          "errorCode": "ML_TIMEOUT",
+          "pointsAwarded": 0,
+          "createdAt": "2026-09-24T04:00:00Z",
+          "completedAt": "2026-09-24T04:00:00Z"
+        },
+        "meta": {
+          "requestId": "fixture-scan_failed"
+        }
+      }
+    },
+    {
+      "name": "scans_empty",
+      "operationId": "listScans",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "items": [],
+          "nextCursor": null
+        },
+        "meta": {
+          "requestId": "fixture-scans_empty"
+        }
+      }
+    },
+    {
+      "name": "report_submitted",
+      "operationId": "createReport",
+      "httpStatus": 201,
+      "response": {
+        "data": {
+          "id": "44444444-4444-4444-8444-444444444444",
+          "revision": 1,
+          "status": "submitted",
+          "categoryId": "plastic",
+          "scanId": null,
+          "description": "Contoh sintetis tumpukan sampah untuk pengujian antarmuka.",
+          "reportedSeverity": "medium",
+          "location": {
+            "latitude": -6.2,
+            "longitude": 106.816
+          },
+          "occurredAt": "2026-09-23T04:00:00Z",
+          "createdAt": "2026-09-24T04:00:00Z",
+          "updatedAt": "2026-09-24T04:00:00Z",
+          "mediaIds": [
+            "22222222-2222-4222-8222-222222222222"
+          ],
+          "resolutionMediaIds": [],
+          "publicSummary": null,
+          "publishedMediaIds": [],
+          "duplicateOfId": null,
+          "timeline": [
+            {
+              "id": "55555555-5555-4555-8555-555555555555",
+              "status": "submitted",
+              "note": "Laporan diterima untuk diperiksa.",
+              "createdAt": "2026-09-24T04:00:00Z"
+            }
+          ]
+        },
+        "meta": {
+          "requestId": "fixture-report_submitted"
+        }
+      },
+      "request": {
+        "mediaIds": [
+          "22222222-2222-4222-8222-222222222222"
+        ],
+        "description": "Contoh sintetis tumpukan sampah untuk pengujian antarmuka.",
+        "location": {
+          "latitude": -6.2,
+          "longitude": 106.816
+        },
+        "occurredAt": "2026-09-23T04:00:00Z",
+        "reportedSeverity": "medium",
+        "categoryId": "plastic",
+        "scanId": null
+      }
+    },
+    {
+      "name": "report_verified",
+      "operationId": "getReport",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "id": "44444444-4444-4444-8444-444444444444",
+          "revision": 2,
+          "status": "verified",
+          "categoryId": "plastic",
+          "scanId": null,
+          "description": "Contoh sintetis tumpukan sampah untuk pengujian antarmuka.",
+          "reportedSeverity": "medium",
+          "location": {
+            "latitude": -6.2,
+            "longitude": 106.816
+          },
+          "occurredAt": "2026-09-23T04:00:00Z",
+          "createdAt": "2026-09-24T04:00:00Z",
+          "updatedAt": "2026-09-24T04:00:00Z",
+          "mediaIds": [
+            "22222222-2222-4222-8222-222222222222"
+          ],
+          "resolutionMediaIds": [],
+          "publicSummary": "Ringkasan laporan contoh terverifikasi.",
+          "publishedMediaIds": [],
+          "duplicateOfId": null,
+          "timeline": [
+            {
+              "id": "55555555-5555-4555-8555-555555555555",
+              "status": "submitted",
+              "note": "Laporan diterima untuk diperiksa.",
+              "createdAt": "2026-09-24T04:00:00Z"
+            },
+            {
+              "id": "77777777-7777-4777-8777-777777777777",
+              "status": "verified",
+              "note": "Keputusan contoh untuk menguji state UI.",
+              "createdAt": "2026-09-24T04:00:00Z"
+            }
+          ]
+        },
+        "meta": {
+          "requestId": "fixture-report_verified"
+        }
+      }
+    },
+    {
+      "name": "report_in_progress",
+      "operationId": "getReport",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "id": "44444444-4444-4444-8444-444444444444",
+          "revision": 3,
+          "status": "in_progress",
+          "categoryId": "plastic",
+          "scanId": null,
+          "description": "Contoh sintetis tumpukan sampah untuk pengujian antarmuka.",
+          "reportedSeverity": "medium",
+          "location": {
+            "latitude": -6.2,
+            "longitude": 106.816
+          },
+          "occurredAt": "2026-09-23T04:00:00Z",
+          "createdAt": "2026-09-24T04:00:00Z",
+          "updatedAt": "2026-09-24T04:00:00Z",
+          "mediaIds": [
+            "22222222-2222-4222-8222-222222222222"
+          ],
+          "resolutionMediaIds": [],
+          "publicSummary": "Ringkasan laporan contoh terverifikasi.",
+          "publishedMediaIds": [],
+          "duplicateOfId": null,
+          "timeline": [
+            {
+              "id": "55555555-5555-4555-8555-555555555555",
+              "status": "submitted",
+              "note": "Laporan diterima untuk diperiksa.",
+              "createdAt": "2026-09-24T04:00:00Z"
+            },
+            {
+              "id": "77777777-7777-4777-8777-777777777777",
+              "status": "in_progress",
+              "note": "Keputusan contoh untuk menguji state UI.",
+              "createdAt": "2026-09-24T04:00:00Z"
+            }
+          ]
+        },
+        "meta": {
+          "requestId": "fixture-report_in_progress"
+        }
+      }
+    },
+    {
+      "name": "report_resolved",
+      "operationId": "getReport",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "id": "44444444-4444-4444-8444-444444444444",
+          "revision": 4,
+          "status": "resolved",
+          "categoryId": "plastic",
+          "scanId": null,
+          "description": "Contoh sintetis tumpukan sampah untuk pengujian antarmuka.",
+          "reportedSeverity": "medium",
+          "location": {
+            "latitude": -6.2,
+            "longitude": 106.816
+          },
+          "occurredAt": "2026-09-23T04:00:00Z",
+          "createdAt": "2026-09-24T04:00:00Z",
+          "updatedAt": "2026-09-24T04:00:00Z",
+          "mediaIds": [
+            "22222222-2222-4222-8222-222222222222"
+          ],
+          "resolutionMediaIds": [
+            "22222222-2222-4222-8222-222222222222"
+          ],
+          "publicSummary": "Ringkasan laporan contoh terverifikasi.",
+          "publishedMediaIds": [],
+          "duplicateOfId": null,
+          "timeline": [
+            {
+              "id": "55555555-5555-4555-8555-555555555555",
+              "status": "submitted",
+              "note": "Laporan diterima untuk diperiksa.",
+              "createdAt": "2026-09-24T04:00:00Z"
+            },
+            {
+              "id": "77777777-7777-4777-8777-777777777777",
+              "status": "resolved",
+              "note": "Keputusan contoh untuk menguji state UI.",
+              "createdAt": "2026-09-24T04:00:00Z"
+            }
+          ]
+        },
+        "meta": {
+          "requestId": "fixture-report_resolved"
+        }
+      }
+    },
+    {
+      "name": "report_rejected",
+      "operationId": "getReport",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "id": "44444444-4444-4444-8444-444444444444",
+          "revision": 5,
+          "status": "rejected",
+          "categoryId": "plastic",
+          "scanId": null,
+          "description": "Contoh sintetis tumpukan sampah untuk pengujian antarmuka.",
+          "reportedSeverity": "medium",
+          "location": {
+            "latitude": -6.2,
+            "longitude": 106.816
+          },
+          "occurredAt": "2026-09-23T04:00:00Z",
+          "createdAt": "2026-09-24T04:00:00Z",
+          "updatedAt": "2026-09-24T04:00:00Z",
+          "mediaIds": [
+            "22222222-2222-4222-8222-222222222222"
+          ],
+          "resolutionMediaIds": [],
+          "publicSummary": null,
+          "publishedMediaIds": [],
+          "duplicateOfId": null,
+          "timeline": [
+            {
+              "id": "55555555-5555-4555-8555-555555555555",
+              "status": "submitted",
+              "note": "Laporan diterima untuk diperiksa.",
+              "createdAt": "2026-09-24T04:00:00Z"
+            },
+            {
+              "id": "77777777-7777-4777-8777-777777777777",
+              "status": "rejected",
+              "note": "Keputusan contoh untuk menguji state UI.",
+              "createdAt": "2026-09-24T04:00:00Z"
+            }
+          ]
+        },
+        "meta": {
+          "requestId": "fixture-report_rejected"
+        }
+      }
+    },
+    {
+      "name": "report_duplicate",
+      "operationId": "getReport",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "id": "44444444-4444-4444-8444-444444444444",
+          "revision": 6,
+          "status": "duplicate",
+          "categoryId": "plastic",
+          "scanId": null,
+          "description": "Contoh sintetis tumpukan sampah untuk pengujian antarmuka.",
+          "reportedSeverity": "medium",
+          "location": {
+            "latitude": -6.2,
+            "longitude": 106.816
+          },
+          "occurredAt": "2026-09-23T04:00:00Z",
+          "createdAt": "2026-09-24T04:00:00Z",
+          "updatedAt": "2026-09-24T04:00:00Z",
+          "mediaIds": [
+            "22222222-2222-4222-8222-222222222222"
+          ],
+          "resolutionMediaIds": [],
+          "publicSummary": null,
+          "publishedMediaIds": [],
+          "duplicateOfId": "66666666-6666-4666-8666-666666666666",
+          "timeline": [
+            {
+              "id": "55555555-5555-4555-8555-555555555555",
+              "status": "submitted",
+              "note": "Laporan diterima untuk diperiksa.",
+              "createdAt": "2026-09-24T04:00:00Z"
+            },
+            {
+              "id": "77777777-7777-4777-8777-777777777777",
+              "status": "duplicate",
+              "note": "Keputusan contoh untuk menguji state UI.",
+              "createdAt": "2026-09-24T04:00:00Z"
+            }
+          ]
+        },
+        "meta": {
+          "requestId": "fixture-report_duplicate"
+        }
+      }
+    },
+    {
+      "name": "areas_high",
+      "operationId": "listAreas",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "type": "FeatureCollection",
+          "features": [
+            {
+              "type": "Feature",
+              "id": "896528c9b13ffff",
+              "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                  [
+                    [
+                      106.816,
+                      -6.2
+                    ],
+                    [
+                      106.817,
+                      -6.199
+                    ],
+                    [
+                      106.818,
+                      -6.2
+                    ],
+                    [
+                      106.818,
+                      -6.201
+                    ],
+                    [
+                      106.817,
+                      -6.202
+                    ],
+                    [
+                      106.816,
+                      -6.201
+                    ],
+                    [
+                      106.816,
+                      -6.2
+                    ]
+                  ]
+                ]
+              },
+              "properties": {
+                "cellId": "896528c9b13ffff",
+                "riskLevel": "high",
+                "incidentCount": 5,
+                "openIncidentCount": 3,
+                "resolvedIncidentCount": 2,
+                "distinctDays": 3
+              }
+            }
+          ],
+          "from": "2026-08-25T04:00:00Z",
+          "to": "2026-09-24T04:00:00Z",
+          "asOf": "2026-09-24T04:00:00Z",
+          "methodVersion": "reports-h3-v1",
+          "isStale": false
+        },
+        "meta": {
+          "requestId": "fixture-areas_high"
+        }
+      }
+    },
+    {
+      "name": "areas_empty",
+      "operationId": "listAreas",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "type": "FeatureCollection",
+          "features": [],
+          "from": "2026-08-25T04:00:00Z",
+          "to": "2026-09-24T04:00:00Z",
+          "asOf": "2026-09-24T04:00:00Z",
+          "methodVersion": "reports-h3-v1",
+          "isStale": false
+        },
+        "meta": {
+          "requestId": "fixture-areas_empty"
+        }
+      }
+    },
+    {
+      "name": "areas_stale",
+      "operationId": "listAreas",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "type": "FeatureCollection",
+          "features": [
+            {
+              "type": "Feature",
+              "id": "896528c9b13ffff",
+              "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                  [
+                    [
+                      106.816,
+                      -6.2
+                    ],
+                    [
+                      106.817,
+                      -6.199
+                    ],
+                    [
+                      106.818,
+                      -6.2
+                    ],
+                    [
+                      106.818,
+                      -6.201
+                    ],
+                    [
+                      106.817,
+                      -6.202
+                    ],
+                    [
+                      106.816,
+                      -6.201
+                    ],
+                    [
+                      106.816,
+                      -6.2
+                    ]
+                  ]
+                ]
+              },
+              "properties": {
+                "cellId": "896528c9b13ffff",
+                "riskLevel": "high",
+                "incidentCount": 5,
+                "openIncidentCount": 3,
+                "resolvedIncidentCount": 2,
+                "distinctDays": 3
+              }
+            }
+          ],
+          "from": "2026-08-25T04:00:00Z",
+          "to": "2026-09-24T04:00:00Z",
+          "asOf": "2026-09-24T04:00:00Z",
+          "methodVersion": "reports-h3-v1",
+          "isStale": true
+        },
+        "meta": {
+          "requestId": "fixture-areas_stale"
+        }
+      }
+    },
+    {
+      "name": "area_detail",
+      "operationId": "getArea",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "feature": {
+            "type": "Feature",
+            "id": "896528c9b13ffff",
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [
+                  [
+                    106.816,
+                    -6.2
+                  ],
+                  [
+                    106.817,
+                    -6.199
+                  ],
+                  [
+                    106.818,
+                    -6.2
+                  ],
+                  [
+                    106.818,
+                    -6.201
+                  ],
+                  [
+                    106.817,
+                    -6.202
+                  ],
+                  [
+                    106.816,
+                    -6.201
+                  ],
+                  [
+                    106.816,
+                    -6.2
+                  ]
+                ]
+              ]
+            },
+            "properties": {
+              "cellId": "896528c9b13ffff",
+              "riskLevel": "high",
+              "incidentCount": 5,
+              "openIncidentCount": 3,
+              "resolvedIncidentCount": 2,
+              "distinctDays": 3
+            }
+          },
+          "from": "2026-08-25T04:00:00Z",
+          "to": "2026-09-24T04:00:00Z",
+          "asOf": "2026-09-24T04:00:00Z",
+          "methodVersion": "reports-h3-v1",
+          "isStale": false
+        },
+        "meta": {
+          "requestId": "fixture-area_detail"
+        }
+      }
+    },
+    {
+      "name": "area_reports",
+      "operationId": "listAreaReports",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "items": [
+            {
+              "id": "44444444-4444-4444-8444-444444444444",
+              "status": "verified",
+              "categoryId": "plastic",
+              "occurredAt": "2026-09-23T04:00:00Z",
+              "summary": "Contoh laporan publik tanpa identitas pelapor.",
+              "publicMediaUrl": null
+            }
+          ],
+          "nextCursor": null
+        },
+        "meta": {
+          "requestId": "fixture-area_reports"
+        }
+      }
+    },
+    {
+      "name": "stats",
+      "operationId": "getStats",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "totalScans": 3,
+          "classifiedScans": 1,
+          "ecoPoints": 10,
+          "streakDays": 1,
+          "verifiedReports": 0,
+          "resolvedReports": 0,
+          "categoryCounts": [
+            {
+              "categoryId": "battery",
+              "count": 0
+            },
+            {
+              "categoryId": "biological",
+              "count": 0
+            },
+            {
+              "categoryId": "cardboard",
+              "count": 0
+            },
+            {
+              "categoryId": "clothes",
+              "count": 0
+            },
+            {
+              "categoryId": "glass",
+              "count": 0
+            },
+            {
+              "categoryId": "metal",
+              "count": 0
+            },
+            {
+              "categoryId": "paper",
+              "count": 0
+            },
+            {
+              "categoryId": "plastic",
+              "count": 1
+            },
+            {
+              "categoryId": "shoes",
+              "count": 0
+            },
+            {
+              "categoryId": "trash",
+              "count": 0
+            }
+          ]
+        },
+        "meta": {
+          "requestId": "fixture-stats"
+        }
+      }
+    },
+    {
+      "name": "unauthorized",
+      "operationId": "getMe",
+      "httpStatus": 401,
+      "response": {
+        "error": {
+          "code": "AUTH_REQUIRED",
+          "message": "Pesan contoh untuk state unauthorized"
+        },
+        "meta": {
+          "requestId": "fixture-unauthorized"
+        }
+      }
+    },
+    {
+      "name": "forbidden",
+      "operationId": "listAdminReports",
+      "httpStatus": 403,
+      "response": {
+        "error": {
+          "code": "FORBIDDEN",
+          "message": "Pesan contoh untuk state forbidden"
+        },
+        "meta": {
+          "requestId": "fixture-forbidden"
+        }
+      }
+    },
+    {
+      "name": "conflict",
+      "operationId": "updateReport",
+      "httpStatus": 409,
+      "response": {
+        "error": {
+          "code": "REVISION_CONFLICT",
+          "message": "Pesan contoh untuk state conflict"
+        },
+        "meta": {
+          "requestId": "fixture-conflict"
+        }
+      }
+    },
+    {
+      "name": "invalid",
+      "operationId": "createReport",
+      "httpStatus": 422,
+      "response": {
+        "error": {
+          "code": "REPORT_INVALID",
+          "message": "Pesan contoh untuk state invalid"
+        },
+        "meta": {
+          "requestId": "fixture-invalid"
+        }
+      }
+    },
+    {
+      "name": "rate_limit",
+      "operationId": "createScan",
+      "httpStatus": 429,
+      "response": {
+        "error": {
+          "code": "RATE_LIMITED",
+          "message": "Pesan contoh untuk state rate_limit"
+        },
+        "meta": {
+          "requestId": "fixture-rate_limit"
+        }
+      }
+    },
+    {
+      "name": "ml_unavailable",
+      "operationId": "createScan",
+      "httpStatus": 503,
+      "response": {
+        "error": {
+          "code": "ML_UNAVAILABLE",
+          "message": "Pesan contoh untuk state ml_unavailable"
+        },
+        "meta": {
+          "requestId": "fixture-ml_unavailable"
+        }
+      }
+    }
+  ]
+}
