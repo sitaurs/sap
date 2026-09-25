@@ -8,6 +8,7 @@ import { SessionAuthGuard } from '../auth/session-auth.guard.js';
 import { AdminController } from './admin.controller.js';
 import { AdminGuard } from './admin.guard.js';
 import { AdminService } from './admin.service.js';
+import { AuditRepository } from './audit.repository.js';
 import { ModerationRepository } from './moderation.repository.js';
 
 @Module({
@@ -16,6 +17,7 @@ import { ModerationRepository } from './moderation.repository.js';
   providers: [
     AdminService,
     ModerationRepository,
+    AuditRepository,
     ReportRepository,
     IdempotencyStore,
     MediaRepository,

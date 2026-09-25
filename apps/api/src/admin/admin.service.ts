@@ -9,13 +9,20 @@ import { MediaRepository } from '../media/media.repository.js';
 import { DEFAULT_REPORTS_PAGE, type ReportPageView } from '../reports/reports.service.js';
 import { toReportView, type ReportStatus, type ReportView } from '../reports/report.types.js';
 import { ModerationRepository } from './moderation.repository.js';
+import { AuditRepository, type AuditEventView } from './audit.repository.js';
 import type { DecisionInputDto } from './dto.js';
 import type { AdminStatsView, DuplicateCandidateView } from './moderation.types.js';
 
 export const DECISIONS_ROUTE = 'POST /admin/reports/decisions';
+export const DEFAULT_AUDIT_PAGE = 20;
 
 export interface DuplicateCandidatePageView {
   items: DuplicateCandidateView[];
+  nextCursor: string | null;
+}
+
+export interface AuditEventPageView {
+  items: AuditEventView[];
   nextCursor: string | null;
 }
 
@@ -24,6 +31,7 @@ export class AdminService {
   constructor(
     private readonly moderation: ModerationRepository,
     private readonly media: MediaRepository,
+    private readonly audit: AuditRepository,
   ) {}
 
   async decideReport(
@@ -135,6 +143,14 @@ export class AdminService {
 
   getAdminStats(): Promise<AdminStatsView> {
     return this.moderation.adminStats();
+  }
+
+  async listAuditEvents(limit: number | undefined, cursor: string | undefined): Promise<AuditEventPageView> {
+    const pageSize = limit ?? DEFAULT_AUDIT_PAGE;
+    const rows = await this.audit.listAuditEvents(pageSize + 1, cursor ?? null);
+    const page = rows.slice(0, pageSize);
+    const nextCursor = rows.length > pageSize ? page[page.length - 1]!.id : null;
+    return { items: page, nextCursor };
   }
 
   private async assertOwnedResolutionMedia(actorId: string, mediaIds: string[]): Promise<void> {

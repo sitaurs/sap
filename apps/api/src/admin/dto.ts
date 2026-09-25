@@ -68,3 +68,17 @@ export class ListAdminReportsQueryDto {
   @IsIn(STATUSES)
   status?: (typeof STATUSES)[number];
 }
+
+/** Query for listAuditEvents (keyset pagination only). */
+export class ListAuditEventsQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+}

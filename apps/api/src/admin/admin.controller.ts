@@ -17,7 +17,7 @@ import { CurrentUser } from '../auth/current-user.decorator.js';
 import { SessionAuthGuard } from '../auth/session-auth.guard.js';
 import { AdminGuard } from './admin.guard.js';
 import { AdminService } from './admin.service.js';
-import { DecisionInputDto, ListAdminReportsQueryDto } from './dto.js';
+import { DecisionInputDto, ListAdminReportsQueryDto, ListAuditEventsQueryDto } from './dto.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const REVISION_RE = /^[1-9][0-9]*$/;
@@ -62,5 +62,11 @@ export class AdminController {
   @HttpCode(200)
   stats() {
     return this.admin.getAdminStats();
+  }
+
+  @Get('audit')
+  @HttpCode(200)
+  audit(@Query() query: ListAuditEventsQueryDto) {
+    return this.admin.listAuditEvents(query.limit, query.cursor);
   }
 }

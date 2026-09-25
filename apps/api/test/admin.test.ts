@@ -12,6 +12,7 @@ import {
   requiresInitialPublicSummary,
 } from '../src/admin/moderation.types.js';
 import type { DecideResult } from '../src/admin/moderation.repository.js';
+import type { AuditEventView } from '../src/admin/audit.repository.js';
 import type { DecisionInputDto } from '../src/admin/dto.js';
 import type { ReportRecord, ReportStatus, ReportView } from '../src/reports/report.types.js';
 
@@ -31,6 +32,7 @@ function makeService(opts: {
   mediaPurpose?: 'scan' | 'report' | 'resolution';
   candidates?: unknown[] | null;
   listRows?: ReportRecord[];
+  auditRows?: AuditEventView[];
 } = {}) {
   const decideArgs: unknown[] = [];
   const moderation = {
@@ -52,7 +54,10 @@ function makeService(opts: {
     findStoredForOwner: async (id: string) =>
       opts.ownedMedia === false ? null : { id, ownerId: 'admin', purpose: opts.mediaPurpose ?? 'resolution' },
   };
-  const service = new AdminService(moderation as never, media as never);
+  const audit = {
+    listAuditEvents: async (limit: number) => (opts.auditRows ?? []).slice(0, limit),
+  };
+  const service = new AdminService(moderation as never, media as never, audit as never);
   return { service, decideArgs };
 }
 
@@ -211,6 +216,25 @@ test('listAdminReports reports nextCursor only when another page exists', async 
 test('listDuplicateCandidates surfaces an unknown report as NOT_FOUND', async () => {
   const { service } = makeService({ candidates: null });
   await assert.rejects(service.listDuplicateCandidates(REPORT), (e) => errorCode(e) === 'NOT_FOUND');
+});
+
+test('listAuditEvents pages by id and drops the redacted overflow row', async () => {
+  const event = (id: string): AuditEventView => ({
+    id,
+    action: 'report.decision',
+    targetId: REPORT,
+    actorDisplayName: 'Admin',
+    createdAt: '2026-09-25T00:00:00.000Z',
+  });
+  const rows = [event('a0'), event('a1'), event('a2')];
+  const more = makeService({ auditRows: rows });
+  const page = await more.service.listAuditEvents(2, undefined);
+  assert.equal(page.items.length, 2);
+  assert.equal(page.nextCursor, 'a1');
+
+  const exact = makeService({ auditRows: rows.slice(0, 2) });
+  const page2 = await exact.service.listAuditEvents(2, undefined);
+  assert.equal(page2.nextCursor, null);
 });
 
 // --- AdminGuard --------------------------------------------------------------
