@@ -228,3 +228,27 @@ test('provider raises ProviderUnavailableError on non-JSON model output', async 
     globalThis.fetch = originalFetch;
   }
 });
+
+test('provider requests a non-streaming body and parses fenced JSON', async () => {
+  const provider = new AssistantProvider();
+  const originalFetch = globalThis.fetch;
+  let sentBody: Record<string, unknown> = {};
+  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+    sentBody = JSON.parse(String(init.body));
+    // A model that wraps its JSON in a ```json fence must still parse cleanly.
+    return new Response(
+      JSON.stringify({
+        choices: [{ message: { content: '```json\n{"reply":"Halo","suggestedActions":[]}\n```' } }],
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    );
+  }) as typeof fetch;
+  try {
+    const reply = await provider.complete([{ role: 'user', content: 'hi' }]);
+    assert.equal(sentBody.stream, false, 'must force stream:false so SSE gateways return one JSON body');
+    assert.equal(reply.reply, 'Halo');
+    assert.equal(reply.suggestedActions.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

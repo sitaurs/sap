@@ -51,6 +51,9 @@ export class AssistantProvider {
           model,
           temperature: this.config.SAPA_LLM_TEMPERATURE,
           max_tokens: this.config.SAPA_LLM_MAX_OUTPUT_TOKENS,
+          // Force a single JSON body: some OpenAI-compatible gateways stream SSE
+          // by default, which would make response.json() fail.
+          stream: false,
           response_format: { type: 'json_object' },
           messages,
         }),
@@ -94,7 +97,7 @@ export class AssistantProvider {
   private parseReply(content: string): AssistantReply {
     let parsed: unknown;
     try {
-      parsed = JSON.parse(content);
+      parsed = JSON.parse(this.stripCodeFence(content));
     } catch {
       throw new ProviderUnavailableError('model did not return JSON');
     }
@@ -106,6 +109,19 @@ export class AssistantProvider {
       reply: reply.trim(),
       suggestedActions: this.sanitizeActions((parsed as { suggestedActions?: unknown }).suggestedActions),
     };
+  }
+
+  /**
+   * Strip a ```json ... ``` (or plain ``` ... ```) markdown fence some models
+   * wrap JSON in, so JSON.parse sees the raw object.
+   */
+  private stripCodeFence(content: string): string {
+    const trimmed = content.trim();
+    if (!trimmed.startsWith('```')) return trimmed;
+    return trimmed
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/, '')
+      .trim();
   }
 
   /**
