@@ -41,6 +41,8 @@ test('mapPrediction maps no_waste with null category and no predictions', () => 
 });
 
 test('mapPrediction maps Unknown/Mixed to unknown outcome', () => {
+  // The live provider emits the combined `Unknown/Mixed` label (ML_INTEGRATION.md §2).
+  assert.equal(mapPrediction({ label: 'Unknown/Mixed', confidences: [] }).outcome, 'unknown');
   assert.equal(mapPrediction({ label: 'Unknown', confidences: [] }).outcome, 'unknown');
   assert.equal(mapPrediction({ label: 'Mixed', confidences: [] }).outcome, 'unknown');
 });

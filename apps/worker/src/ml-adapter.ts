@@ -56,8 +56,11 @@ export function mapPrediction(pred: MlPrediction): Omit<AdapterResult, 'provider
   if (label === 'no_waste') {
     return { outcome: 'no_waste', categoryId: null, predictions: [] };
   }
+  // The provider emits the combined label `Unknown/Mixed` (ML_INTEGRATION.md §2
+  // label table) for the ambiguous class; accept it and the standalone
+  // `unknown`/`mixed` variants, all mapping to outcome=unknown.
   const normalized = label.toLowerCase();
-  if (normalized === 'unknown' || normalized === 'mixed') {
+  if (normalized === 'unknown' || normalized === 'mixed' || normalized === 'unknown/mixed') {
     return { outcome: 'unknown', categoryId: null, predictions };
   }
   throw new MlError('ML_INVALID_RESPONSE', `unrecognised label: ${label || '(empty)'}`);
