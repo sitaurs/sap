@@ -218,6 +218,15 @@ export class ReportRepository {
     });
   }
 
+  /** Assemble a full report record (row + media + timeline) using any executor. */
+  async readRecord(reportId: string, exec: Database | Tx = this.sql): Promise<ReportRecord | null> {
+    const rows = await exec<ReportRow[]>`SELECT ${REPORT_COLUMNS(exec)} FROM reports WHERE id = ${reportId} LIMIT 1`;
+    const row = rows[0];
+    if (!row) return null;
+    const [media, timeline] = await Promise.all([this.loadMedia([reportId], exec), this.loadTimeline([reportId], exec)]);
+    return this.assemble(row, media, timeline);
+  }
+
   private async loadMedia(
     reportIds: string[],
     exec: Database | Tx = this.sql,
