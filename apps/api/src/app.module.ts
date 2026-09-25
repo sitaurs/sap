@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module.js';
+import { GamificationModule } from './gamification/gamification.module.js';
 import { HealthController } from './health/health.controller.js';
 import { HealthService } from './health/health.service.js';
 import { DatabaseModule } from './infrastructure/database.module.js';
@@ -7,7 +8,7 @@ import { MediaModule } from './media/media.module.js';
 import { ScansModule } from './scans/scans.module.js';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, MediaModule, ScansModule],
+  imports: [DatabaseModule, AuthModule, MediaModule, ScansModule, GamificationModule],
   controllers: [HealthController],
   providers: [HealthService],
 })
