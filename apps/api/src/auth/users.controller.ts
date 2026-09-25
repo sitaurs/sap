@@ -5,7 +5,7 @@ import { AuthService } from './auth.service.js';
 import { CsrfService } from './csrf.service.js';
 import { CurrentSession, CurrentUser } from './current-user.decorator.js';
 import { deletionCookie } from './deletion-cookie.js';
-import { DeleteInputDto, ProfileInputDto } from './dto.js';
+import { DeleteInputDto, PreferencesInputDto, ProfileInputDto } from './dto.js';
 import { SessionAuthGuard } from './session-auth.guard.js';
 import { SessionService } from '../session/session.service.js';
 
@@ -21,6 +21,13 @@ export class UsersController {
   @Patch('me')
   updateMe(@CurrentUser() user: AuthenticatedUser, @Body() dto: ProfileInputDto) {
     return this.auth.updateDisplayName(user.id, dto.displayName);
+  }
+
+  @Patch('me/preferences')
+  updatePreferences(@CurrentUser() user: AuthenticatedUser, @Body() dto: PreferencesInputDto) {
+    // Identity comes from the verified session, never the body. Only the SAPA
+    // preference flag is writable here (addendum v1.1).
+    return this.auth.updateSapaPreference(user.id, dto.sapaEnabled);
   }
 
   @Delete('me')

@@ -4,7 +4,7 @@ import { SessionService } from '../session/session.service.js';
 import { SessionRepository } from '../session/session.repository.js';
 import { UsersRepository } from '../users/users.repository.js';
 import { AuthCryptoService } from './auth-crypto.js';
-import type { ChallengePurpose, ChallengeRecord, DeletionRecord, UserView } from './auth.types.js';
+import type { ChallengePurpose, ChallengeRecord, DeletionRecord, UserRecord, UserView } from './auth.types.js';
 import { toUserView } from './auth.types.js';
 import { ChallengeRepository } from './challenge.repository.js';
 import { DeletionRepository } from './deletion.repository.js';
@@ -161,6 +161,13 @@ export class AuthService {
     return toUserView(updated);
   }
 
+  /** Persist the SAPA preference for the session owner; returns just the flag. */
+  async updateSapaPreference(userId: string, sapaEnabled: boolean): Promise<{ sapaEnabled: boolean }> {
+    const updated = await this.users.updateSapaEnabled(userId, sapaEnabled);
+    if (!updated) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Akun tidak ditemukan.' });
+    return { sapaEnabled: updated.sapaEnabled };
+  }
+
   async deleteAccount(input: { userId: string; reauthenticatedAt: Date | null }): Promise<DeleteAccountResult> {
     if (!this.isReauthFresh(input.reauthenticatedAt)) {
       throw new ForbiddenException({ code: 'FORBIDDEN', message: 'Reautentikasi diperlukan sebelum menghapus akun.' });
@@ -191,7 +198,7 @@ export class AuthService {
     return this.toDeletionResult(deletion);
   }
 
-  private async startSession(user: { id: string; emailNormalized: string; displayName: string; role: 'user' | 'admin'; emailVerifiedAt: Date | null; passwordHash: string | null; deletedAt: Date | null }): Promise<SessionResult> {
+  private async startSession(user: UserRecord): Promise<SessionResult> {
     const token = this.sessionService.createToken();
     await this.sessions.create({ userId: user.id, tokenHash: token.tokenHash, expiresAt: token.expiresAt });
     return { user: toUserView(user), sessionToken: token.token, sessionTokenHash: token.tokenHash };

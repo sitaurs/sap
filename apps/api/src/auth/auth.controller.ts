@@ -74,6 +74,7 @@ export class AuthController {
       email: user.email,
       role: user.role,
       emailVerified: user.emailVerified,
+      sapaEnabled: user.sapaEnabled,
     };
   }
 

@@ -1,4 +1,4 @@
-import { Equals, IsEmail, IsString, IsUUID, Length, Matches, MaxLength } from 'class-validator';
+import { Equals, IsBoolean, IsEmail, IsString, IsUUID, Length, Matches, MaxLength } from 'class-validator';
 
 const OTP_PATTERN = /^[0-9]{6}$/;
 
@@ -59,6 +59,12 @@ export class ProfileInputDto {
   @IsString()
   @Length(2, 80)
   displayName!: string;
+}
+
+/** PATCH /users/me/preferences body. Only the SAPA flag may be set; extra keys are rejected. */
+export class PreferencesInputDto {
+  @IsBoolean()
+  sapaEnabled!: boolean;
 }
 
 export class DeleteInputDto {

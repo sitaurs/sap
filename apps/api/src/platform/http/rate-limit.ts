@@ -31,6 +31,7 @@ function intFromEnv(name: string, fallback: number): number {
 
 const HOUR_MS = 60 * 60 * 1_000;
 const DAY_MS = 24 * HOUR_MS;
+const MINUTE_MS = 60 * 1_000;
 
 export const SCAN_RATE_LIMIT: RateLimitWindow = {
   limit: intFromEnv('SCAN_RATE_LIMIT_PER_HOUR', 10),
@@ -40,6 +41,13 @@ export const SCAN_RATE_LIMIT: RateLimitWindow = {
 export const REPORT_RATE_LIMIT: RateLimitWindow = {
   limit: intFromEnv('REPORT_RATE_LIMIT_PER_DAY', 10),
   windowMs: DAY_MS,
+};
+
+// SAPA chat is per-account and per-minute so a paid LLM provider is shielded
+// from retry storms and abuse (SAPA_ASSISTANT.md §10).
+export const SAPA_CHAT_RATE_LIMIT: RateLimitWindow = {
+  limit: intFromEnv('SAPA_CHAT_RATE_LIMIT_PER_MINUTE', 20),
+  windowMs: MINUTE_MS,
 };
 
 /** Pure decision: allowed while under limit; otherwise compute Retry-After. */

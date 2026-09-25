@@ -2687,6 +2687,172 @@
         }
       }
     },
+    "/users/me/preferences": {
+      "patch": {
+        "operationId": "updatePreferences",
+        "summary": "Simpan preferensi akun (sakelar SAPA)",
+        "tags": [
+          "users"
+        ],
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Nilai dari getCsrf; cocok cookie/token terverifikasi."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserPreferencesInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserPreferencesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden or CSRF invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "422": {
+            "description": "Domain validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Detik sebelum retry."
+              },
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          }
+        },
+        "x-required-role": "user"
+      }
+    },
     "/account-deletion": {
       "get": {
         "operationId": "getDeletionStatus",
@@ -7724,6 +7890,338 @@
         "x-required-role": "admin"
       }
     },
+    "/assistant/chat": {
+      "post": {
+        "operationId": "assistantChat",
+        "summary": "Kirim satu pesan ke SAPA dan terima jawaban + saran halaman",
+        "tags": [
+          "assistant"
+        ],
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Nilai dari getCsrf; cocok cookie/token terverifikasi."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantChatInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantChatResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required (AUTH_REQUIRED / SESSION_EXPIRED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "403": {
+            "description": "CSRF invalid atau SAPA dimatikan pengguna (ASSISTANT_DISABLED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "404": {
+            "description": "Conversation not found (CONVERSATION_NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "422": {
+            "description": "Pesan kosong/terlalu panjang atau pageContext tidak dikenal (ASSISTANT_MESSAGE_INVALID)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited (RATE_LIMITED)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Detik sebelum retry."
+              },
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "503": {
+            "description": "Feature flag mati atau provider tidak tersedia (ASSISTANT_UNAVAILABLE)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          }
+        },
+        "x-required-role": "user"
+      }
+    },
+    "/assistant/conversations/{conversationId}": {
+      "delete": {
+        "operationId": "deleteAssistantConversation",
+        "summary": "Hapus konteks percakapan sementara milik pengguna",
+        "tags": [
+          "assistant"
+        ],
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "ID opaque percakapan yang dikeluarkan server."
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Nilai dari getCsrf; cocok cookie/token terverifikasi."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AckResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden or CSRF invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "404": {
+            "description": "Conversation not found atau bukan milik pengguna (CONVERSATION_NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Detik sebelum retry."
+              },
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          }
+        },
+        "x-required-role": "user"
+      }
+    },
     "/health": {
       "get": {
         "operationId": "getHealth",
@@ -8042,6 +8540,10 @@
           },
           "emailVerified": {
             "type": "boolean"
+          },
+          "sapaEnabled": {
+            "type": "boolean",
+            "description": "Preferensi teman virtual SAPA. Default true untuk akun baru; UI membaca ini saat bootstrap. Lihat addendum SAPA_ASSISTANT.md."
           }
         },
         "required": [
@@ -8049,7 +8551,8 @@
           "displayName",
           "email",
           "role",
-          "emailVerified"
+          "emailVerified",
+          "sapaEnabled"
         ],
         "additionalProperties": false
       },
@@ -8221,6 +8724,128 @@
         },
         "required": [
           "password"
+        ],
+        "additionalProperties": false
+      },
+      "PageContext": {
+        "type": "string",
+        "description": "Halaman aplikasi tempat pesan SAPA dikirim; hanya untuk memilih saran yang relevan. Bukan identitas/otorisasi.",
+        "enum": [
+          "dashboard",
+          "scan",
+          "my_reports",
+          "areas",
+          "scan_history",
+          "achievements",
+          "settings",
+          "help"
+        ]
+      },
+      "AssistantTarget": {
+        "type": "string",
+        "description": "Rute internal yang disetujui untuk tombol saran SAPA. Frontend memetakan nilai ini ke route; bukan URL bebas.",
+        "enum": [
+          "dashboard",
+          "scan",
+          "my_reports",
+          "areas",
+          "scan_history",
+          "achievements",
+          "settings",
+          "help"
+        ]
+      },
+      "SuggestedAction": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "target": {
+            "$ref": "#/components/schemas/AssistantTarget"
+          }
+        },
+        "required": [
+          "label",
+          "target"
+        ],
+        "additionalProperties": false
+      },
+      "UserPreferences": {
+        "type": "object",
+        "properties": {
+          "sapaEnabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sapaEnabled"
+        ],
+        "additionalProperties": false
+      },
+      "UserPreferencesInput": {
+        "type": "object",
+        "description": "Hanya field preferensi yang boleh diubah. userId/role diambil dari session, tidak dari body.",
+        "properties": {
+          "sapaEnabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sapaEnabled"
+        ],
+        "additionalProperties": false
+      },
+      "AssistantChatInput": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "pageContext": {
+            "$ref": "#/components/schemas/PageContext"
+          },
+          "conversationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Null saat memulai percakapan; setelah itu pakai ID opaque dari server."
+          }
+        },
+        "required": [
+          "message",
+          "pageContext"
+        ],
+        "additionalProperties": false
+      },
+      "AssistantChat": {
+        "type": "object",
+        "properties": {
+          "conversationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reply": {
+            "type": "string"
+          },
+          "suggestedActions": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "$ref": "#/components/schemas/SuggestedAction"
+            }
+          }
+        },
+        "required": [
+          "conversationId",
+          "reply",
+          "suggestedActions"
         ],
         "additionalProperties": false
       },
@@ -9733,6 +10358,38 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/User"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "UserPreferencesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UserPreferences"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "AssistantChatResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AssistantChat"
           },
           "meta": {
             "$ref": "#/components/schemas/Meta"

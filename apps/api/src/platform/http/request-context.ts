@@ -7,6 +7,7 @@ export interface AuthenticatedUser {
   displayName: string;
   role: 'user' | 'admin';
   emailVerified: boolean;
+  sapaEnabled: boolean;
 }
 
 /** The session row backing the current request, resolved by the auth guard. */

@@ -41,7 +41,7 @@ interface Harness {
   };
   user: {
     id: string; emailNormalized: string; passwordHash: string | null; displayName: string;
-    role: 'user' | 'admin'; emailVerifiedAt: Date | null; deletedAt: Date | null;
+    role: 'user' | 'admin'; emailVerifiedAt: Date | null; sapaEnabled: boolean; deletedAt: Date | null;
   };
   revokedUsers: string[];
   deletedTokenHashes: string[];
@@ -55,7 +55,7 @@ async function makeHarness(purpose: 'verify_email' | 'reset_password' = 'verify_
   const user: Harness['user'] = {
     id: 'u1', emailNormalized: 'user@example.com', passwordHash: await passwords.hash('current-password-1'),
     displayName: 'User One', role: 'user', emailVerifiedAt: purpose === 'reset_password' ? new Date(now) : null,
-    deletedAt: null,
+    sapaEnabled: true, deletedAt: null,
   };
   const challenge: Harness['challenge'] = {
     id: 'ch-1', userId: 'u1', emailHash: crypto.hashEmail(user.emailNormalized), purpose,
@@ -70,6 +70,11 @@ async function makeHarness(purpose: 'verify_email' | 'reset_password' = 'verify_
     findActiveById: async (id: string) => (id === user.id ? user : null),
     markEmailVerified: async (id: string) => { if (id === user.id) user.emailVerifiedAt = new Date(); },
     updatePassword: async (id: string, hash: string) => { if (id === user.id) user.passwordHash = hash; },
+    updateSapaEnabled: async (id: string, sapaEnabled: boolean) => {
+      if (id !== user.id) return null;
+      user.sapaEnabled = sapaEnabled;
+      return user;
+    },
   };
   const sessions = {
     create: async () => {},
@@ -146,4 +151,21 @@ test('logout revokes the current session token', async () => {
   const h = await makeHarness('verify_email');
   await h.service.logout('token-hash-42');
   assert.deepEqual(h.deletedTokenHashes, ['token-hash-42']);
+});
+
+test('updateSapaPreference persists the flag and echoes it back', async () => {
+  const h = await makeHarness('verify_email');
+  const off = await h.service.updateSapaPreference('u1', false);
+  assert.equal(off.sapaEnabled, false);
+  assert.equal(h.user.sapaEnabled, false);
+  const on = await h.service.updateSapaPreference('u1', true);
+  assert.equal(on.sapaEnabled, true);
+});
+
+test('updateSapaPreference rejects an unknown account with NOT_FOUND', async () => {
+  const h = await makeHarness('verify_email');
+  await assert.rejects(
+    h.service.updateSapaPreference('nope', true),
+    (error) => errorCode(error) === 'NOT_FOUND',
+  );
 });

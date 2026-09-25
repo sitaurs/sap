@@ -9,6 +9,7 @@ interface UserRow {
   display_name: string;
   role: 'user' | 'admin';
   email_verified_at: Date | null;
+  sapa_enabled: boolean;
   deleted_at: Date | null;
 }
 
@@ -20,11 +21,12 @@ function mapUser(row: UserRow): UserRecord {
     displayName: row.display_name,
     role: row.role,
     emailVerifiedAt: row.email_verified_at,
+    sapaEnabled: row.sapa_enabled,
     deletedAt: row.deleted_at,
   };
 }
 
-const COLUMNS = 'id, email_normalized, password_hash, display_name, role, email_verified_at, deleted_at';
+const COLUMNS = 'id, email_normalized, password_hash, display_name, role, email_verified_at, sapa_enabled, deleted_at';
 
 @Injectable()
 export class UsersRepository {
@@ -77,6 +79,18 @@ export class UsersRepository {
   async updateDisplayName(userId: string, displayName: string): Promise<UserRecord | null> {
     const rows = await this.sql<UserRow[]>`
       UPDATE users SET display_name = ${displayName}, updated_at = now()
+      WHERE id = ${userId} AND deleted_at IS NULL
+      RETURNING ${this.sql.unsafe(COLUMNS)}`;
+    return rows[0] ? mapUser(rows[0]) : null;
+  }
+
+  /**
+   * Update only the SAPA preference flag for the owning account. The caller
+   * passes the id from the verified session, never from the request body.
+   */
+  async updateSapaEnabled(userId: string, sapaEnabled: boolean): Promise<UserRecord | null> {
+    const rows = await this.sql<UserRow[]>`
+      UPDATE users SET sapa_enabled = ${sapaEnabled}, updated_at = now()
       WHERE id = ${userId} AND deleted_at IS NULL
       RETURNING ${this.sql.unsafe(COLUMNS)}`;
     return rows[0] ? mapUser(rows[0]) : null;

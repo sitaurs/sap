@@ -15,6 +15,7 @@ interface SessionUserRow {
   u_display_name: string;
   u_role: 'user' | 'admin';
   u_email_verified_at: Date | null;
+  u_sapa_enabled: boolean;
   u_deleted_at: Date | null;
 }
 
@@ -40,6 +41,7 @@ function map(row: SessionUserRow): ResolvedSession {
       displayName: row.u_display_name,
       role: row.u_role,
       emailVerifiedAt: row.u_email_verified_at,
+      sapaEnabled: row.u_sapa_enabled,
       deletedAt: row.u_deleted_at,
     },
   };
@@ -61,7 +63,7 @@ export class SessionRepository {
       SELECT s.id, s.user_id, s.token_hash, s.expires_at, s.last_seen_at, s.reauthenticated_at,
              u.id AS u_id, u.email_normalized AS u_email_normalized, u.password_hash AS u_password_hash,
              u.display_name AS u_display_name, u.role AS u_role,
-             u.email_verified_at AS u_email_verified_at, u.deleted_at AS u_deleted_at
+             u.email_verified_at AS u_email_verified_at, u.sapa_enabled AS u_sapa_enabled, u.deleted_at AS u_deleted_at
       FROM sessions s
       JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = ${tokenHash} AND s.expires_at > now() AND u.deleted_at IS NULL

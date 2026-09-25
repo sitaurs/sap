@@ -21,6 +21,31 @@ test('accepts the canonical environment contract', () => {
   // DB readiness cold-start budget defaults when unset and coerces when provided.
   assert.equal(cfg.DB_HEALTH_TIMEOUT_MS, 10000);
   assert.equal(getConfig({ ...valid, DB_HEALTH_TIMEOUT_MS: '8000' }).DB_HEALTH_TIMEOUT_MS, 8000);
+  // SAPA defaults: kill switch off, provider fields optional, sane LLM defaults.
+  assert.equal(cfg.SAPA_FEATURE_ENABLED, false);
+  assert.equal(cfg.SAPA_LLM_BASE_URL, undefined);
+  assert.equal(cfg.SAPA_LLM_TIMEOUT_MS, 30000);
+  assert.equal(cfg.SAPA_LLM_MAX_OUTPUT_TOKENS, 500);
+  assert.equal(cfg.SAPA_LLM_TEMPERATURE, 0.3);
+});
+
+test('treats SAPA_FEATURE_ENABLED string tokens as real booleans', () => {
+  // z.coerce.boolean would make "false" truthy; the custom parser must not.
+  assert.equal(getConfig({ ...valid, SAPA_FEATURE_ENABLED: 'false' }).SAPA_FEATURE_ENABLED, false);
+  assert.equal(getConfig({ ...valid, SAPA_FEATURE_ENABLED: '0' }).SAPA_FEATURE_ENABLED, false);
+});
+
+test('requires the LLM provider trio when SAPA is enabled', () => {
+  assert.throws(() => getConfig({ ...valid, SAPA_FEATURE_ENABLED: 'true' }), /SAPA_LLM_BASE_URL/);
+  const enabled = getConfig({
+    ...valid,
+    SAPA_FEATURE_ENABLED: 'true',
+    SAPA_LLM_BASE_URL: 'https://llm.invalid/v1',
+    SAPA_LLM_API_KEY: 'sk-test-key',
+    SAPA_LLM_MODEL: 'test-model',
+  });
+  assert.equal(enabled.SAPA_FEATURE_ENABLED, true);
+  assert.equal(enabled.SAPA_LLM_MODEL, 'test-model');
 });
 
 test('rejects placeholders and short secrets', () => {

@@ -30,6 +30,12 @@ Status aktual ada di [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md); smoke
 | `ML_USERNAME`, `ML_PASSWORD` | Worker | HTTP Basic reverse proxy; secret |
 | `ML_TIMEOUT_MS` | Worker | `90000` baseline |
 | `DB_HEALTH_TIMEOUT_MS` | API | `10000`; cold-start budget probe readiness DB (Neon scale-to-zero) |
+| `SAPA_FEATURE_ENABLED` | API | `false` kill switch SAPA; `true` wajib set trio `SAPA_LLM_*` |
+| `SAPA_LLM_BASE_URL` | API | Base URL provider OpenAI-compatible (`{BASE_URL}/chat/completions`) |
+| `SAPA_LLM_API_KEY` | API | Bearer key provider; secret, hanya di env/secret manager |
+| `SAPA_LLM_MODEL` | API | Nama model chat completions |
+| `SAPA_LLM_TIMEOUT_MS`, `SAPA_LLM_MAX_OUTPUT_TOKENS`, `SAPA_LLM_TEMPERATURE` | API | `30000` / `500` / `0.3` |
+| `SAPA_CHAT_RATE_LIMIT_PER_MINUTE` | API | `20`; throttle chat per akun |
 | `NEXT_PUBLIC_MAP_STYLE_URL` | Web | Style/tiles; browser key harus scoped |
 | `CONTRACT_VERSION` | API/web | `1.0.0` |
 | `NODE_ENV`, `LOG_LEVEL` | Server | Runtime |

@@ -17,6 +17,15 @@ const urlWithProtocols = (protocols: readonly string[]) =>
 
 const emptyToUndefined = (value: unknown) => (value === '' ? undefined : value);
 
+// SAPA_FEATURE_ENABLED and similar flags arrive as strings from the environment.
+// z.coerce.boolean() treats any non-empty string (including "false") as true, so
+// map the common truthy tokens explicitly and treat everything else as false.
+const booleanFromEnv = z.preprocess((value) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
+  return value;
+}, z.boolean());
+
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
@@ -49,6 +58,16 @@ const schema = z.object({
   // routinely exceeds a 3s fast probe. The health check probes fast first and
   // only spends this longer budget on a cold-start retry.
   DB_HEALTH_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
+  // SAPA virtual assistant (addendum v1.1, SAPA_ASSISTANT.md). Global kill switch;
+  // when false the chat route returns 503 ASSISTANT_UNAVAILABLE and the UI hides
+  // the pet. LLM settings are only required when the flag is on (see superRefine).
+  SAPA_FEATURE_ENABLED: booleanFromEnv.default(false),
+  SAPA_LLM_BASE_URL: z.preprocess(emptyToUndefined, urlWithProtocols(['http:', 'https:']).optional()),
+  SAPA_LLM_API_KEY: z.preprocess(emptyToUndefined, nonPlaceholder.optional()),
+  SAPA_LLM_MODEL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  SAPA_LLM_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
+  SAPA_LLM_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(64).max(4000).default(500),
+  SAPA_LLM_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.3),
   NEXT_PUBLIC_MAP_STYLE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
 }).superRefine((value, context) => {
   if (value.SESSION_SECRET === value.CSRF_SECRET) {
@@ -58,6 +77,15 @@ const schema = z.object({
     for (const field of ['APP_ORIGIN', 'API_INTERNAL_URL'] as const) {
       if (new URL(value[field]).protocol !== 'https:') {
         context.addIssue({ code: 'custom', path: [field], message: 'must use HTTPS in production' });
+      }
+    }
+  }
+  // When SAPA is switched on, the OpenAI-compatible provider must be fully
+  // configured, otherwise every chat call would fall straight through to 503.
+  if (value.SAPA_FEATURE_ENABLED) {
+    for (const field of ['SAPA_LLM_BASE_URL', 'SAPA_LLM_API_KEY', 'SAPA_LLM_MODEL'] as const) {
+      if (!value[field]) {
+        context.addIssue({ code: 'custom', path: [field], message: 'required when SAPA_FEATURE_ENABLED is true' });
       }
     }
   }

@@ -12,7 +12,8 @@
           "displayName": "Pengguna Contoh",
           "email": "contoh@example.test",
           "role": "user",
-          "emailVerified": true
+          "emailVerified": true,
+          "sapaEnabled": true
         },
         "meta": {
           "requestId": "fixture-login_success"
@@ -921,6 +922,130 @@
         },
         "meta": {
           "requestId": "fixture-ml_unavailable"
+        }
+      }
+    },
+    {
+      "name": "preferences_updated",
+      "operationId": "updatePreferences",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "sapaEnabled": false
+        },
+        "meta": {
+          "requestId": "fixture-preferences_updated"
+        }
+      },
+      "request": {
+        "sapaEnabled": false
+      }
+    },
+    {
+      "name": "assistant_chat_ok",
+      "operationId": "assistantChat",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "conversationId": "44444444-4444-4444-8444-444444444444",
+          "reply": "Peta menampilkan laporan yang sudah diverifikasi. Laporan baru masih menunggu pemeriksaan. Buka Laporan saya untuk melihat statusnya.",
+          "suggestedActions": [
+            {
+              "label": "Buka Laporan saya",
+              "target": "my_reports"
+            }
+          ]
+        },
+        "meta": {
+          "requestId": "fixture-assistant_chat_ok"
+        }
+      },
+      "request": {
+        "message": "Kenapa laporan saya belum muncul di peta?",
+        "pageContext": "my_reports",
+        "conversationId": null
+      }
+    },
+    {
+      "name": "assistant_chat_disabled",
+      "operationId": "assistantChat",
+      "httpStatus": 403,
+      "response": {
+        "error": {
+          "code": "ASSISTANT_DISABLED",
+          "message": "Pesan contoh untuk state assistant_chat_disabled"
+        },
+        "meta": {
+          "requestId": "fixture-assistant_chat_disabled"
+        }
+      }
+    },
+    {
+      "name": "assistant_chat_invalid",
+      "operationId": "assistantChat",
+      "httpStatus": 422,
+      "response": {
+        "error": {
+          "code": "ASSISTANT_MESSAGE_INVALID",
+          "message": "Pesan contoh untuk state assistant_chat_invalid"
+        },
+        "meta": {
+          "requestId": "fixture-assistant_chat_invalid"
+        }
+      }
+    },
+    {
+      "name": "assistant_chat_rate_limited",
+      "operationId": "assistantChat",
+      "httpStatus": 429,
+      "response": {
+        "error": {
+          "code": "RATE_LIMITED",
+          "message": "Pesan contoh untuk state assistant_chat_rate_limited"
+        },
+        "meta": {
+          "requestId": "fixture-assistant_chat_rate_limited"
+        }
+      }
+    },
+    {
+      "name": "assistant_chat_unavailable",
+      "operationId": "assistantChat",
+      "httpStatus": 503,
+      "response": {
+        "error": {
+          "code": "ASSISTANT_UNAVAILABLE",
+          "message": "Pesan contoh untuk state assistant_chat_unavailable"
+        },
+        "meta": {
+          "requestId": "fixture-assistant_chat_unavailable"
+        }
+      }
+    },
+    {
+      "name": "assistant_conversation_deleted",
+      "operationId": "deleteAssistantConversation",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "message": "Percakapan dihapus."
+        },
+        "meta": {
+          "requestId": "fixture-assistant_conversation_deleted"
+        }
+      }
+    },
+    {
+      "name": "assistant_conversation_not_found",
+      "operationId": "deleteAssistantConversation",
+      "httpStatus": 404,
+      "response": {
+        "error": {
+          "code": "CONVERSATION_NOT_FOUND",
+          "message": "Pesan contoh untuk state assistant_conversation_not_found"
+        },
+        "meta": {
+          "requestId": "fixture-assistant_conversation_not_found"
         }
       }
     }
