@@ -16,7 +16,11 @@ const valid = {
 };
 
 test('accepts the canonical environment contract', () => {
-  assert.equal(getConfig(valid).CONTRACT_VERSION, '1.0.0');
+  const cfg = getConfig(valid);
+  assert.equal(cfg.CONTRACT_VERSION, '1.0.0');
+  // DB readiness cold-start budget defaults when unset and coerces when provided.
+  assert.equal(cfg.DB_HEALTH_TIMEOUT_MS, 10000);
+  assert.equal(getConfig({ ...valid, DB_HEALTH_TIMEOUT_MS: '8000' }).DB_HEALTH_TIMEOUT_MS, 8000);
 });
 
 test('rejects placeholders and short secrets', () => {

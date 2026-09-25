@@ -29,6 +29,7 @@ Status aktual ada di [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md); smoke
 | `ML_API_NAME` | Worker | `/predict_gradio` |
 | `ML_USERNAME`, `ML_PASSWORD` | Worker | HTTP Basic reverse proxy; secret |
 | `ML_TIMEOUT_MS` | Worker | `90000` baseline |
+| `DB_HEALTH_TIMEOUT_MS` | API | `10000`; cold-start budget probe readiness DB (Neon scale-to-zero) |
 | `NEXT_PUBLIC_MAP_STYLE_URL` | Web | Style/tiles; browser key harus scoped |
 | `CONTRACT_VERSION` | API/web | `1.0.0` |
 | `NODE_ENV`, `LOG_LEVEL` | Server | Runtime |

@@ -44,6 +44,11 @@ const schema = z.object({
   ML_USERNAME: nonPlaceholder,
   ML_PASSWORD: nonPlaceholder,
   ML_TIMEOUT_MS: z.coerce.number().int().min(1000).max(180000).default(90000),
+  // Cold-start budget for the DB readiness probe. Neon serverless can scale to
+  // zero; the first query after idle must wait for the instance to wake, which
+  // routinely exceeds a 3s fast probe. The health check probes fast first and
+  // only spends this longer budget on a cold-start retry.
+  DB_HEALTH_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10000),
   NEXT_PUBLIC_MAP_STYLE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
 }).superRefine((value, context) => {
   if (value.SESSION_SECRET === value.CSRF_SECRET) {

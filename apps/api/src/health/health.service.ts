@@ -29,7 +29,7 @@ export class HealthService implements OnModuleDestroy {
    */
   async check(): Promise<{ status: 'ok' | 'degraded'; dbOk: boolean; contractVersion: '1.0.0' }> {
     const [db, redis, s3] = await Promise.allSettled([
-      this.withTimeout(this.sql`select 1`, 3_000),
+      this.checkDb(),
       this.withTimeout(this.pingRedis(), 3_000),
       this.withTimeout(this.s3.send(new HeadBucketCommand({ Bucket: this.config.S3_BUCKET })), 3_000),
     ]);
@@ -37,6 +37,21 @@ export class HealthService implements OnModuleDestroy {
     const auxiliaryOk = redis.status === 'fulfilled' && s3.status === 'fulfilled';
     const status = dbOk && auxiliaryOk ? 'ok' : 'degraded';
     return { status, dbOk, contractVersion: this.config.CONTRACT_VERSION } as const;
+  }
+
+  /**
+   * Probe the DB with a fast timeout first so a warm instance answers quickly;
+   * on failure (typically a Neon scale-to-zero cold start) retry once with the
+   * full {@link AppConfig.DB_HEALTH_TIMEOUT_MS} budget before letting readiness
+   * fall to 503. This removes the spurious first-request 503 after idle without
+   * masking a genuine outage.
+   */
+  private async checkDb(): Promise<void> {
+    try {
+      await this.withTimeout(this.sql`select 1`, 3_000);
+    } catch {
+      await this.withTimeout(this.sql`select 1`, this.config.DB_HEALTH_TIMEOUT_MS);
+    }
   }
 
   async onModuleDestroy() {
