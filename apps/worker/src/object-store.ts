@@ -1,4 +1,4 @@
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type { AppConfig } from '@sap/config';
 
 /** Reads normalized media bytes back from R2 for inference (worker side). */
@@ -19,6 +19,16 @@ export class ObjectStore {
       chunks.push(Buffer.from(chunk));
     }
     return Buffer.concat(chunks);
+  }
+
+  /**
+   * Explicitly delete an object from R2. SQL cascade alone is not enough — the
+   * deletion job must remove the R2 object before the owning row is pseudonymised
+   * (DATABASE.md §7). Deleting a missing key is a no-op on S3-compatible stores.
+   */
+  async deleteObject(key: string): Promise<void> {
+    const client = this.getClient();
+    await client.send(new DeleteObjectCommand({ Bucket: this.config.S3_BUCKET, Key: key }));
   }
 
   private getClient(): S3Client {
