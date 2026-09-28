@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "contracts:types": "openapi-typescript ../../contracts/openapi.json -o lib/api/schema.d.ts"
   },
   "dependencies": {

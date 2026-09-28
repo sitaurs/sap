@@ -16,6 +16,22 @@ export type SapMediaUrl = Schema["MediaUrl"];
 
 type Envelope<T> = { data?: T; error?: { code?: string; message?: string; fields?: Record<string, string[]> } };
 
+// The contract version this client was generated against (schema.d.ts). The API
+// echoes X-Contract-Version on every response; a mismatch means the backend moved
+// to a contract this build was not generated for, so surface it once for drift
+// detection instead of failing silently.
+const EXPECTED_CONTRACT_VERSION = "1.0.0";
+let contractDriftWarned = false;
+
+function checkContractVersion(response: Response) {
+  if (contractDriftWarned) return;
+  const seen = response.headers.get("x-contract-version");
+  if (seen && seen !== EXPECTED_CONTRACT_VERSION) {
+    contractDriftWarned = true;
+    console.warn(`SAP contract drift: UI expects ${EXPECTED_CONTRACT_VERSION}, API responded with ${seen}. Regenerate lib/api/schema.d.ts.`);
+  }
+}
+
 export class ApiError extends Error {
   constructor(public readonly status: number, public readonly code: string, message: string, public readonly fields?: Record<string, string[]>, public readonly retryAfter?: number) {
     super(message);
@@ -27,6 +43,7 @@ let csrf: { token: string; expiresAt: number } | null = null;
 export function clearApiSession() { csrf = null; }
 
 async function readEnvelope<T>(response: Response): Promise<T> {
+  checkContractVersion(response);
   let envelope: Envelope<T> | null = null;
   try { envelope = await response.json() as Envelope<T>; } catch { /* A proxy failure may not be JSON. */ }
   if (!response.ok) {

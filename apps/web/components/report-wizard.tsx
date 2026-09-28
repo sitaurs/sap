@@ -12,14 +12,18 @@ import type { ReportInput } from "../lib/api/client";
 import styles from "./report-wizard.module.css";
 
 type Severity = "small" | "medium" | "large";
+type CategoryId = NonNullable<ReportInput["categoryId"]>;
+type CategoryOption = { id: CategoryId; label: string };
 export type ReportSummary = { id: string; category: string; description: string; point: ReportPoint; occurredAt: string };
-type Props = { onClose: () => void; onSubmitted: (summary: ReportSummary) => void };
+type Props = { onClose: () => void; onSubmitted: (summary: ReportSummary) => void; categories?: { id: CategoryId; name: string }[] };
 
-const categories = [
-  ["plastic", "Plastik"], ["paper", "Kertas"], ["cardboard", "Kardus"],
-  ["metal", "Logam"], ["glass", "Kaca"], ["biological", "Organik"],
-  ["battery", "Baterai"], ["clothes", "Pakaian"], ["shoes", "Sepatu"], ["trash", "Lainnya"],
-] as const;
+// Fallback labels used only when the /categories list has not loaded; the live
+// list from the API is preferred so labels stay in sync with the backend.
+const FALLBACK_CATEGORIES: CategoryOption[] = [
+  { id: "plastic", label: "Plastik" }, { id: "paper", label: "Kertas" }, { id: "cardboard", label: "Kardus" },
+  { id: "metal", label: "Logam" }, { id: "glass", label: "Kaca" }, { id: "biological", label: "Organik" },
+  { id: "battery", label: "Baterai" }, { id: "clothes", label: "Pakaian" }, { id: "shoes", label: "Sepatu" }, { id: "trash", label: "Lainnya" },
+];
 const severities: { id: Severity; label: string; detail: string }[] = [
   { id: "small", label: "Kecil", detail: "Beberapa benda" },
   { id: "medium", label: "Sedang", detail: "Satu tumpukan" },
@@ -37,7 +41,10 @@ function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
-export default function ReportWizard({ onClose, onSubmitted }: Props) {
+export default function ReportWizard({ onClose, onSubmitted, categories }: Props) {
+  const categoryOptions: CategoryOption[] = categories && categories.length
+    ? categories.map(item => ({ id: item.id, label: item.name }))
+    : FALLBACK_CATEGORIES;
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [photos, setPhotos] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
@@ -150,7 +157,7 @@ export default function ReportWizard({ onClose, onSubmitted }: Props) {
       if (!result.id || result.status !== "submitted") throw new Error("Server belum mengonfirmasi status laporan. Coba buka Laporan saya sebelum mengirim ulang.");
       onSubmitted({
         id: result.id,
-        category: categories.find(item => item[0] === categoryId)?.[1] || "Tanpa kategori",
+        category: categoryOptions.find(item => item.id === categoryId)?.label || "Tanpa kategori",
         description: description.trim(),
         point,
         occurredAt,
@@ -163,7 +170,7 @@ export default function ReportWizard({ onClose, onSubmitted }: Props) {
     }
   }
 
-  const categoryLabel = categories.find(item => item[0] === categoryId)?.[1] || "Belum dipilih";
+  const categoryLabel = categoryOptions.find(item => item.id === categoryId)?.label || "Belum dipilih";
   const severityLabel = severities.find(item => item.id === severity)?.label || "Belum dipilih";
   const occurredAt = date && time ? new Date(`${date}T${time}`) : null;
 
@@ -195,7 +202,7 @@ export default function ReportWizard({ onClose, onSubmitted }: Props) {
           <p className={styles.photoCaption}>{photos.length} dari 3 foto <span>· JPG, PNG, atau WebP · maks. 10 MB</span></p>
         </div>
         <div className={styles.detailsColumn}>
-          <label className={styles.field}><span>Jenis sampah <small>Opsional</small></span><span className={styles.selectShell}><Recycle size={24} /><select value={categoryId} onChange={event => { setCategoryId(event.target.value as typeof categoryId); invalidateSubmission(); }}><option value="">Pilih jenis sampah</option>{categories.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></span></label>
+          <label className={styles.field}><span>Jenis sampah <small>Opsional</small></span><span className={styles.selectShell}><Recycle size={24} /><select value={categoryId} onChange={event => { setCategoryId(event.target.value as typeof categoryId); invalidateSubmission(); }}><option value="">Pilih jenis sampah</option>{categoryOptions.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}</select></span></label>
           <fieldset className={styles.severityField}><legend>Tingkat tumpukan <span>Wajib</span></legend><div className={styles.severityOptions}>{severities.map(item => <label key={item.id} className={severity === item.id ? styles.selectedSeverity : ""}><input type="radio" name="severity" value={item.id} checked={severity === item.id} onChange={() => { setSeverity(item.id); invalidateSubmission(); }} /><strong>{item.label}</strong><small>{item.detail}</small></label>)}</div></fieldset>
           <label className={styles.field}><span>Keterangan <small>Minimal 20 karakter</small></span><textarea value={description} onChange={event => { setDescription(event.target.value); invalidateSubmission(); }} maxLength={2000} placeholder="Ceritakan kondisi temuan, jenis sampah, dan hal yang perlu diperhatikan…" rows={4} /></label>
           <p className={styles.counter}>{description.trim().length} / 2000 karakter</p>

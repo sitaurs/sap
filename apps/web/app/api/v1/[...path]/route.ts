@@ -1,5 +1,7 @@
 /** Same-origin transport for the SAP v1 API. Credentials stay on the server. */
-const backendOrigin = process.env.SAPA_API_BASE_URL || "http://localhost:3001";
+// API_INTERNAL_URL is the canonical name shared with the backend config; SAPA_API_BASE_URL
+// is kept as a legacy alias so existing deployments keep working.
+const backendOrigin = process.env.API_INTERNAL_URL || process.env.SAPA_API_BASE_URL || "http://localhost:3001";
 
 async function proxy(request: Request) {
   const incoming = new URL(request.url);

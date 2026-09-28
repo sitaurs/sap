@@ -164,7 +164,7 @@ function ReportsView({ reports, categories, onReportSubmitted, onReportsChanged,
 
   function closeWizard() { setComposerOpen(false); onReportWizardChange(false); }
 
-  if (composerOpen) return <ReportWizard onClose={closeWizard} onSubmitted={summary => { onReportSubmitted(summary); closeWizard(); }} />;
+  if (composerOpen) return <ReportWizard categories={categories} onClose={closeWizard} onSubmitted={summary => { onReportSubmitted(summary); closeWizard(); }} />;
 
   return <>
     <div className={styles.referenceHeadingRow}><PageTitle title="Laporan saya" description="Pantau status laporan yang Anda kirim." /><div className={styles.reportToolbar}><button className={styles.primaryButton} type="button" onClick={() => { setComposerOpen(true); onReportWizardChange(true); }}><FilePlus2 size={20} />Buat laporan</button><span className={styles.selectWrap}><Filter size={19} /><select aria-label="Filter status laporan" value={status} onChange={event => setStatus(event.target.value)}><option value="all">Semua status</option>{Object.entries(reportStatus).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select><ChevronDown size={17} /></span><DateFilter value={period} onChange={setPeriod} /></div></div>
