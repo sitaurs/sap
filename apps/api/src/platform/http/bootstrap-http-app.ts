@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import { loadConfig, type AppConfig } from '@sap/config';
 import { ApiExceptionFilter } from './api-exception.filter.js';
@@ -21,5 +21,12 @@ export function bootstrapHttpApp(app: INestApplication, config: AppConfig = load
     response.setHeader('X-Contract-Version', config.CONTRACT_VERSION);
     next();
   });
+  // Surface the resolved public origin and internal API URL at startup. Both are
+  // non-secret and misconfiguring APP_ORIGIN silently breaks CSRF Origin-locking,
+  // so logging them makes deploy-time mismatches obvious in the logs.
+  Logger.log(
+    `HTTP ready: contract=${config.CONTRACT_VERSION} APP_ORIGIN=${config.APP_ORIGIN} API_INTERNAL_URL=${config.API_INTERNAL_URL}`,
+    'Bootstrap',
+  );
   return config;
 }

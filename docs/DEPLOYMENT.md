@@ -44,6 +44,8 @@ Repo hanya menyediakan `.env.example` berisi placeholder. Nilai nyata disimpan d
 
 Origin allowlist berasal dari `APP_ORIGIN`. R2 tetap privat; upload melalui API sehingga direct-upload CORS tidak diperlukan. Signed read URL berumur pendek.
 
+API mencatat `APP_ORIGIN` dan `API_INTERNAL_URL` yang teresolusi saat startup (log `Bootstrap`, non-secret) agar salah konfigurasi origin langsung terlihat. Saat guard CSRF menolak permintaan karena origin tidak cocok, API mencatat `received` vs `expected` origin (tanpa token) di level `warn` — gunakan ini untuk mendiagnosis `APP_ORIGIN` yang salah di produksi.
+
 ## 3. Repository dan bootstrap
 
 Target: [github.com/sitaurs/sap](https://github.com/sitaurs/sap), hanya berisi:
