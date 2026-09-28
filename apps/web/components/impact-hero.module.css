@@ -1,0 +1,178 @@
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 15% 68%, #d6edff 0%, transparent 37%),
+    radial-gradient(ellipse at 86% 60%, #d9eeff 0%, transparent 40%),
+    linear-gradient(115deg, #f9fdff 0%, #edf8ff 52%, #f7fcff 100%);
+}
+
+.frame {
+  position: relative;
+  width: min(100%, 2170px);
+  height: clamp(540px, 33.4vw, 725px);
+  margin: auto;
+}
+
+.shape,
+.leaf,
+.bottomRim { position: absolute; pointer-events: none; }
+
+.shape {
+  z-index: 0;
+  background: #bce3ff;
+  opacity: .65;
+  filter: blur(.3px);
+}
+
+.shapeLeft { left: 2%; bottom: -12%; width: 30%; height: 48%; border-radius: 48% 52% 46% 54%; rotate: -19deg; }
+.shapeRight { right: 1.5%; top: 12%; width: 27%; height: 78%; border-radius: 55% 45% 50% 50%; rotate: 29deg; }
+
+.leaf {
+  z-index: 1;
+  width: clamp(72px, 6.2vw, 135px);
+  height: clamp(104px, 8.8vw, 190px);
+  border-radius: 0 95% 0 95%;
+  background: linear-gradient(140deg, #a5d979 4%, #61bb65 42%, #268c4e 92%);
+  box-shadow: inset -18px -13px 25px #17824a38, 0 10px 18px #328b6b16;
+  transform-origin: 70% 85%;
+  animation: leaf-sway 9s ease-in-out infinite;
+}
+
+.leaf::after { content: ""; position: absolute; left: 48%; top: 13%; width: 1px; height: 78%; background: #2087527a; rotate: -30deg; }
+.leafLeft { left: 3%; top: 42%; rotate: -51deg; }
+.leafRight { right: 4%; top: 9%; width: clamp(54px, 4.3vw, 94px); height: clamp(70px, 5.7vw, 124px); rotate: 21deg; animation-delay: -3s; }
+
+.card {
+  --angle: 0deg;
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #e4edf8;
+  border-radius: clamp(17px, 1.3vw, 28px);
+  background: #fff;
+  color: #0d1738;
+  box-shadow: 0 18px 38px #4f97d533;
+  rotate: var(--angle);
+  animation: card-in 750ms cubic-bezier(.22, 1, .36, 1) both;
+  transition: transform 330ms cubic-bezier(.22, 1, .36, 1), box-shadow 330ms ease;
+}
+
+.card:hover { transform: translateY(-7px) scale(1.025); box-shadow: 0 26px 47px #277cc23d; }
+.card:active { transform: translateY(-2px) scale(.99); }
+.cardArrow { flex: none; margin-left: auto; color: #536d9c; transition: transform 250ms ease; }
+.card:hover .cardArrow { transform: translateX(5px); }
+
+.iconTile { display: grid; flex: none; place-items: center; border-radius: 22%; }
+.cameraTile { width: 23%; aspect-ratio: 1; color: #086bea; background: #e9f4ff; }
+.reportTile { width: 21%; aspect-ratio: 1; color: #049657; background: #e0faef; }
+.mapTile { width: 17%; aspect-ratio: 1; color: #086be7; background: #eaf4ff; }
+.cardCopy { display: flex; flex-direction: column; justify-content: center; min-width: 0; gap: 7px; }
+.cardCopy strong, .reportTop strong, .bottleCopy strong { font: 800 clamp(18px, 1.46vw, 32px)/1.08 var(--font-display), Arial, sans-serif; letter-spacing: -.045em; white-space: nowrap; }
+.cardCopy > span, .bottleCopy > span { color: #647493; font-size: clamp(15px, 1.12vw, 25px); line-height: 1.22; white-space: nowrap; }
+
+.scanCard { --angle: -5deg; left: 5.1%; top: 14%; width: 22.6%; height: 26%; padding: clamp(15px, 1.4vw, 30px); align-items: center; gap: clamp(12px, 1vw, 23px); animation-delay: 70ms; }
+.scanCard .cardArrow { align-self: flex-start; }
+
+.bottleCard { --angle: 3.8deg; left: 8.1%; top: 46.3%; width: 21.1%; height: 32.8%; padding: clamp(12px, 1.05vw, 23px); align-items: center; gap: clamp(12px, 1vw, 23px); animation-delay: 190ms; }
+.bottlePhoto { display: block; flex: 0 0 40%; height: 100%; border-radius: 17px; background: #d3e8d8 url('/images/hero-scan-reference.png') no-repeat -204px -367px / 2170px 725px; }
+.bottleCopy { display: flex; flex-direction: column; min-width: 0; gap: 12px; }
+
+.center { position: absolute; z-index: 3; top: 24%; left: 50%; width: 44%; max-width: 950px; text-align: center; transform: translateX(-50%); animation: copy-in 850ms cubic-bezier(.22, 1, .36, 1) both; }
+.center h1 { margin: 0; font: 800 clamp(43px, 3.42vw, 74px)/.98 var(--font-display), Arial, sans-serif; letter-spacing: -.067em; white-space: nowrap; }
+.center h1 span { color: #086cf1; }
+.center p { margin: clamp(15px, 1.1vw, 25px) 0 clamp(27px, 1.85vw, 40px); color: #596b91; font-size: clamp(19px, 1.52vw, 33px); line-height: 1.24; }
+.actions { display: flex; justify-content: center; gap: clamp(14px, 1vw, 23px); }
+.button { display: inline-flex; align-items: center; justify-content: center; min-width: clamp(220px, 14vw, 305px); height: clamp(59px, 3.7vw, 80px); padding: 0 22px; border-radius: 12px; font-size: clamp(20px, 1.45vw, 31px); font-weight: 750; white-space: nowrap; transition: transform 220ms cubic-bezier(.22, 1, .36, 1), box-shadow 220ms ease, background 220ms ease; }
+.button:hover { transform: translateY(-4px); box-shadow: 0 13px 25px #086deb2c; }
+.button:active { transform: translateY(0) scale(.98); }
+.primary { color: #fff; background: #086df4; box-shadow: 0 8px 18px #086df420; }
+.secondary { color: #086df4; background: #fff; border: 2px solid #0870f5; }
+
+.reportCard { --angle: 4deg; right: 4.7%; top: 14.4%; width: 23.4%; height: 30.8%; padding: clamp(16px, 1.25vw, 27px); flex-direction: column; justify-content: space-between; animation-delay: 290ms; }
+.reportTop { display: flex; align-items: center; gap: clamp(14px, 1vw, 23px); height: 62%; }
+.reportTop .cardArrow { align-self: flex-start; }
+.reportMeta { display: flex; justify-content: space-around; align-items: center; gap: 4px; color: #68789a; font-size: clamp(14px, 1.03vw, 23px); white-space: nowrap; }
+.reportMeta > span { display: inline-flex; align-items: center; gap: 8px; }
+.reportMeta svg { width: clamp(18px, 1.42vw, 31px); height: clamp(18px, 1.42vw, 31px); color: #086cf1; stroke-width: 2.5; }
+.reportMeta i { font-style: normal; color: #788bad; }
+
+.mapCard { --angle: 2.1deg; right: 5.6%; top: 49.2%; width: 24.2%; height: 36.5%; padding: clamp(13px, 1vw, 22px); flex-direction: column; gap: 9px; animation-delay: 410ms; }
+.mapTop { display: flex; align-items: center; gap: clamp(12px, .9vw, 20px); height: 38%; }
+.mapTop .cardArrow { align-self: flex-start; }
+.mapPreview { display: block; flex: 1; min-height: 0; border-radius: 18px; background: #e7f6ed url('/images/hero-scan-reference.png') no-repeat -1557px -463px / 2170px 725px; }
+
+.bottomRim { z-index: 1; left: 0; right: 0; bottom: -20px; height: 14%; border: 1px solid #c5e5ff; border-bottom: 0; border-radius: 12% 12% 0 0 / 100% 100% 0 0; background: #effaff91; }
+
+@keyframes copy-in { from { opacity: 0; transform: translate(-50%, 25px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes card-in { from { opacity: 0; translate: 0 30px; } to { opacity: 1; translate: 0 0; } }
+@keyframes leaf-sway { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(3deg); } }
+
+@media (max-width: 1700px) {
+  .cardCopy strong, .reportTop strong, .bottleCopy strong { font-size: clamp(17px, 1.5vw, 27px); }
+  .cardCopy > span, .bottleCopy > span { font-size: clamp(14px, 1.1vw, 20px); }
+  .reportMeta { font-size: clamp(12px, 1vw, 18px); }
+}
+
+@media (max-width: 1350px) {
+  .frame { height: auto; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding: 58px 5% 72px; }
+  .center { position: relative; left: auto; top: auto; grid-column: 1 / -1; grid-row: 1; width: 100%; max-width: none; margin: 0 auto 17px; transform: none; animation-name: copy-in-small; }
+  .center h1 { font-size: clamp(46px, 5vw, 66px); }
+  .center p { font-size: clamp(20px, 2.2vw, 27px); }
+  .card { position: relative; top: auto; right: auto; left: auto; width: 100%; height: 185px; }
+  .scanCard { grid-column: 1; grid-row: 2; }
+  .reportCard { grid-column: 2; grid-row: 2; }
+  .bottleCard { grid-column: 1; grid-row: 3; }
+  .mapCard { grid-column: 2; grid-row: 3; height: 215px; }
+  .bottlePhoto { background-position: -204px -367px; }
+  .shapeLeft { left: -7%; }
+  .shapeRight { right: -7%; }
+  .leafLeft { left: 1%; top: 41%; }
+  .leafRight { right: 5%; top: 5%; }
+  .bottomRim { bottom: -28px; height: 68px; }
+}
+
+@keyframes copy-in-small { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 700px) {
+  .frame { grid-template-columns: 1fr; gap: 15px; padding: 44px 20px 60px; }
+  .center { grid-column: 1; grid-row: 1; margin-bottom: 13px; }
+  .center h1 { font-size: clamp(36px, 8.4vw, 54px); line-height: 1.04; white-space: normal; }
+  .center h1 br, .desktopBreak { display: none; }
+  .center p { margin: 17px 0 24px; font-size: clamp(16px, 4vw, 20px); line-height: 1.38; }
+  .actions { gap: 10px; }
+  .button { flex: 1; min-width: 0; height: 52px; padding: 0 10px; border-radius: 10px; font-size: 15px; }
+  .card { rotate: 0deg; border-radius: 17px; }
+  .scanCard { grid-column: 1; grid-row: 2; height: 125px; padding: 17px; }
+  .reportCard { grid-column: 1; grid-row: 3; height: 155px; padding: 15px 19px; }
+  .bottleCard { grid-column: 1; grid-row: 4; height: 150px; padding: 13px; }
+  .mapCard { grid-column: 1; grid-row: 5; height: 245px; padding: 14px; }
+  .iconTile { border-radius: 17px; }
+  .cameraTile { width: 75px; }
+  .reportTile { width: 68px; }
+  .mapTile { width: 63px; }
+  .cardCopy strong, .reportTop strong, .bottleCopy strong { font-size: clamp(19px, 5vw, 25px); }
+  .cardCopy > span, .bottleCopy > span { font-size: clamp(15px, 3.7vw, 18px); }
+  .reportMeta { justify-content: flex-start; gap: 10px; font-size: clamp(13px, 3.3vw, 17px); }
+  .reportMeta svg { width: 18px; height: 18px; }
+  .bottlePhoto { flex-basis: 116px; }
+  .mapTop { height: 73px; }
+  .leafLeft { top: 31%; left: -7%; opacity: .45; }
+  .leafRight { top: 2%; right: -5%; opacity: .5; }
+  .bottomRim { bottom: -19px; height: 48px; }
+}
+
+@media (max-width: 390px) {
+  .center h1 { font-size: 34px; }
+  .button { font-size: 14px; }
+  .reportMeta { gap: 7px; }
+  .reportMeta > span { gap: 3px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .center, .leaf { animation: none; }
+  .card, .cardArrow, .button { transition: none; }
+}

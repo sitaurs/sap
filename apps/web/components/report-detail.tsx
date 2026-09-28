@@ -1,0 +1,59 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { CalendarDays, FileText, MapPin, X } from "lucide-react";
+import { ApiError, getReport, mediaUrl, updateReport, type SapCategory, type SapReport } from "../lib/api/client";
+import styles from "./report-detail.module.css";
+
+const statusLabels: Record<SapReport["status"], string> = {
+  submitted: "Menunggu pemeriksaan", verified: "Terverifikasi", in_progress: "Dalam penanganan",
+  resolved: "Selesai", rejected: "Ditolak", duplicate: "Duplikat",
+};
+
+export default function ReportDetail({ id, categories, onClose, onUpdated }: { id: string; categories: SapCategory[]; onClose: () => void; onUpdated: () => void }) {
+  const [report, setReport] = useState<SapReport | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [description, setDescription] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void getReport(id, controller.signal).then(async value => {
+      if (controller.signal.aborted) return;
+      setReport(value); setDescription(value.description);
+      const urls = await Promise.allSettled(value.mediaIds.map(mediaId => mediaUrl(mediaId, controller.signal)));
+      if (!controller.signal.aborted) setPhotos(urls.filter(item => item.status === "fulfilled").map(item => item.value.url));
+    }).catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Detail laporan belum tersedia."); });
+    return () => controller.abort();
+  }, [id]);
+
+  async function save() {
+    if (!report || busy) return;
+    if (description.trim().length < 20 || description.trim().length > 2000) { setError("Keterangan harus berisi 20–2000 karakter."); return; }
+    setBusy(true); setError("");
+    try { const next = await updateReport(report.id, report.revision, { description: description.trim() }); setReport(next); setEditing(false); onUpdated(); }
+    catch (cause) {
+      if (cause instanceof ApiError && cause.status === 409) {
+        const latest = await getReport(report.id);
+        setReport(latest);
+        setError("Laporan berubah di server. Periksa data terbaru sebelum menyimpan lagi.");
+      } else setError(cause instanceof Error ? cause.message : "Perubahan belum tersimpan.");
+    } finally { setBusy(false); }
+  }
+
+  return <div className={styles.backdrop} role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="report-detail-title">
+      <div className={styles.heading}><div><span>DETAIL LAPORAN</span><h2 id="report-detail-title">Laporan saya</h2></div><button type="button" onClick={onClose} aria-label="Tutup detail laporan"><X size={22} /></button></div>
+      {error && <p className={styles.error} role="alert">{error}</p>}
+      {!report ? <p className={styles.loading}>Memuat laporan…</p> : <>
+        <div className={styles.status}>{statusLabels[report.status]} <small>Revisi {report.revision}</small></div>
+        <div className={styles.facts}><span><CalendarDays size={18} />{new Date(report.occurredAt).toLocaleString("id-ID")}</span><span><MapPin size={18} />{report.location.latitude.toFixed(5)}, {report.location.longitude.toFixed(5)}</span><span><FileText size={18} />{categories.find(item => item.id === report.categoryId)?.name || "Tanpa kategori"} · Tumpukan {report.reportedSeverity}</span></div>
+        {photos.length > 0 && <div className={styles.photos}>{photos.map((url, index) => <img key={url} src={url} alt={`Bukti laporan ${index + 1}`} />)}</div>}
+        <div className={styles.description}><div><h3>Keterangan</h3>{report.status === "submitted" && !editing && <button type="button" onClick={() => setEditing(true)}>Ubah</button>}</div>{editing ? <><textarea value={description} maxLength={2000} onChange={event => setDescription(event.target.value)} aria-label="Ubah keterangan laporan" /><div className={styles.actions}><button type="button" onClick={() => { setEditing(false); setDescription(report.description); }}>Batal</button><button type="button" onClick={save} disabled={busy}>{busy ? "Menyimpan…" : "Simpan perubahan"}</button></div></> : <p>{report.description}</p>}</div>
+        <div className={styles.timeline}><h3>Riwayat status</h3>{report.timeline.map(event => <div key={event.id}><strong>{statusLabels[event.status]}</strong><time>{new Date(event.createdAt).toLocaleString("id-ID")}</time>{event.note && <p>{event.note}</p>}</div>)}</div>
+      </>}
+    </section>
+  </div>;
+}

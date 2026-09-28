@@ -1,4 +1,6 @@
 import { config as loadDotenv } from 'dotenv';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 
 const nonPlaceholder = z.string().min(1).refine(
@@ -106,7 +108,18 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return result.data;
 }
 
-export function loadConfig(envFile = process.env.SAP_ENV_FILE ?? '.env'): AppConfig {
+function findEnvFile(): string {
+  let directory = resolve(process.cwd());
+  while (true) {
+    const candidate = join(directory, '.env');
+    if (existsSync(candidate)) return candidate;
+    const parent = dirname(directory);
+    if (parent === directory) return candidate;
+    directory = parent;
+  }
+}
+
+export function loadConfig(envFile = process.env.SAP_ENV_FILE ?? findEnvFile()): AppConfig {
   loadDotenv({ path: envFile, quiet: true });
   return getConfig();
 }

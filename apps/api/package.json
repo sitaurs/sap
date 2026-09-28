@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx watch src/main.ts",
+    "dev": "tsc-watch -p tsconfig.json --onSuccess \"node dist/main.js\"",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate": "tsx src/infrastructure/migrate-cli.ts",
@@ -37,6 +37,7 @@
     "@types/nodemailer": "^7.0.12",
     "@types/supertest": "^7.2.1",
     "supertest": "^7.3.0",
+    "tsc-watch": "^7.2.1",
     "tsx": "^4.20.6"
   }
 }

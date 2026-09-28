@@ -54,7 +54,9 @@ export async function loadMigrations(dir?: URL): Promise<MigrationFile[]> {
 
   const files: MigrationFile[] = [];
   for (const filename of filenames) {
-    const sql = await readFile(new URL(filename, migrationsDir), 'utf8');
+    // Git may check SQL out with CRLF on Windows. The migration ledger was
+    // written from LF files, so normalize transport line endings before hashing.
+    const sql = (await readFile(new URL(filename, migrationsDir), 'utf8')).replace(/\r\n/g, '\n');
     files.push({
       version: filename.replace(/\.sql$/, ''),
       filename,

@@ -4,6 +4,7 @@ Rebuild EcoLens berdasarkan kontrak dan handoff SAP. Repo ini hanya berisi imple
 
 ## Workspace
 
+- `apps/web`: Next.js frontend and same-origin API proxy
 - `apps/api`: NestJS HTTP API (`/api/v1`)
 - `apps/worker`: BullMQ worker
 - `packages/config`: validasi environment bersama
@@ -16,5 +17,8 @@ Rebuild EcoLens berdasarkan kontrak dan handoff SAP. Repo ini hanya berisi imple
 2. `npm install`
 3. `npm run dev:api`
 4. Terminal lain: `npm run dev:worker`
+5. Terminal lain: `npm run dev:web`
+
+Web berjalan di port 3000 dan meneruskan `/api/v1` ke backend lokal port 3001. Untuk akses satu jaringan, jalankan web dengan `npm run dev:web -- --hostname 0.0.0.0`, isi `APP_ORIGIN=http://IP_KOMPUTER:3000` di `.env` backend dan `SAP_ALLOWED_DEV_ORIGINS=IP_KOMPUTER` pada lingkungan web. Bagikan `http://IP_KOMPUTER:3000`, bukan `0.0.0.0`. Jangan commit kredensial atau `.env`.
 
 Jalankan `npm run check` sebelum commit.
