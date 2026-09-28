@@ -70,6 +70,18 @@ const schema = z.object({
   SAPA_LLM_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
   SAPA_LLM_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(64).max(4000).default(500),
   SAPA_LLM_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.3),
+  // Hybrid scan detection (HYBRID_SCAN_DETECTION.md). These env vars only SEED the
+  // `scan_settings` singleton row on an empty database; the live source of truth is
+  // that row (admin-tunable at runtime). The vision LLM reuses the SAPA gateway
+  // (SAPA_LLM_BASE_URL / SAPA_LLM_API_KEY) but with its own model id below.
+  SCAN_LLM_VISION_ENABLED: booleanFromEnv.default(false),
+  SCAN_HYBRID_MODE: z.preprocess(
+    emptyToUndefined,
+    z.enum(['full_ml', 'unknown_only', 'unknown_plus_threshold', 'full_llm']).default('unknown_plus_threshold'),
+  ),
+  SCAN_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.6),
+  SCAN_LLM_VISION_MODEL: z.preprocess(emptyToUndefined, z.string().min(1).default('sapa')),
+  SCAN_LLM_VISION_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
   NEXT_PUBLIC_MAP_STYLE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
 }).superRefine((value, context) => {
   if (value.SESSION_SECRET === value.CSRF_SECRET) {
@@ -88,6 +100,15 @@ const schema = z.object({
     for (const field of ['SAPA_LLM_BASE_URL', 'SAPA_LLM_API_KEY', 'SAPA_LLM_MODEL'] as const) {
       if (!value[field]) {
         context.addIssue({ code: 'custom', path: [field], message: 'required when SAPA_FEATURE_ENABLED is true' });
+      }
+    }
+  }
+  // Hybrid scan vision reuses the SAPA gateway endpoint + key. When the vision
+  // seed flag is on, the gateway must be reachable or the worker could never call it.
+  if (value.SCAN_LLM_VISION_ENABLED) {
+    for (const field of ['SAPA_LLM_BASE_URL', 'SAPA_LLM_API_KEY'] as const) {
+      if (!value[field]) {
+        context.addIssue({ code: 'custom', path: [field], message: 'required when SCAN_LLM_VISION_ENABLED is true' });
       }
     }
   }

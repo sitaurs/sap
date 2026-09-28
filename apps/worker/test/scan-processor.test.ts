@@ -4,6 +4,10 @@ import { ScanProcessor } from '../src/scan-processor.js';
 import { MlError, type AdapterResult, type MlAdapter } from '../src/ml-adapter.js';
 import type { ObjectStore } from '../src/object-store.js';
 import type { ScanContext, ScanRepository } from '../src/scan-repository.js';
+import type { ScanSettings } from '../src/hybrid.js';
+import type { ScanSettingsRepository } from '../src/scan-settings-repository.js';
+import type { VisionClient } from '../src/vision-client.js';
+import type { MlPrediction } from '../src/ml-client.js';
 
 interface Calls {
   markProcessing: string[];
@@ -93,4 +97,79 @@ test('ScanProcessor ignores an unknown scan id', async () => {
   assert.equal(calls.markProcessing.length, 0);
   assert.equal(calls.succeeded.length, 0);
   assert.equal(calls.failed.length, 0);
+});
+
+// --- Hybrid wiring (settings repo + vision client) -------------------------
+
+function hybridHarness(opts: {
+  settings: ScanSettings;
+  mlResult?: AdapterResult;
+  vision?: () => Promise<MlPrediction>;
+}) {
+  const calls: Calls = { markProcessing: [], succeeded: [], failed: [] };
+  const repo = {
+    loadContext: async () => baseContext,
+    markProcessing: async (id: string) => { calls.markProcessing.push(id); return true; },
+    completeSucceeded: async (scanId: string, _u: string, _s: string, result: AdapterResult) => {
+      calls.succeeded.push({ scanId, result });
+      return result.outcome === 'classified' ? 10 : 0;
+    },
+    completeFailed: async (scanId: string, code: string) => { calls.failed.push({ scanId, code }); },
+  } as unknown as ScanRepository;
+  const store = { getObject: async () => Buffer.from('bytes') } as unknown as ObjectStore;
+  const adapter = {
+    classify: async () =>
+      opts.mlResult ?? ({ outcome: 'unknown', categoryId: null, predictions: [], providerRevision: null } as AdapterResult),
+  } as unknown as MlAdapter;
+  let visionCalls = 0;
+  const visionClient = {
+    classify: async () => {
+      visionCalls += 1;
+      if (!opts.vision) throw new Error('unexpected vision call');
+      return opts.vision();
+    },
+  } as unknown as VisionClient;
+  const settingsRepo = { get: async () => opts.settings } as unknown as ScanSettingsRepository;
+  return {
+    processor: new ScanProcessor(repo, store, adapter, visionClient, settingsRepo),
+    calls,
+    visionCalls: () => visionCalls,
+  };
+}
+
+test('ScanProcessor escalates a low-confidence ML result to the vision LLM', async () => {
+  const h = hybridHarness({
+    settings: { mode: 'unknown_plus_threshold', confidenceThreshold: 0.6, visionEnabled: true, visionModel: 'sapa' },
+    mlResult: { outcome: 'classified', categoryId: 'metal', predictions: [{ categoryId: 'metal', score: 0.3 }], providerRevision: null },
+    vision: async () => ({ label: 'plastic', confidences: [{ label: 'plastic', confidence: 0.88 }] }),
+  });
+  await h.processor.process('scan-1');
+  assert.equal(h.visionCalls(), 1);
+  assert.equal(h.calls.succeeded.length, 1);
+  assert.equal(h.calls.succeeded[0]!.result.categoryId, 'plastic');
+  assert.equal(h.calls.succeeded[0]!.result.providerRevision, 'llm:sapa');
+});
+
+test('ScanProcessor succeeds via ML fallback when the vision LLM fails (NFR1)', async () => {
+  const h = hybridHarness({
+    settings: { mode: 'unknown_only', confidenceThreshold: 0.6, visionEnabled: true, visionModel: 'sapa' },
+    mlResult: { outcome: 'unknown', categoryId: null, predictions: [], providerRevision: null },
+    vision: async () => { throw new Error('ML_TIMEOUT'); },
+  });
+  await h.processor.process('scan-1');
+  assert.equal(h.calls.failed.length, 0, 'vision failure must never fail the scan');
+  assert.equal(h.calls.succeeded.length, 1);
+  assert.equal(h.calls.succeeded[0]!.result.outcome, 'unknown');
+  assert.equal(h.calls.succeeded[0]!.result.providerRevision, 'llm_failed:sapa');
+});
+
+test('ScanProcessor skips vision for a confident ML result', async () => {
+  const h = hybridHarness({
+    settings: { mode: 'unknown_plus_threshold', confidenceThreshold: 0.6, visionEnabled: true, visionModel: 'sapa' },
+    mlResult: { outcome: 'classified', categoryId: 'metal', predictions: [{ categoryId: 'metal', score: 0.95 }], providerRevision: null },
+  });
+  await h.processor.process('scan-1');
+  assert.equal(h.visionCalls(), 0);
+  assert.equal(h.calls.succeeded[0]!.result.categoryId, 'metal');
+  assert.equal(h.calls.succeeded[0]!.result.providerRevision, null);
 });

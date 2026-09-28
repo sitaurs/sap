@@ -24,6 +24,7 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  Sliders,
   Sparkles,
   Star,
   Trophy,
@@ -34,13 +35,17 @@ import {
 } from "lucide-react";
 import styles from "./dashboard.module.css";
 import DashboardViews from "./dashboard-views";
+import AdminPanel from "./admin-panel";
 import BrandLogo from "./brand-logo";
-import SapaPet from "./sapa-pet";
+import SapaPet, { type SapaDashboardTab } from "./sapa-pet";
 import type { ReportSummary } from "./report-wizard";
 import { saveSapaAccountPreference } from "./sapa-client";
 import { ApiError, getAchievements, getMe, getStats, listCategories, listReports, listScans, logout, updateProfile, type SapAchievement, type SapCategory, type SapReport, type SapScan, type SapStats, type SapUser } from "../lib/api/client";
 
-type Tab = "dashboard" | "scan" | "reports" | "map" | "history" | "achievements" | "settings" | "help";
+type AdminTab = "admin-moderation" | "admin-settings";
+type Tab = "dashboard" | "scan" | "reports" | "map" | "history" | "achievements" | "settings" | "help" | AdminTab;
+const ADMIN_TABS: AdminTab[] = ["admin-moderation", "admin-settings"];
+const isAdminTab = (tab: Tab): tab is AdminTab => (ADMIN_TABS as string[]).includes(tab);
 const mainNav: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "scan", label: "Scan", icon: Camera },
@@ -49,11 +54,15 @@ const mainNav: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "history", label: "Riwayat scan", icon: Clock3 },
   { id: "achievements", label: "Pencapaian", icon: Trophy },
 ];
+const adminNav: { id: AdminTab; label: string; icon: LucideIcon }[] = [
+  { id: "admin-moderation", label: "Moderasi laporan", icon: ShieldCheck },
+  { id: "admin-settings", label: "Pengaturan scan", icon: Sliders },
+];
 const otherNav: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "settings", label: "Pengaturan", icon: Settings },
   { id: "help", label: "Bantuan", icon: CircleHelp },
 ];
-const allTabs = new Set<Tab>([...mainNav, ...otherNav].map(item => item.id));
+const allTabs = new Set<Tab>([...mainNav, ...adminNav, ...otherNav].map(item => item.id));
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
@@ -198,6 +207,13 @@ export default function Dashboard() {
       <nav className={styles.sideNav} aria-label="Navigasi dashboard">
         {mainNav.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={`${styles.navItem} ${tab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={tab === id ? "page" : undefined}><Icon size={23} /><span>{label}</span></button>)}
       </nav>
+      {user?.role === "admin" && <>
+        <div className={styles.sideDivider} />
+        <div className={styles.sideLabel}>ADMIN</div>
+        <nav className={styles.sideNav} aria-label="Admin">
+          {adminNav.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={`${styles.navItem} ${tab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={tab === id ? "page" : undefined}><Icon size={23} /><span>{label}</span></button>)}
+        </nav>
+      </>}
       <div className={styles.sideDivider} />
       <div className={styles.sideLabel}>LAINNYA</div>
       <nav className={styles.sideNav} aria-label="Lainnya">
@@ -244,11 +260,21 @@ export default function Dashboard() {
           </div>
         </>}
 
-        {tab !== "dashboard" && <DashboardViews key={tab} tab={tab} scans={scans} reports={reports} stats={stats} achievements={achievements} categories={categories} email={user?.email || ""} displayName={displayName} onNavigate={openTab} onScanFinished={() => void refreshData()} onOpenReport={openReportFromScan} reportComposerRequested={reportComposerRequested} onReportSubmitted={reportSubmitted} onReportsChanged={() => void refreshData()} onReportWizardChange={setReportWizardOpen} onSaveProfile={saveProfile} onSignOut={signOut} onAccountDeleted={() => { setUser(null); setStats(null); setScans([]); setReports([]); router.replace("/login"); }} sapaEnabled={sapaEnabled} sapaSaving={sapaSaving} onToggleSapa={toggleSapa} />}
+        {tab !== "dashboard" && !isAdminTab(tab) && <DashboardViews key={tab} tab={tab} scans={scans} reports={reports} stats={stats} achievements={achievements} categories={categories} email={user?.email || ""} displayName={displayName} onNavigate={openTab} onScanFinished={() => void refreshData()} onOpenReport={openReportFromScan} reportComposerRequested={reportComposerRequested} onReportSubmitted={reportSubmitted} onReportsChanged={() => void refreshData()} onReportWizardChange={setReportWizardOpen} onSaveProfile={saveProfile} onSignOut={signOut} onAccountDeleted={() => { setUser(null); setStats(null); setScans([]); setReports([]); router.replace("/login"); }} sapaEnabled={sapaEnabled} sapaSaving={sapaSaving} onToggleSapa={toggleSapa} />}
+
+        {isAdminTab(tab) && (user?.role === "admin"
+          ? <div className={`${styles.subPage} ${styles.referenceView}`}>
+              <div className={styles.referenceHeading}>
+                <h1>{tab === "admin-settings" ? "Pengaturan scan" : "Moderasi laporan"}</h1>
+                <p>{tab === "admin-settings" ? "Atur strategi deteksi hybrid ML → vision LLM." : "Periksa, verifikasi, dan tindak lanjuti laporan warga."}</p>
+              </div>
+              <AdminPanel section={tab === "admin-settings" ? "settings" : "moderation"} categories={categories} />
+            </div>
+          : <div className={`${styles.subPage} ${styles.referenceView}`}><div className={styles.referenceHeading}><h1>Akses ditolak</h1><p>Halaman ini hanya untuk admin.</p></div></div>)}
 
       </main>
     </div>
-    {sapaEnabled && !reportWizardOpen && <SapaPet tab={tab} backendLinked onNavigate={openTab} />}
+    {sapaEnabled && !reportWizardOpen && <SapaPet tab={isAdminTab(tab) ? "dashboard" : (tab satisfies SapaDashboardTab)} backendLinked onNavigate={openTab} />}
     {toast && <div className={styles.toast} role="status"><Sparkles size={18} /><span>{toast}</span><button type="button" onClick={() => setToast("")} aria-label="Tutup pesan"><X size={16} /></button></div>}
   </div>;
 }

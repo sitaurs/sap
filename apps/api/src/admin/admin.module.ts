@@ -10,12 +10,16 @@ import { AdminGuard } from './admin.guard.js';
 import { AdminService } from './admin.service.js';
 import { AuditRepository } from './audit.repository.js';
 import { ModerationRepository } from './moderation.repository.js';
+import { ScanSettingsRepository } from './scan-settings.repository.js';
+import { ScanSettingsService } from './scan-settings.service.js';
 
 @Module({
   imports: [DatabaseModule],
   controllers: [AdminController],
   providers: [
     AdminService,
+    ScanSettingsService,
+    ScanSettingsRepository,
     ModerationRepository,
     AuditRepository,
     ReportRepository,

@@ -68,7 +68,7 @@ export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> 
   return readEnvelope<T>(await fetch(`/api/v1${path}`, { credentials: "include", cache: "no-store", signal }));
 }
 
-export async function apiMutate<T>(method: "POST" | "PATCH" | "DELETE", path: string, options: RequestOptions = {}): Promise<T> {
+export async function apiMutate<T>(method: "POST" | "PUT" | "PATCH" | "DELETE", path: string, options: RequestOptions = {}): Promise<T> {
   const token = await getCsrfToken();
   const headers = new Headers(options.headers);
   headers.set("x-csrf-token", token);
@@ -153,3 +153,35 @@ export async function getArea(cellId: string, from: string, to: string, category
   if (categoryId) params.set("categoryId", categoryId);
   return apiGet<SapAreaDetail>(`/areas/${encodeURIComponent(cellId)}?${params}`, signal);
 }
+
+// --- Admin (role-gated; API also enforces admin via SessionAuthGuard + AdminGuard). ---
+export type SapReportStatus = SapReport["status"];
+export type SapAdminStats = Schema["AdminStats"];
+export type SapAuditEvent = Schema["AuditEvent"];
+export type SapDuplicateCandidate = Schema["DuplicateCandidate"];
+export type SapScanSettings = Schema["ScanSettings"];
+export type ScanSettingsUpdate = Schema["ScanSettingsUpdateInput"];
+export type DecisionInput = Schema["DecisionInput"];
+
+export async function listAdminReports(status?: SapReportStatus, cursor?: string, signal?: AbortSignal): Promise<Schema["ReportPage"]> {
+  const params = new URLSearchParams({ limit: "50" });
+  if (status) params.set("status", status);
+  if (cursor) params.set("cursor", cursor);
+  return apiGet<Schema["ReportPage"]>(`/admin/reports?${params}`, signal);
+}
+export const getReportDuplicates = (reportId: string, signal?: AbortSignal) =>
+  apiGet<Schema["DuplicateCandidatePage"]>(`/admin/reports/${encodeURIComponent(reportId)}/duplicates`, signal);
+export const decideReport = (reportId: string, revision: number, input: DecisionInput) =>
+  apiMutate<SapReport>("POST", `/admin/reports/${encodeURIComponent(reportId)}/decisions`, {
+    body: input,
+    headers: { "idempotency-key": crypto.randomUUID(), "if-match": String(revision) },
+  });
+export const getAdminStats = (signal?: AbortSignal) => apiGet<SapAdminStats>("/admin/stats", signal);
+export async function listAuditEvents(cursor?: string, signal?: AbortSignal): Promise<Schema["AuditEventPage"]> {
+  const params = new URLSearchParams({ limit: "50" });
+  if (cursor) params.set("cursor", cursor);
+  return apiGet<Schema["AuditEventPage"]>(`/admin/audit?${params}`, signal);
+}
+export const getScanSettings = (signal?: AbortSignal) => apiGet<SapScanSettings>("/admin/scan-settings", signal);
+export const updateScanSettings = (patch: ScanSettingsUpdate) =>
+  apiMutate<SapScanSettings>("PUT", "/admin/scan-settings", { body: patch });

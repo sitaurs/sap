@@ -2,7 +2,7 @@
 .root>*{pointer-events:auto}
 .launcher{position:relative;width:76px;height:76px;display:grid;place-items:center;flex:0 0 auto;overflow:visible;padding:3px;border:1px solid #b9ddc7;border-radius:50%;background:radial-gradient(circle at 35% 23%,#fff 10%,#e8f8ef 68%,#d5eddf);box-shadow:0 8px 23px #12634625,0 2px 5px #20593b13;transition:box-shadow .2s;isolation:isolate;cursor:grab;touch-action:none;user-select:none}
 .dragging{cursor:grabbing;animation:none!important}
-.launcher img{position:relative;z-index:1;width:65px;height:65px;object-fit:contain}
+.launcher img{position:relative;z-index:1;width:65px;height:65px;object-fit:contain;pointer-events:none;user-select:none;-webkit-user-drag:none}
 .launcher:hover{box-shadow:0 11px 25px #12634635,0 2px 7px #20593b1a}
 .launcher:focus-visible,.close:focus-visible,.quickActions button:focus-visible,.composer button:focus-visible,.suggestions button:focus-visible{outline:3px solid #1380ff;outline-offset:3px}
 .idle{animation:quietBob 9s ease-in-out infinite}

@@ -8422,6 +8422,304 @@
         },
         "x-required-role": "public"
       }
+    },
+    "/admin/scan-settings": {
+      "get": {
+        "operationId": "getScanSettings",
+        "summary": "Baca konfigurasi hybrid scan detection",
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden or CSRF invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "422": {
+            "description": "Domain validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Detik sebelum retry."
+              },
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          }
+        },
+        "x-required-role": "admin"
+      },
+      "put": {
+        "operationId": "updateScanSettings",
+        "summary": "Ubah konfigurasi hybrid scan detection",
+        "tags": [
+          "admin"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanSettingsUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden or CSRF invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "422": {
+            "description": "Domain validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Detik sebelum retry."
+              },
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          }
+        },
+        "x-required-role": "admin"
+      }
     }
   },
   "components": {
@@ -10927,6 +11225,91 @@
           "data",
           "meta"
         ],
+        "additionalProperties": false
+      },
+      "ScanSettings": {
+        "type": "object",
+        "description": "Konfigurasi hybrid scan detection (runtime, dapat diubah admin).",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "full_ml",
+              "unknown_only",
+              "unknown_plus_threshold",
+              "full_llm"
+            ]
+          },
+          "confidenceThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "visionEnabled": {
+            "type": "boolean"
+          },
+          "visionModel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "mode",
+          "confidenceThreshold",
+          "visionEnabled",
+          "visionModel",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ScanSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ScanSettings"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "ScanSettingsUpdateInput": {
+        "type": "object",
+        "description": "Partial update; hanya field yang dikirim yang berubah.",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "full_ml",
+              "unknown_only",
+              "unknown_plus_threshold",
+              "full_llm"
+            ]
+          },
+          "confidenceThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "visionEnabled": {
+            "type": "boolean"
+          },
+          "visionModel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
         "additionalProperties": false
       }
     },

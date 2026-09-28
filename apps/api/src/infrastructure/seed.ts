@@ -1,3 +1,4 @@
+import { getConfig } from '@sap/config';
 import type { Sql } from 'postgres';
 
 /** Fixed EcoLens taxonomy. IDs match the OpenAPI CategoryId enum exactly. */
@@ -26,6 +27,7 @@ const ACHIEVEMENTS: ReadonlyArray<readonly [id: string, name: string, descriptio
  * production: the category taxonomy and achievement definitions. Idempotent.
  */
 export async function seedReference(sql: Sql): Promise<void> {
+  const config = getConfig();
   await sql.begin(async (tx) => {
     for (const [id, nameId, sortOrder] of CATEGORIES) {
       await tx`
@@ -43,6 +45,19 @@ export async function seedReference(sql: Sql): Promise<void> {
           SET name = EXCLUDED.name, description = EXCLUDED.description
       `;
     }
+    // Hybrid scan detection singleton. Seeded from env ONCE; afterwards the row is
+    // authoritative and admin-editable, so never overwrite an existing row.
+    await tx`
+      INSERT INTO scan_settings (id, mode, confidence_threshold, vision_enabled, vision_model)
+      VALUES (
+        'singleton',
+        ${config.SCAN_HYBRID_MODE},
+        ${config.SCAN_CONFIDENCE_THRESHOLD},
+        ${config.SCAN_LLM_VISION_ENABLED},
+        ${config.SCAN_LLM_VISION_MODEL}
+      )
+      ON CONFLICT (id) DO NOTHING
+    `;
   });
 }
 

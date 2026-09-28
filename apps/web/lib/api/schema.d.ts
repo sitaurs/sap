@@ -602,6 +602,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/scan-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Baca konfigurasi hybrid scan detection */
+        get: operations["getScanSettings"];
+        /** Ubah konfigurasi hybrid scan detection */
+        put: operations["updateScanSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1152,6 +1170,28 @@ export interface components {
         CategoryPageResponse: {
             data: components["schemas"]["CategoryPage"];
             meta: components["schemas"]["Meta"];
+        };
+        /** @description Konfigurasi hybrid scan detection (runtime, dapat diubah admin). */
+        ScanSettings: {
+            /** @enum {string} */
+            mode: "full_ml" | "unknown_only" | "unknown_plus_threshold" | "full_llm";
+            confidenceThreshold: number;
+            visionEnabled: boolean;
+            visionModel: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ScanSettingsResponse: {
+            data: components["schemas"]["ScanSettings"];
+            meta: components["schemas"]["Meta"];
+        };
+        /** @description Partial update; hanya field yang dikirim yang berubah. */
+        ScanSettingsUpdateInput: {
+            /** @enum {string} */
+            mode?: "full_ml" | "unknown_only" | "unknown_plus_threshold" | "full_llm";
+            confidenceThreshold?: number;
+            visionEnabled?: boolean;
+            visionModel?: string;
         };
     };
     responses: never;
@@ -6248,6 +6288,196 @@ export interface operations {
             };
             /** @description Unsupported image */
             415: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Domain validation */
+            422: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    /** @description Detik sebelum retry. */
+                    "Retry-After"?: number;
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected error */
+            500: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getScanSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanSettingsResponse"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden or CSRF invalid */
+            403: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Domain validation */
+            422: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    /** @description Detik sebelum retry. */
+                    "Retry-After"?: number;
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected error */
+            500: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateScanSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScanSettingsUpdateInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanSettingsResponse"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden or CSRF invalid */
+            403: {
                 headers: {
                     "X-Contract-Version": components["headers"]["ContractVersion"];
                     [name: string]: unknown;

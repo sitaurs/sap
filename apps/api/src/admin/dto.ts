@@ -3,8 +3,10 @@ import {
   ArrayMaxSize,
   ArrayUnique,
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -13,6 +15,7 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
+import { HYBRID_MODES } from './scan-settings.types.js';
 
 const STATUSES = ['submitted', 'verified', 'in_progress', 'resolved', 'rejected', 'duplicate'] as const;
 
@@ -81,4 +84,26 @@ export class ListAuditEventsQueryDto {
   @IsOptional()
   @IsString()
   cursor?: string;
+}
+
+/** Body for updateScanSettings (OpenAPI ScanSettingsUpdateInput). All fields optional (partial update). */
+export class ScanSettingsUpdateDto {
+  @IsOptional()
+  @IsIn(HYBRID_MODES)
+  mode?: (typeof HYBRID_MODES)[number];
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  confidenceThreshold?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  visionEnabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  visionModel?: string;
 }

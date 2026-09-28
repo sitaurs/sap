@@ -37,6 +37,8 @@ const EXPECTED_TABLES = [
   'idempotency_keys',
   'deletion_requests',
   'deletion_tombstones',
+  // 0007 hybrid scan detection settings
+  'scan_settings',
 ].sort();
 
 test('there are at least five migration files', async () => {
@@ -81,7 +83,7 @@ test('every expected table is created exactly once', async () => {
   }
 
   const created = [...counts.keys()].sort();
-  assert.deepEqual(created, EXPECTED_TABLES, 'set of created tables must match the expected 21');
+  assert.deepEqual(created, EXPECTED_TABLES, 'set of created tables must match the expected list');
 
   for (const [name, count] of counts) {
     assert.equal(count, 1, `table ${name} must be created exactly once (found ${count})`);

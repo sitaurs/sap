@@ -8,6 +8,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -17,7 +18,13 @@ import { CurrentUser } from '../auth/current-user.decorator.js';
 import { SessionAuthGuard } from '../auth/session-auth.guard.js';
 import { AdminGuard } from './admin.guard.js';
 import { AdminService } from './admin.service.js';
-import { DecisionInputDto, ListAdminReportsQueryDto, ListAuditEventsQueryDto } from './dto.js';
+import { ScanSettingsService } from './scan-settings.service.js';
+import {
+  DecisionInputDto,
+  ListAdminReportsQueryDto,
+  ListAuditEventsQueryDto,
+  ScanSettingsUpdateDto,
+} from './dto.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const REVISION_RE = /^[1-9][0-9]*$/;
@@ -25,7 +32,10 @@ const REVISION_RE = /^[1-9][0-9]*$/;
 @Controller('admin')
 @UseGuards(SessionAuthGuard, AdminGuard)
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly scanSettings: ScanSettingsService,
+  ) {}
 
   @Get('reports')
   @HttpCode(200)
@@ -68,5 +78,21 @@ export class AdminController {
   @HttpCode(200)
   audit(@Query() query: ListAuditEventsQueryDto) {
     return this.admin.listAuditEvents(query.limit, query.cursor);
+  }
+
+  @Get('scan-settings')
+  @HttpCode(200)
+  getScanSettings() {
+    return this.scanSettings.getScanSettings();
+  }
+
+  @Put('scan-settings')
+  @HttpCode(200)
+  updateScanSettings(
+    @CurrentUser() user: AuthenticatedUser,
+    @Req() req: SapRequest,
+    @Body() dto: ScanSettingsUpdateDto,
+  ) {
+    return this.scanSettings.updateScanSettings(user.id, req.requestId ?? null, dto);
   }
 }

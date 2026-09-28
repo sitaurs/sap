@@ -50,6 +50,7 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
   const dragStart = useRef<{ pointerId: number; pointerX: number; pointerY: number; x: number; y: number; moved: boolean } | null>(null);
   const latestPosition = useRef<Position | null>(null);
   const suppressClick = useRef(false);
+  const dragCleanup = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const updateViewport = () => {
@@ -69,7 +70,7 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
     return () => window.removeEventListener("resize", updateViewport);
   }, []);
 
-  useEffect(() => () => { if (animationTimer.current) clearTimeout(animationTimer.current); }, []);
+  useEffect(() => () => { if (animationTimer.current) clearTimeout(animationTimer.current); dragCleanup.current?.(); }, []);
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
   useEffect(() => { if (open) logRef.current?.scrollTo({ top: logRef.current.scrollHeight }); }, [messages, open]);
   useEffect(() => {
@@ -93,37 +94,52 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
     animationTimer.current = setTimeout(() => { setActivating(false); setOpen(true); }, 410);
   }
 
+  // Drag is tracked on `window`, not the button, so movement keeps flowing even
+  // when the pointer leaves the small launcher or an idle animation is running —
+  // relying on setPointerCapture alone let a single press-and-hold stall after a
+  // few pixels. Listeners are added on pointer-down and torn down on release.
   function onPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     const bounds = event.currentTarget.getBoundingClientRect();
-    dragStart.current = { pointerId: event.pointerId, pointerX: event.clientX, pointerY: event.clientY, x: bounds.left, y: bounds.top, moved: false };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
+    const pointerId = event.pointerId;
+    dragStart.current = { pointerId, pointerX: event.clientX, pointerY: event.clientY, x: bounds.left, y: bounds.top, moved: false };
+    try { event.currentTarget.setPointerCapture(pointerId); } catch { /* Capture is best-effort; window listeners drive the drag. */ }
 
-  function onPointerMove(event: ReactPointerEvent<HTMLButtonElement>) {
-    const start = dragStart.current;
-    if (!start || start.pointerId !== event.pointerId) return;
-    const dx = event.clientX - start.pointerX;
-    const dy = event.clientY - start.pointerY;
-    if (!start.moved && Math.hypot(dx, dy) < 5) return;
-    start.moved = true;
-    setDragging(true);
-    const next = clampPosition({ x: start.x + dx, y: start.y + dy }, window.innerWidth, window.innerHeight);
-    latestPosition.current = next;
-    setPosition(next);
-  }
-
-  function onPointerEnd(event: ReactPointerEvent<HTMLButtonElement>) {
-    const start = dragStart.current;
-    if (!start || start.pointerId !== event.pointerId) return;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    dragStart.current = null;
-    setDragging(false);
-    if (start.moved && latestPosition.current) {
-      suppressClick.current = true;
-      try { window.localStorage.setItem("sap-pet-position", JSON.stringify(latestPosition.current)); } catch { /* Drag still works for this visit. */ }
-      window.setTimeout(() => { suppressClick.current = false; }, 120);
-    }
+    const move = (e: PointerEvent) => {
+      const start = dragStart.current;
+      if (!start || start.pointerId !== e.pointerId) return;
+      const dx = e.clientX - start.pointerX;
+      const dy = e.clientY - start.pointerY;
+      if (!start.moved && Math.hypot(dx, dy) < 5) return;
+      start.moved = true;
+      setDragging(true);
+      const next = clampPosition({ x: start.x + dx, y: start.y + dy }, window.innerWidth, window.innerHeight);
+      latestPosition.current = next;
+      setPosition(next);
+    };
+    const end = (e: PointerEvent) => {
+      const start = dragStart.current;
+      if (!start || start.pointerId !== e.pointerId) return;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      dragCleanup.current = null;
+      dragStart.current = null;
+      setDragging(false);
+      if (start.moved && latestPosition.current) {
+        suppressClick.current = true;
+        try { window.localStorage.setItem("sap-pet-position", JSON.stringify(latestPosition.current)); } catch { /* Drag still works for this visit. */ }
+        window.setTimeout(() => { suppressClick.current = false; }, 120);
+      }
+    };
+    dragCleanup.current = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
   }
 
   function navigate(next: SapaDashboardTab) {
@@ -207,8 +223,8 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
       </div>
     </section>}
 
-    <button ref={launchRef} className={`${styles.launcher} ${!open && !activating && !dragging ? styles.idle : ""} ${activating ? styles.pressed : ""} ${dragging ? styles.dragging : ""}`} type="button" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd} onClick={activate} aria-label={open ? "Tutup chat SAPA" : "Buka chat SAPA"} aria-expanded={open} aria-controls="sapa-chat-panel" title="Seret untuk memindahkan SAPA">
-      <Image src="/images/sapa/SAPA_Chat_Avatar.png" alt="" width={65} height={65} priority />
+    <button ref={launchRef} className={`${styles.launcher} ${!open && !activating && !dragging ? styles.idle : ""} ${activating ? styles.pressed : ""} ${dragging ? styles.dragging : ""}`} type="button" onPointerDown={onPointerDown} onClick={activate} onDragStart={event => event.preventDefault()} aria-label={open ? "Tutup chat SAPA" : "Buka chat SAPA"} aria-expanded={open} aria-controls="sapa-chat-panel" title="Seret untuk memindahkan SAPA">
+      <Image src="/images/sapa/SAPA_Chat_Avatar.png" alt="" width={65} height={65} priority draggable={false} />
     </button>
   </div>;
 }

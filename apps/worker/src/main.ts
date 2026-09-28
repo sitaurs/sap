@@ -11,6 +11,8 @@ import { MlClient } from './ml-client.js';
 import { ObjectStore } from './object-store.js';
 import { ScanProcessor } from './scan-processor.js';
 import { ScanRepository } from './scan-repository.js';
+import { ScanSettingsRepository } from './scan-settings-repository.js';
+import { VisionClient } from './vision-client.js';
 
 const SCAN_JOB = 'scan.process';
 /** How often to poll the outbox for pending deletion events. */
@@ -31,6 +33,8 @@ const processor = new ScanProcessor(
   new ScanRepository(sql),
   store,
   new MlAdapter(new MlClient(config), config),
+  new VisionClient(config),
+  new ScanSettingsRepository(sql),
 );
 
 const maintenanceRepo = new MaintenanceRepository(sql);
