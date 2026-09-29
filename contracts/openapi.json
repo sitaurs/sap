@@ -9071,6 +9071,51 @@
         ],
         "additionalProperties": false
       },
+      "AssistantCitation": {
+        "type": "object",
+        "description": "Sumber terkurasi yang menjadi dasar jawaban SAPA. `id` merujuk entri korpus yang benar-benar ada dalam KONTEKS; SAPA tidak mengarang kartu sitasi.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "ID stabil entri korpus (mis. `map-belum-peta`)."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "snippet": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400,
+            "description": "Kutipan grounding dari entri sumber."
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "Label penyedia/sumber, mis. \"FAQ SAP\"."
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "URL sumber eksternal bila ada; null untuk FAQ internal."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "snippet",
+          "source",
+          "url"
+        ],
+        "additionalProperties": false
+      },
       "UserPreferences": {
         "type": "object",
         "properties": {
@@ -9138,12 +9183,21 @@
             "items": {
               "$ref": "#/components/schemas/SuggestedAction"
             }
+          },
+          "citations": {
+            "type": "array",
+            "maxItems": 4,
+            "description": "Kartu sumber terkurasi yang mendasari jawaban. Boleh kosong bila jawaban tidak bersandar pada entri korpus tertentu.",
+            "items": {
+              "$ref": "#/components/schemas/AssistantCitation"
+            }
           }
         },
         "required": [
           "conversationId",
           "reply",
-          "suggestedActions"
+          "suggestedActions",
+          "citations"
         ],
         "additionalProperties": false
       },

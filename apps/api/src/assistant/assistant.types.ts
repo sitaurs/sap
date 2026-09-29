@@ -35,15 +35,36 @@ export interface SuggestedAction {
   target: AssistantTarget;
 }
 
-/** Validated model output: a grounded reply plus at most three route hints. */
+/**
+ * A structured citation card (contract schema `AssistantCitation`). Every card
+ * points at a curated corpus entry that was actually present in the injected
+ * KONTEKS block, so the UI never surfaces a source SAPA did not ground on.
+ */
+export interface Citation {
+  id: string;
+  title: string;
+  snippet: string;
+  source: string;
+  url: string | null;
+}
+
+/**
+ * Validated model output: a grounded reply, at most three route hints, and the
+ * raw KONTEKS entry ids the model claims it grounded on. Ids are resolved to
+ * `Citation` cards by the service after cross-checking the retrieved set.
+ */
 export interface AssistantReply {
   reply: string;
   suggestedActions: SuggestedAction[];
+  citationIds: string[];
 }
 
 /** Chat result returned to the caller (contract schema `AssistantChat`). */
-export interface ChatResult extends AssistantReply {
+export interface ChatResult {
   conversationId: string;
+  reply: string;
+  suggestedActions: SuggestedAction[];
+  citations: Citation[];
 }
 
 /** A single stored turn. Only role + content; no PII, coordinates, or media. */
@@ -63,3 +84,7 @@ export const HISTORY_MAX_MESSAGES = 12;
 export const CONVERSATION_TTL_SECONDS = 30 * 60;
 export const SUGGESTED_ACTIONS_MAX = 3;
 export const LABEL_MAX_LENGTH = 40;
+/** Max citation cards surfaced per turn — matches the contract `maxItems`. */
+export const CITATIONS_MAX = 4;
+/** Citation snippet cap, mirrors the contract `AssistantCitation.snippet`. */
+export const CITATION_SNIPPET_MAX = 400;

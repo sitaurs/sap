@@ -5,7 +5,13 @@
  * carry no PII, coordinates, media, or invented statistics. Items still marked
  * `TODO-VERIFIKASI` deliberately steer to Bantuan instead of quoting a number.
  */
-import type { PageContext, SuggestedAction } from './assistant.types.js';
+import {
+  CITATION_SNIPPET_MAX,
+  CITATIONS_MAX,
+  type Citation,
+  type PageContext,
+  type SuggestedAction,
+} from './assistant.types.js';
 
 export interface KnowledgeEntry {
   readonly id: string;
@@ -14,7 +20,17 @@ export interface KnowledgeEntry {
   readonly question: string;
   readonly answer: string;
   readonly suggestedActions: SuggestedAction[];
+  /**
+   * Provenance for citation cards. Curated FAQ entries default to the internal
+   * "FAQ SAP" source with no external URL; sourced corpus entries added later
+   * carry a real publisher label and `url`. Never invent a URL for FAQ text.
+   */
+  readonly source?: string;
+  readonly url?: string | null;
 }
+
+/** Default provenance label for internal FAQ entries with no external source. */
+const DEFAULT_SOURCE = 'FAQ SAP';
 
 export const KNOWLEDGE_BASE: readonly KnowledgeEntry[] = [
   // Scan
@@ -232,4 +248,31 @@ export function buildContextBlock(entries: KnowledgeEntry[], pageContext: PageCo
     `KONTEKS (pageContext aktif: ${pageContext}) — jawab HANYA dari entri di bawah:`,
     ...lines,
   ].join('\n');
+}
+
+/**
+ * Resolve the KONTEKS entry ids the model claims it grounded on into structured
+ * citation cards. Only ids that were actually part of the retrieved set become
+ * cards, so a hallucinated id can never surface a source. Order follows the
+ * model's list, duplicates are dropped, and the count is capped for the UI.
+ */
+export function toCitations(retrieved: KnowledgeEntry[], citedIds: string[]): Citation[] {
+  const byId = new Map(retrieved.map((entry) => [entry.id, entry]));
+  const cards: Citation[] = [];
+  const seen = new Set<string>();
+  for (const id of citedIds) {
+    if (seen.has(id)) continue;
+    const entry = byId.get(id);
+    if (!entry) continue;
+    seen.add(id);
+    cards.push({
+      id: entry.id,
+      title: entry.question,
+      snippet: entry.answer.slice(0, CITATION_SNIPPET_MAX),
+      source: entry.source ?? DEFAULT_SOURCE,
+      url: entry.url ?? null,
+    });
+    if (cards.length >= CITATIONS_MAX) break;
+  }
+  return cards;
 }

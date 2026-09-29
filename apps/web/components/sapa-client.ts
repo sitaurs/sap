@@ -5,7 +5,8 @@ export type SapaPageContext =
   | "dashboard" | "scan" | "my_reports" | "areas"
   | "scan_history" | "achievements" | "settings" | "help";
 export type SapaSuggestedAction = { label: string; target: SapaPageContext };
-export type SapaChatResult = { conversationId: string; reply: string; suggestedActions: SapaSuggestedAction[] };
+export type SapaCitation = { id: string; title: string; snippet: string; source: string; url: string | null };
+export type SapaChatResult = { conversationId: string; reply: string; suggestedActions: SapaSuggestedAction[]; citations: SapaCitation[] };
 
 export async function readSapaAccountPreference(): Promise<boolean> {
   const user = await getMe();
@@ -19,6 +20,6 @@ export async function saveSapaAccountPreference(enabled: boolean): Promise<void>
 
 export async function sendSapaMessage(message: string, pageContext: SapaPageContext, conversationId: string | null): Promise<SapaChatResult> {
   const result = await apiMutate<SapaChatResult>("POST", "/assistant/chat", { body: { message, pageContext, conversationId } });
-  if (!result.reply?.trim() || !result.conversationId || !Array.isArray(result.suggestedActions)) throw new Error("Respons SAPA tidak sesuai kontrak.");
+  if (!result.reply?.trim() || !result.conversationId || !Array.isArray(result.suggestedActions) || !Array.isArray(result.citations)) throw new Error("Respons SAPA tidak sesuai kontrak.");
   return result;
 }

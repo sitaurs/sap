@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
 import { ArrowRight, FilePlus2, Map, Recycle, Send, X } from "lucide-react";
-import { sendSapaMessage, type SapaPageContext, type SapaSuggestedAction } from "./sapa-client";
+import { sendSapaMessage, type SapaCitation, type SapaPageContext, type SapaSuggestedAction } from "./sapa-client";
 import styles from "./sapa-pet.module.css";
 
 export type SapaDashboardTab = "dashboard" | "scan" | "reports" | "map" | "history" | "achievements" | "settings" | "help";
@@ -17,7 +17,7 @@ const tabByTarget: Record<SapaPageContext, SapaDashboardTab> = {
   scan_history: "history", achievements: "achievements", settings: "settings", help: "help",
 };
 
-type ChatMessage = { id: string; role: "user" | "assistant"; content: string };
+type ChatMessage = { id: string; role: "user" | "assistant"; content: string; citations?: SapaCitation[] };
 type Position = { x: number; y: number };
 
 const edgeGap = 12;
@@ -159,7 +159,7 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
     try {
       const result = await sendSapaMessage(message, contextByTab[tab], conversationId);
       setConversationId(result.conversationId);
-      setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: result.reply }]);
+      setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: result.reply, citations: result.citations }]);
       setSuggestedActions(result.suggestedActions);
     } catch (cause) {
       setMessages(current => current.filter(item => item.id !== id));
@@ -207,7 +207,22 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
         </>}
 
         {messages.length > 0 && <div className={styles.messages} role="log" aria-label="Percakapan SAPA" aria-live="polite">
-          {messages.map(item => <p className={item.role === "user" ? styles.userMessage : styles.assistantMessage} key={item.id}>{item.content}</p>)}
+          {messages.map(item => item.role === "assistant"
+            ? <div className={styles.assistantTurn} key={item.id}>
+                <p className={styles.assistantMessage}>{item.content}</p>
+                {item.citations && item.citations.length > 0 && <ul className={styles.citations} aria-label="Sumber jawaban SAPA">
+                  {item.citations.map(citation => <li className={styles.citation} key={citation.id}>
+                    <span className={styles.citationSource}>{citation.source}</span>
+                    <span className={styles.citationTitle}>
+                      {citation.url
+                        ? <a href={citation.url} target="_blank" rel="noopener noreferrer">{citation.title}</a>
+                        : citation.title}
+                    </span>
+                    <span className={styles.citationSnippet}>{citation.snippet}</span>
+                  </li>)}
+                </ul>}
+              </div>
+            : <p className={styles.userMessage} key={item.id}>{item.content}</p>)}
           {sending && <p className={styles.pendingMessage}>SAPA sedang menyiapkan jawaban…</p>}
           {suggestedActions.length > 0 && <div className={styles.suggestions}>{suggestedActions.filter(action => action.target in tabByTarget).map(action => <button type="button" key={`${action.target}-${action.label}`} onClick={() => navigate(tabByTarget[action.target])}>{action.label}<ArrowRight size={14} /></button>)}</div>}
         </div>}

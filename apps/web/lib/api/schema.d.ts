@@ -716,6 +716,21 @@ export interface components {
             label: string;
             target: components["schemas"]["AssistantTarget"];
         };
+        /** @description Sumber terkurasi yang menjadi dasar jawaban SAPA. `id` merujuk entri korpus yang benar-benar ada dalam KONTEKS; SAPA tidak mengarang kartu sitasi. */
+        AssistantCitation: {
+            /** @description ID stabil entri korpus (mis. `map-belum-peta`). */
+            id: string;
+            title: string;
+            /** @description Kutipan grounding dari entri sumber. */
+            snippet: string;
+            /** @description Label penyedia/sumber, mis. "FAQ SAP". */
+            source: string;
+            /**
+             * Format: uri
+             * @description URL sumber eksternal bila ada; null untuk FAQ internal.
+             */
+            url: string | null;
+        };
         UserPreferences: {
             sapaEnabled: boolean;
         };
@@ -737,6 +752,8 @@ export interface components {
             conversationId: string;
             reply: string;
             suggestedActions: components["schemas"]["SuggestedAction"][];
+            /** @description Kartu sumber terkurasi yang mendasari jawaban. Boleh kosong bila jawaban tidak bersandar pada entri korpus tertentu. */
+            citations: components["schemas"]["AssistantCitation"][];
         };
         DeleteInput: {
             /** @enum {string} */

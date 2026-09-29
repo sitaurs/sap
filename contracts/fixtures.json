@@ -954,6 +954,15 @@
               "label": "Buka Laporan saya",
               "target": "my_reports"
             }
+          ],
+          "citations": [
+            {
+              "id": "report-belum-peta",
+              "title": "Kenapa laporan saya belum muncul di peta?",
+              "snippet": "Peta hanya menampilkan laporan yang sudah diverifikasi. Laporan yang baru dikirim masih menunggu pemeriksaan. Cek statusnya di Laporan saya.",
+              "source": "FAQ SAP",
+              "url": null
+            }
           ]
         },
         "meta": {

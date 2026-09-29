@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { getConfig, type AppConfig } from '@sap/config';
 import {
+  CITATIONS_MAX,
   isAssistantTarget,
   LABEL_MAX_LENGTH,
   SUGGESTED_ACTIONS_MAX,
@@ -108,6 +109,7 @@ export class AssistantProvider {
     return {
       reply: reply.trim(),
       suggestedActions: this.sanitizeActions((parsed as { suggestedActions?: unknown }).suggestedActions),
+      citationIds: this.sanitizeCitationIds((parsed as { citations?: unknown }).citations),
     };
   }
 
@@ -143,5 +145,24 @@ export class AssistantProvider {
       actions.push({ label: trimmed, target });
     }
     return actions;
+  }
+
+  /**
+   * Keep only well-formed citation ids (non-empty strings) the model reported,
+   * capped at the max. These are raw KONTEKS ids; the service still cross-checks
+   * each against the retrieved set before turning it into a card, so a bogus id
+   * here can never fabricate a source.
+   */
+  private sanitizeCitationIds(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    const ids: string[] = [];
+    for (const item of value) {
+      if (ids.length >= CITATIONS_MAX) break;
+      if (typeof item !== 'string') continue;
+      const trimmed = item.trim();
+      if (trimmed.length === 0 || trimmed.length > 64) continue;
+      ids.push(trimmed);
+    }
+    return ids;
   }
 }

@@ -26,6 +26,7 @@ let AssistantService: typeof import('../src/assistant/assistant.service.js').Ass
 let AssistantProvider: typeof import('../src/assistant/assistant-provider.js').AssistantProvider;
 let ProviderUnavailableError: typeof import('../src/assistant/assistant-provider.js').ProviderUnavailableError;
 let retrieveKnowledge: typeof import('../src/assistant/assistant-knowledge.js').retrieveKnowledge;
+let toCitations: typeof import('../src/assistant/assistant-knowledge.js').toCitations;
 let getConfig: typeof import('@sap/config').getConfig;
 
 function errorCode(error: unknown): string {
@@ -40,7 +41,7 @@ function httpStatus(error: unknown): number {
 before(async () => {
   ({ AssistantService } = await import('../src/assistant/assistant.service.js'));
   ({ AssistantProvider, ProviderUnavailableError } = await import('../src/assistant/assistant-provider.js'));
-  ({ retrieveKnowledge } = await import('../src/assistant/assistant-knowledge.js'));
+  ({ retrieveKnowledge, toCitations } = await import('../src/assistant/assistant-knowledge.js'));
   ({ getConfig } = await import('@sap/config'));
 });
 
@@ -79,7 +80,7 @@ function makeProvider(reply: unknown | Error) {
   };
 }
 
-const OK_REPLY = { reply: 'Jawaban singkat.', suggestedActions: [{ label: 'Buka Bantuan', target: 'help' }] };
+const OK_REPLY = { reply: 'Jawaban singkat.', suggestedActions: [{ label: 'Buka Bantuan', target: 'help' }], citationIds: [] };
 const ENABLED_CALLER = { id: 'u1', sapaEnabled: true };
 const REQUEST = { message: 'Bagaimana cara scan?', pageContext: 'scan', conversationId: null };
 
@@ -154,7 +155,26 @@ test('chat returns a fresh conversationId and persists the turn on success', asy
   assert.equal(result.conversationId, 'new-conv-id');
   assert.equal(result.reply, 'Jawaban singkat.');
   assert.equal(result.suggestedActions.length, 1);
+  assert.ok(Array.isArray(result.citations), 'citations is always an array');
   assert.equal(state.appended, 1, 'the turn should be stored exactly once');
+});
+
+test('chat resolves cited ids from the retrieved set and drops hallucinated ids', async () => {
+  const { store } = makeStore();
+  // 'scan-cara' is retrieved on the scan page; 'ghost-id' is not in the KB.
+  const provider = makeProvider({
+    reply: 'Buka halaman Scan lalu ambil satu foto sampah yang jelas.',
+    suggestedActions: [{ label: 'Buka Scan', target: 'scan' }],
+    citationIds: ['scan-cara', 'ghost-id'],
+  });
+  const service = new AssistantService(provider as never, store as never);
+  const result = await service.chat(ENABLED_CALLER, REQUEST);
+  assert.equal(result.citations.length, 1, 'only real, retrieved ids become cards');
+  const card = result.citations[0]!;
+  assert.equal(card.id, 'scan-cara');
+  assert.equal(card.source, 'FAQ SAP');
+  assert.equal(card.url, null, 'internal FAQ entries never invent a URL');
+  assert.ok(card.title.length > 0 && card.snippet.length > 0);
 });
 
 test('deleteConversation resolves when a transcript existed, else 404', async () => {
@@ -177,6 +197,22 @@ test('retrieveKnowledge always includes the safety-net entries and boosts the ac
   assert.ok(entries.length <= 6, 'context stays small to save tokens');
 });
 
+test('toCitations keeps only retrieved ids, dedupes, preserves order, and caps at four', async () => {
+  const retrieved = retrieveKnowledge('bagaimana cara membaca peta area', 'areas');
+  const realIds = retrieved.map((entry) => entry.id);
+  assert.ok(realIds.length >= 2, 'need a couple of real ids for the test');
+  const first = realIds[0]!;
+  const second = realIds[1]!;
+  const cited = [second, second, 'not-a-real-id', first];
+  const cards = toCitations(retrieved, cited);
+  assert.deepEqual(cards.map((card) => card.id), [second, first], 'dedupe + drop bogus, keep order');
+  assert.ok(cards.every((card) => card.source.length > 0 && card.url === null));
+
+  // Cap: feed every retrieved id twice; result never exceeds the contract max of 4.
+  const many = toCitations(retrieved, [...realIds, ...realIds]);
+  assert.ok(many.length <= 4, 'citation cards are capped for the UI');
+});
+
 test('provider filters out disallowed targets and over-long labels', async () => {
   const provider = new AssistantProvider();
   const originalFetch = globalThis.fetch;
@@ -194,6 +230,7 @@ test('provider filters out disallowed targets and over-long labels', async () =>
                 { label: 'Peta', target: 'areas' },
                 { label: 'Extra', target: 'help' },
               ],
+              citations: ['scan-cara', 42, '', 'scan-foto-jelas', 'a', 'b', 'c'],
             }),
           },
         }],
@@ -206,6 +243,9 @@ test('provider filters out disallowed targets and over-long labels', async () =>
     // Kept: scan + areas + help(Extra); dropped long label + bad target; capped at 3.
     assert.equal(reply.suggestedActions.length, 3);
     assert.deepEqual(reply.suggestedActions.map((a) => a.target), ['scan', 'areas', 'help']);
+    // Citations: strings only, non-empty, capped at 4; non-string/empty dropped.
+    assert.equal(reply.citationIds.length, 4);
+    assert.deepEqual(reply.citationIds, ['scan-cara', 'scan-foto-jelas', 'a', 'b']);
   } finally {
     globalThis.fetch = originalFetch;
   }

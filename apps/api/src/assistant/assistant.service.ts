@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { getConfig, type AppConfig } from '@sap/config';
 import { RateLimitException } from '../platform/http/rate-limit.js';
-import { buildContextBlock, retrieveKnowledge } from './assistant-knowledge.js';
+import { buildContextBlock, retrieveKnowledge, toCitations } from './assistant-knowledge.js';
 import { AssistantProvider, ProviderUnavailableError } from './assistant-provider.js';
 import { AssistantStore } from './assistant-store.js';
 import { PRIMING_REPLY, SYSTEM_PROMPT } from './assistant.prompt.js';
@@ -117,7 +117,12 @@ export class AssistantService {
     }
 
     await this.store.appendTurn(caller.id, conversationId, message, reply.reply, history);
-    return { conversationId, reply: reply.reply, suggestedActions: reply.suggestedActions };
+    return {
+      conversationId,
+      reply: reply.reply,
+      suggestedActions: reply.suggestedActions,
+      citations: toCitations(entries, reply.citationIds),
+    };
   }
 
   /** Delete a stored transcript. Missing/expired/foreign id -> 404. */
