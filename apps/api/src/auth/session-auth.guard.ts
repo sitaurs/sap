@@ -33,6 +33,7 @@ export class SessionAuthGuard implements CanActivate {
       role: resolved.user.role,
       emailVerified: resolved.user.emailVerifiedAt !== null,
       sapaEnabled: resolved.user.sapaEnabled,
+      avatarMediaId: resolved.user.avatarMediaId,
     };
     request.session = {
       id: resolved.session.id,

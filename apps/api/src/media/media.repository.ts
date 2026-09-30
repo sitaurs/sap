@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DATABASE, type Database } from '../infrastructure/database.module.js';
 
-export type MediaPurpose = 'scan' | 'report' | 'resolution';
+export type MediaPurpose = 'scan' | 'report' | 'resolution' | 'avatar';
 export type MediaMime = 'image/jpeg' | 'image/png' | 'image/webp';
 
 /** Domain view of a stored media object (matches the OpenAPI `Media` schema). */
@@ -72,5 +72,25 @@ export class MediaRepository {
       WHERE id = ${mediaId} AND owner_id = ${ownerId} AND state = 'stored' AND deleted_at IS NULL
       LIMIT 1`;
     return rows[0] ? mapMedia(rows[0]) : null;
+  }
+
+  /**
+   * Clear the orphan TTL so a freshly uploaded object survives cleanup once it is
+   * attached to something durable (e.g. an avatar). Scoped to the owner.
+   */
+  async clearExpiry(mediaId: string, ownerId: string): Promise<void> {
+    await this.sql`
+      UPDATE media SET expires_at = NULL, updated_at = now()
+      WHERE id = ${mediaId} AND owner_id = ${ownerId} AND deleted_at IS NULL`;
+  }
+
+  /**
+   * Re-arm the orphan TTL on an object that is no longer referenced (e.g. an
+   * avatar that was just replaced), so the cleanup job reclaims it.
+   */
+  async scheduleExpiry(mediaId: string, ownerId: string, expiresAt: Date): Promise<void> {
+    await this.sql`
+      UPDATE media SET expires_at = ${expiresAt}, updated_at = now()
+      WHERE id = ${mediaId} AND owner_id = ${ownerId} AND deleted_at IS NULL`;
   }
 }

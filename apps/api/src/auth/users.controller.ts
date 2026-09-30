@@ -5,7 +5,7 @@ import { AuthService } from './auth.service.js';
 import { CsrfService } from './csrf.service.js';
 import { CurrentSession, CurrentUser } from './current-user.decorator.js';
 import { deletionCookie } from './deletion-cookie.js';
-import { DeleteInputDto, PreferencesInputDto, ProfileInputDto } from './dto.js';
+import { DeleteInputDto, PreferencesInputDto, ProfileInputDto, ChangePasswordInputDto, SetAvatarInputDto } from './dto.js';
 import { SessionAuthGuard } from './session-auth.guard.js';
 import { SessionService } from '../session/session.service.js';
 
@@ -21,6 +21,20 @@ export class UsersController {
   @Patch('me')
   updateMe(@CurrentUser() user: AuthenticatedUser, @Body() dto: ProfileInputDto) {
     return this.auth.updateDisplayName(user.id, dto.displayName);
+  }
+
+  @Patch('me/password')
+  changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @CurrentSession() session: AuthenticatedSession,
+    @Body() dto: ChangePasswordInputDto,
+  ) {
+    return this.auth.changePassword(user.id, session.tokenHash, dto.currentPassword, dto.newPassword);
+  }
+
+  @Patch('me/avatar')
+  setAvatar(@CurrentUser() user: AuthenticatedUser, @Body() dto: SetAvatarInputDto) {
+    return this.auth.setAvatar(user.id, dto.mediaId);
   }
 
   @Patch('me/preferences')

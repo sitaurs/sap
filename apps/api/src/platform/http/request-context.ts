@@ -8,6 +8,7 @@ export interface AuthenticatedUser {
   role: 'user' | 'admin';
   emailVerified: boolean;
   sapaEnabled: boolean;
+  avatarMediaId: string | null;
 }
 
 /** The session row backing the current request, resolved by the auth guard. */

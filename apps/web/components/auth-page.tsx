@@ -126,7 +126,7 @@ export default function AuthPage({ mode }: { mode: Mode }) {
 
                 {stage === "form" && !isSignup && <div className={styles.options}><label className={styles.remember}><input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} /><span className={styles.customCheck} aria-hidden="true" />Ingat email saya</label><button type="button" className={styles.textButton} onClick={() => { setStage("forgot"); setError(""); setNotice(""); }}>Lupa kata sandi?</button></div>}
 
-                <button className={styles.submit} type="submit" disabled={busy}>{busy ? "Memproses…" : stage === "verify" ? "Verifikasi & masuk" : stage === "forgot" ? "Kirim kode" : stage === "reset" ? "Simpan kata sandi" : isSignup ? "Daftar" : "Masuk"}</button>
+                <button className={styles.submit} type="submit" disabled={busy} aria-busy={busy}>{busy ? <><span className={styles.spinner} aria-hidden="true" />Memproses…</> : stage === "verify" ? "Verifikasi & masuk" : stage === "forgot" ? "Kirim kode" : stage === "reset" ? "Simpan kata sandi" : isSignup ? "Daftar" : "Masuk"}</button>
                 {stage === "verify" && <button className={styles.textButton} type="button" disabled={busy} onClick={resendCode}>Kirim ulang kode</button>}
                 {stage !== "form" && <button className={styles.textButton} type="button" onClick={() => { setStage("form"); setError(""); setNotice(""); }}><ArrowLeft size={16} /> Kembali</button>}
                 {notice && <p className={styles.notice} role="status">{notice}</p>}

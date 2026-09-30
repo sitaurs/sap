@@ -88,3 +88,7 @@ export const LABEL_MAX_LENGTH = 40;
 export const CITATIONS_MAX = 4;
 /** Citation snippet cap, mirrors the contract `AssistantCitation.snippet`. */
 export const CITATION_SNIPPET_MAX = 400;
+/** Citation title cap, mirrors the contract `AssistantCitation.title`. */
+export const CITATION_TITLE_MAX = 160;
+/** Citation source cap, mirrors the contract `AssistantCitation.source`. */
+export const CITATION_SOURCE_MAX = 80;

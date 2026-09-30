@@ -97,6 +97,8 @@ export async function logout() {
   clearApiSession();
 }
 export const updateProfile = (displayName: string) => apiMutate<SapUser>("PATCH", "/users/me", { body: { displayName } });
+export const changePassword = (currentPassword: string, newPassword: string) => apiMutate<Schema["Ack"]>("PATCH", "/users/me/password", { body: { currentPassword, newPassword } });
+export const setAvatar = (mediaId: string | null) => apiMutate<SapUser>("PATCH", "/users/me/avatar", { body: { mediaId } });
 export const updateSapaPreference = (sapaEnabled: boolean) => apiMutate<Schema["UserPreferences"]>("PATCH", "/users/me/preferences", { body: { sapaEnabled } });
 export const reauthenticate = (password: string) => apiMutate<Schema["Ack"]>("POST", "/auth/reauthenticate", { body: { password } });
 export async function deleteAccount(): Promise<Schema["Deletion"]> {
@@ -127,7 +129,7 @@ export const getReport = (id: string, signal?: AbortSignal) => apiGet<SapReport>
 export const updateReport = (id: string, revision: number, body: Schema["ReportUpdateInput"]) => apiMutate<SapReport>("PATCH", `/reports/${encodeURIComponent(id)}`, { body, headers: { "if-match": String(revision) } });
 export const mediaUrl = (id: string, signal?: AbortSignal) => apiGet<SapMediaUrl>(`/media/${encodeURIComponent(id)}/url`, signal);
 
-export async function uploadMedia(file: File, purpose: "scan" | "report", signal?: AbortSignal): Promise<Schema["Media"]> {
+export async function uploadMedia(file: File, purpose: "scan" | "report" | "avatar", signal?: AbortSignal): Promise<Schema["Media"]> {
   const form = new FormData();
   form.append("file", file);
   form.append("purpose", purpose);

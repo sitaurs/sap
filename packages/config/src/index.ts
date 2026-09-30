@@ -70,6 +70,26 @@ const schema = z.object({
   SAPA_LLM_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
   SAPA_LLM_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(64).max(4000).default(500),
   SAPA_LLM_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.3),
+  // SAPA hybrid retrieval (Step 4). When on, SAPA grounds on the `sapa_corpus`
+  // Postgres table via pgvector dense search + full-text + trigram fused with RRF,
+  // and enables the deterministic read-only account-stats tool. When off, SAPA
+  // falls back to the in-memory KNOWLEDGE_BASE token-overlap retrieval (default),
+  // so nothing changes until the 0009 migration + embedding backfill have run.
+  SAPA_RETRIEVAL_HYBRID_ENABLED: booleanFromEnv.default(false),
+  // Embeddings reuse the SAPA gateway (SAPA_LLM_BASE_URL / SAPA_LLM_API_KEY) via
+  // its OpenAI-compatible /embeddings endpoint. The gateway only has working
+  // credentials for Gemini; gemini-embedding-001 at 1536 dims is NOT unit-norm, so
+  // the client L2-normalizes app-side. 1536 (not 3072) keeps under pgvector's HNSW
+  // 2000-dim index limit. SAPA_EMBEDDING_DIM must match the vector(N) column.
+  SAPA_EMBEDDING_MODEL: z.preprocess(emptyToUndefined, z.string().min(1).default('gemini/gemini-embedding-001')),
+  SAPA_EMBEDDING_DIM: z.coerce.number().int().min(64).max(2000).default(1536),
+  SAPA_EMBEDDING_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
+  // Optional TOTP MFA is disabled until explicitly enabled with a dedicated key.
+  MFA_TOTP_ENABLED: booleanFromEnv.default(false),
+  MFA_TOTP_ENCRYPTION_KEY: z.preprocess(
+    emptyToUndefined,
+    nonPlaceholder.regex(/^[a-fA-F0-9]{64}$/, "must be exactly 32 bytes encoded as 64 hexadecimal characters").optional(),
+  ),
   // Hybrid scan detection (HYBRID_SCAN_DETECTION.md). These env vars only SEED the
   // `scan_settings` singleton row on an empty database; the live source of truth is
   // that row (admin-tunable at runtime). The vision LLM reuses the SAPA gateway
@@ -109,6 +129,35 @@ const schema = z.object({
     for (const field of ['SAPA_LLM_BASE_URL', 'SAPA_LLM_API_KEY'] as const) {
       if (!value[field]) {
         context.addIssue({ code: 'custom', path: [field], message: 'required when SCAN_LLM_VISION_ENABLED is true' });
+      }
+    }
+  }
+  // Hybrid retrieval extends SAPA and calls the gateway /embeddings endpoint, so
+  // SAPA itself must be on and the gateway (base URL + key) configured.
+  // Optional TOTP MFA must never run without its dedicated AES-256-GCM key: an
+  // absent/placeholder key would silently disable encryption of the seed at rest.
+  if (value.MFA_TOTP_ENABLED && !value.MFA_TOTP_ENCRYPTION_KEY) {
+    context.addIssue({
+      code: "custom",
+      path: ["MFA_TOTP_ENCRYPTION_KEY"],
+      message: "required when MFA_TOTP_ENABLED is true",
+    });
+  }
+  if (value.SAPA_RETRIEVAL_HYBRID_ENABLED) {
+    if (!value.SAPA_FEATURE_ENABLED) {
+      context.addIssue({
+        code: 'custom',
+        path: ['SAPA_FEATURE_ENABLED'],
+        message: 'must be true when SAPA_RETRIEVAL_HYBRID_ENABLED is true',
+      });
+    }
+    for (const field of ['SAPA_LLM_BASE_URL', 'SAPA_LLM_API_KEY'] as const) {
+      if (!value[field]) {
+        context.addIssue({
+          code: 'custom',
+          path: [field],
+          message: 'required when SAPA_RETRIEVAL_HYBRID_ENABLED is true',
+        });
       }
     }
   }

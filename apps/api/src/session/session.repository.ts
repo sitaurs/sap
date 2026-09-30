@@ -16,6 +16,7 @@ interface SessionUserRow {
   u_role: 'user' | 'admin';
   u_email_verified_at: Date | null;
   u_sapa_enabled: boolean;
+  u_avatar_media_id: string | null;
   u_deleted_at: Date | null;
 }
 
@@ -42,6 +43,7 @@ function map(row: SessionUserRow): ResolvedSession {
       role: row.u_role,
       emailVerifiedAt: row.u_email_verified_at,
       sapaEnabled: row.u_sapa_enabled,
+      avatarMediaId: row.u_avatar_media_id,
       deletedAt: row.u_deleted_at,
     },
   };
@@ -63,7 +65,8 @@ export class SessionRepository {
       SELECT s.id, s.user_id, s.token_hash, s.expires_at, s.last_seen_at, s.reauthenticated_at,
              u.id AS u_id, u.email_normalized AS u_email_normalized, u.password_hash AS u_password_hash,
              u.display_name AS u_display_name, u.role AS u_role,
-             u.email_verified_at AS u_email_verified_at, u.sapa_enabled AS u_sapa_enabled, u.deleted_at AS u_deleted_at
+             u.email_verified_at AS u_email_verified_at, u.sapa_enabled AS u_sapa_enabled,
+             u.avatar_media_id AS u_avatar_media_id, u.deleted_at AS u_deleted_at
       FROM sessions s
       JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = ${tokenHash} AND s.expires_at > now() AND u.deleted_at IS NULL
@@ -86,5 +89,14 @@ export class SessionRepository {
   /** Revoke every session for a user (reset-password + account deletion). */
   async deleteAllForUser(userId: string): Promise<void> {
     await this.sql`DELETE FROM sessions WHERE user_id = ${userId}`;
+  }
+
+  /**
+   * Revoke every session for a user except the one identified by `keepTokenHash`.
+   * Used on an in-app password change: other devices are logged out, but the
+   * caller's current session stays valid so they are not booted mid-action.
+   */
+  async deleteAllForUserExcept(userId: string, keepTokenHash: string): Promise<void> {
+    await this.sql`DELETE FROM sessions WHERE user_id = ${userId} AND token_hash <> ${keepTokenHash}`;
   }
 }

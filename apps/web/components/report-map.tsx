@@ -3,10 +3,11 @@
 import { useEffect, useRef } from "react";
 import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
 import styles from "./report-wizard.module.css";
+import { MALANG_CENTER } from "../lib/malang";
 
 export type ReportPoint = { latitude: number; longitude: number };
 
-const fallbackCenter: ReportPoint = { latitude: -5.43, longitude: 105.26 };
+const fallbackCenter: ReportPoint = MALANG_CENTER;
 
 export default function ReportMap({ point, onPick, readOnly = false }: {
   point: ReportPoint | null;

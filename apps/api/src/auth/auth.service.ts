@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { SessionService } from '../session/session.service.js';
 import { SessionRepository } from '../session/session.repository.js';
 import { UsersRepository } from '../users/users.repository.js';
+import { MediaRepository } from '../media/media.repository.js';
 import { AuthCryptoService } from './auth-crypto.js';
 import type { ChallengePurpose, ChallengeRecord, DeletionRecord, UserRecord, UserView } from './auth.types.js';
 import { toUserView } from './auth.types.js';
@@ -11,6 +12,7 @@ import { DeletionRepository } from './deletion.repository.js';
 import { MailerService } from './mailer.service.js';
 import { OutboxRepository } from './outbox.repository.js';
 import { PasswordService } from './password.service.js';
+import { ORPHAN_TTL_MS } from '../media/media.service.js';
 
 const OTP_TTL_MS = 10 * 60 * 1_000;
 const RESEND_COOLDOWN_MS = 60 * 1_000;
@@ -61,6 +63,7 @@ export class AuthService {
     private readonly passwords: PasswordService,
     private readonly crypto: AuthCryptoService,
     private readonly mailer: MailerService,
+    private readonly media: MediaRepository,
   ) {}
 
   async register(input: { displayName: string; email: string; password: string }): Promise<ChallengeResult> {
@@ -155,8 +158,58 @@ export class AuthService {
     return { message: 'Reautentikasi berhasil.' };
   }
 
+  /**
+   * Change the password of the signed-in account. The current password is
+   * verified first; the new one must differ. On success every other session is
+   * revoked (other devices are logged out) while the caller's current session
+   * stays valid, so an in-app change does not boot the user mid-action.
+   */
+  async changePassword(userId: string, sessionTokenHash: string, currentPassword: string, newPassword: string): Promise<AckResult> {
+    const user = await this.users.findActiveById(userId);
+    const valid = await this.passwords.verify(user?.passwordHash, currentPassword);
+    if (!user || !valid) {
+      throw new BadRequestException({ code: 'VALIDATION_ERROR', message: 'Kata sandi saat ini salah.' });
+    }
+    if (await this.passwords.verify(user.passwordHash, newPassword)) {
+      throw new BadRequestException({ code: 'VALIDATION_ERROR', message: 'Kata sandi baru harus berbeda dari yang sekarang.' });
+    }
+    const passwordHash = await this.passwords.hash(newPassword);
+    await this.users.updatePassword(userId, passwordHash);
+    await this.sessions.deleteAllForUserExcept(userId, sessionTokenHash);
+    return { message: 'Kata sandi berhasil diperbarui. Sesi di perangkat lain telah keluar.' };
+  }
+
   async updateDisplayName(userId: string, displayName: string): Promise<UserView> {
     const updated = await this.users.updateDisplayName(userId, displayName);
+    if (!updated) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Akun tidak ditemukan.' });
+    return toUserView(updated);
+  }
+
+  /**
+   * Attach a stored `avatar` media object to the signed-in account, or clear the
+   * photo with `mediaId = null`. The object must be owned by the caller and have
+   * purpose `avatar`; on attach its orphan TTL is cleared so cleanup keeps it,
+   * and any previously attached photo is re-armed for cleanup.
+   */
+  async setAvatar(userId: string, mediaId: string | null): Promise<UserView> {
+    const current = await this.users.findActiveById(userId);
+    if (!current) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Akun tidak ditemukan.' });
+
+    if (mediaId !== null) {
+      const media = await this.media.findStoredForOwner(mediaId, userId);
+      if (!media || media.purpose !== 'avatar') {
+        throw new BadRequestException({ code: 'VALIDATION_ERROR', message: 'Foto profil tidak ditemukan atau bukan milik Anda.' });
+      }
+      // Persist the new object so the orphan cleanup job leaves it alone.
+      await this.media.clearExpiry(mediaId, userId);
+    }
+
+    // Re-arm cleanup on the photo being replaced/removed so it is reclaimed.
+    if (current.avatarMediaId && current.avatarMediaId !== mediaId) {
+      await this.media.scheduleExpiry(current.avatarMediaId, userId, new Date(Date.now() + ORPHAN_TTL_MS));
+    }
+
+    const updated = await this.users.updateAvatar(userId, mediaId);
     if (!updated) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Akun tidak ditemukan.' });
     return toUserView(updated);
   }

@@ -1,4 +1,4 @@
-import { Equals, IsBoolean, IsEmail, IsString, IsUUID, Length, Matches, MaxLength } from 'class-validator';
+import { Equals, IsBoolean, IsEmail, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf } from 'class-validator';
 
 const OTP_PATTERN = /^[0-9]{6}$/;
 
@@ -61,10 +61,28 @@ export class ProfileInputDto {
   displayName!: string;
 }
 
+/** PATCH /users/me/password body. Current password is verified before the change. */
+export class ChangePasswordInputDto {
+  @IsString()
+  @Length(1, 128)
+  currentPassword!: string;
+
+  @IsString()
+  @Length(12, 128)
+  newPassword!: string;
+}
+
 /** PATCH /users/me/preferences body. Only the SAPA flag may be set; extra keys are rejected. */
 export class PreferencesInputDto {
   @IsBoolean()
   sapaEnabled!: boolean;
+}
+
+/** PATCH /users/me/avatar body. `null` clears the photo; a uuid must be an owned `avatar` media. */
+export class SetAvatarInputDto {
+  @ValidateIf((o) => o.mediaId !== null)
+  @IsUUID()
+  mediaId!: string | null;
 }
 
 export class DeleteInputDto {

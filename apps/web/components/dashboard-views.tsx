@@ -16,7 +16,7 @@ import AreaView from "./area-view";
 import ReportDetail from "./report-detail";
 import { createBackendScan, waitForBackendScan, type ScanResponse } from "./scan-client";
 import type { ScanOperation } from "./scan-client";
-import { deleteAccount, reauthenticate, type SapAchievement, type SapCategory, type SapReport, type SapScan, type SapStats } from "../lib/api/client";
+import { changePassword, deleteAccount, mediaUrl, reauthenticate, setAvatar, uploadMedia, type SapAchievement, type SapCategory, type SapReport, type SapScan, type SapStats, type SapUser } from "../lib/api/client";
 
 type Tab = "dashboard" | "scan" | "reports" | "map" | "history" | "achievements" | "settings" | "help";
 type Props = {
@@ -36,6 +36,8 @@ type Props = {
   onReportsChanged: () => void;
   onReportWizardChange: (open: boolean) => void;
   onSaveProfile: (name: string) => Promise<void>;
+  avatarMediaId: string | null;
+  onAvatarChanged: (user: SapUser) => void;
   onSignOut: () => void;
   onAccountDeleted: () => void;
   sapaEnabled: boolean;
@@ -205,7 +207,7 @@ function AchievementsView({ stats, achievements, onNavigate }: Pick<Props, "stat
   </>;
 }
 
-function SettingsView({ email, displayName, onSaveProfile, onSignOut, onAccountDeleted, sapaEnabled, sapaSaving, onToggleSapa }: Pick<Props, "email" | "displayName" | "onSaveProfile" | "onSignOut" | "onAccountDeleted" | "sapaEnabled" | "sapaSaving" | "onToggleSapa">) {
+function SettingsView({ email, displayName, avatarMediaId, onSaveProfile, onAvatarChanged, onSignOut, onAccountDeleted, sapaEnabled, sapaSaving, onToggleSapa }: Pick<Props, "email" | "displayName" | "avatarMediaId" | "onSaveProfile" | "onAvatarChanged" | "onSignOut" | "onAccountDeleted" | "sapaEnabled" | "sapaSaving" | "onToggleSapa">) {
   const [name, setName] = useState(displayName);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -216,12 +218,67 @@ function SettingsView({ email, displayName, onSaveProfile, onSignOut, onAccountD
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [deletionQueued, setDeletionQueued] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const [pwSaved, setPwSaved] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
   useEffect(() => setName(displayName), [displayName]);
+  // Resolve the private avatar object to a short-lived signed URL for display.
+  useEffect(() => {
+    if (!avatarMediaId) { setAvatarUrl(null); return; }
+    let active = true;
+    mediaUrl(avatarMediaId).then(result => { if (active) setAvatarUrl(result.url); }).catch(() => { if (active) setAvatarUrl(null); });
+    return () => { active = false; };
+  }, [avatarMediaId]);
+  async function onPickAvatar(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || avatarBusy) return;
+    setAvatarError("");
+    if (!file.type.startsWith("image/")) { setAvatarError("Pilih berkas gambar."); return; }
+    if (file.size > 10 * 1024 * 1024) { setAvatarError("Ukuran maksimal 10 MB."); return; }
+    setAvatarBusy(true);
+    try {
+      const media = await uploadMedia(file, "avatar");
+      const account = await setAvatar(media.id);
+      onAvatarChanged(account);
+    }
+    catch (cause) { setAvatarError(cause instanceof Error ? cause.message : "Foto belum berhasil diunggah."); }
+    finally { setAvatarBusy(false); }
+  }
+  async function removeAvatar() {
+    if (avatarBusy) return;
+    setAvatarBusy(true); setAvatarError("");
+    try { const account = await setAvatar(null); onAvatarChanged(account); }
+    catch (cause) { setAvatarError(cause instanceof Error ? cause.message : "Foto belum berhasil dihapus."); }
+    finally { setAvatarBusy(false); }
+  }
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSaving(true); setError(""); setSaved(false);
     try { await onSaveProfile(name.trim()); setSaved(true); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Profil belum tersimpan."); }
     finally { setSaving(false); }
+  }
+  async function submitPassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pwBusy) return;
+    setPwError(""); setPwSaved(false);
+    if (newPassword.length < 12) { setPwError("Kata sandi baru minimal 12 karakter."); return; }
+    if (newPassword !== confirmPassword) { setPwError("Konfirmasi kata sandi tidak cocok."); return; }
+    if (newPassword === currentPassword) { setPwError("Kata sandi baru harus berbeda dari yang sekarang."); return; }
+    setPwBusy(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      setPwSaved(true); setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+    }
+    catch (cause) { setPwError(cause instanceof Error ? cause.message : "Kata sandi belum berhasil diperbarui."); }
+    finally { setPwBusy(false); }
   }
   async function submitDeletion(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -233,7 +290,7 @@ function SettingsView({ email, displayName, onSaveProfile, onSignOut, onAccountD
   }
   return <>
     <PageTitle title="Pengaturan" description="Kelola akun dan preferensi SAP." />
-    <div className={styles.settingsGrid}><section className={styles.profileCard}><h2><UserRound size={27} />Profil</h2><form onSubmit={submit}><label>Nama lengkap<span><UserRound size={20} /><input value={name} onChange={event => setName(event.target.value)} placeholder="Nama Anda" minLength={2} required /></span></label><label>Email<span><Mail size={20} /><input type="email" value={email} readOnly aria-readonly="true" /></span></label><button className={styles.primaryButton} type="submit" disabled={saving}>{saving ? "Menyimpan…" : "Simpan perubahan"}</button>{error && <p role="alert">{error}</p>}{saved && <p role="status">Profil berhasil disimpan.</p>}</form><Image className={styles.settingsArt} src="/images/dashboard/views/settings-profile.webp" alt="" width={420} height={129} /></section><div className={styles.settingsRight}><section className={styles.privacyCard}><h2><ShieldCheck size={26} />Privasi laporan</h2><span className={styles.privacyIcon}><LockKeyhole size={27} /></span><p>Foto dan lokasi laporan bersifat privat sampai publikasi data yang aman.</p><Image src="/images/dashboard/views/settings-privacy.webp" alt="" width={245} height={132} /></section></div></div>
+    <div className={styles.settingsGrid}><section className={styles.profileCard}><h2><UserRound size={27} />Profil</h2><div className={styles.avatarRow}><span className={styles.avatarPreview}>{avatarUrl ? <Image src={avatarUrl} alt="Foto profil" width={72} height={72} unoptimized /> : <UserRound size={34} />}</span><div className={styles.avatarActions}><input ref={avatarInputRef} type="file" accept="image/*" hidden onChange={onPickAvatar} /><button className={styles.outlineButton} type="button" onClick={() => avatarInputRef.current?.click()} disabled={avatarBusy}>{avatarBusy ? "Mengunggah…" : "Ubah foto"}</button>{avatarMediaId && <button className={styles.textButton} type="button" onClick={removeAvatar} disabled={avatarBusy}>Hapus</button>}{avatarError && <p role="alert">{avatarError}</p>}</div></div><form onSubmit={submit}><label>Nama lengkap<span><UserRound size={20} /><input value={name} onChange={event => setName(event.target.value)} placeholder="Nama Anda" minLength={2} required /></span></label><label>Email<span><Mail size={20} /><input type="email" value={email} readOnly aria-readonly="true" /></span></label><button className={styles.primaryButton} type="submit" disabled={saving}>{saving ? "Menyimpan…" : "Simpan perubahan"}</button>{error && <p role="alert">{error}</p>}{saved && <p role="status">Profil berhasil disimpan.</p>}</form><Image className={styles.settingsArt} src="/images/dashboard/views/settings-profile.webp" alt="" width={420} height={129} /></section><div className={styles.settingsRight}><section className={styles.profileCard}><h2><LockKeyhole size={26} />Kata sandi</h2><form onSubmit={submitPassword}><label>Kata sandi saat ini<span><LockKeyhole size={20} /><input type="password" autoComplete="current-password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} placeholder="Kata sandi sekarang" required /></span></label><label>Kata sandi baru<span><LockKeyhole size={20} /><input type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="Minimal 12 karakter" minLength={12} maxLength={128} required /></span></label><label>Konfirmasi kata sandi baru<span><LockKeyhole size={20} /><input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="Ulangi kata sandi baru" minLength={12} maxLength={128} required /></span></label><button className={styles.primaryButton} type="submit" disabled={pwBusy}>{pwBusy ? "Memperbarui…" : "Perbarui kata sandi"}</button>{pwError && <p role="alert">{pwError}</p>}{pwSaved && <p role="status">Kata sandi diperbarui. Sesi di perangkat lain telah keluar.</p>}</form></section><section className={styles.privacyCard}><h2><ShieldCheck size={26} />Privasi laporan</h2><span className={styles.privacyIcon}><LockKeyhole size={27} /></span><p>Foto dan lokasi laporan bersifat privat sampai publikasi data yang aman.</p><Image src="/images/dashboard/views/settings-privacy.webp" alt="" width={245} height={132} /></section></div></div>
     <section className={styles.sapaSettingCard} aria-label="Pengaturan Pet SAPA"><Image src="/images/sapa/SAPA_Chat_Avatar.png" alt="" width={54} height={54} /><div><h2>Pet SAPA</h2><p>Tampilkan asisten kecil di dashboard.</p></div><button className={`${styles.toggle} ${sapaEnabled ? styles.toggleOn : ""}`} type="button" role="switch" aria-label="Aktifkan Pet SAPA" aria-checked={sapaEnabled} disabled={sapaSaving} onClick={onToggleSapa}><span /></button></section>
     <section className={styles.accountCard}><h2><Settings size={25} />Akun</h2><div><button className={styles.signOutAction} type="button" onClick={onSignOut}><LogOut size={29} /><span><strong>Keluar</strong><small>Akhiri sesi akun pada perangkat ini.</small></span></button><div className={styles.deleteAction}><button type="button" onClick={() => setDeleteOpen(true)}><Trash2 size={20} />Hapus akun</button><small>Penghapusan akun dan data diproses secara permanen.</small></div></div></section>
     {deleteOpen && <div className={styles.modalBackdrop} role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !deletionQueued) setDeleteOpen(false); }}><div className={styles.composerModal} role="dialog" aria-modal="true" aria-labelledby="delete-account-title"><span className={styles.modalIcon}><Trash2 size={27} /></span><h2 id="delete-account-title">{deletionQueued ? "Permintaan diterima" : "Hapus akun SAP?"}</h2>{deletionQueued ? <><p>Permintaan penghapusan akun telah diterima dan sedang diproses.</p><button className={styles.primaryButton} type="button" onClick={onAccountDeleted}>Selesai</button></> : <form onSubmit={submitDeletion}><p>Tindakan ini akan menghapus akun dan data secara permanen. Masukkan kata sandi dan ketik HAPUS AKUN untuk melanjutkan.</p><label>Kata sandi<input type="password" autoComplete="current-password" value={deletePassword} onChange={event => setDeletePassword(event.target.value)} required /></label><label>Ketik HAPUS AKUN<input value={deleteConfirm} onChange={event => setDeleteConfirm(event.target.value)} required /></label>{deleteError && <p role="alert">{deleteError}</p>}<div className={styles.modalActions}><button className={styles.outlineButton} type="button" onClick={() => setDeleteOpen(false)}>Batal</button><button className={styles.dangerButton} type="submit" disabled={deleteBusy || deleteConfirm !== "HAPUS AKUN"}>{deleteBusy ? "Memproses…" : "Hapus akun permanen"}</button></div></form>}</div></div>}
@@ -276,7 +333,7 @@ export default function DashboardViews(props: Props) {
     {tab === "map" && <MapView categories={props.categories} />}
     {tab === "history" && <HistoryView scans={props.scans} categories={props.categories} onNavigate={props.onNavigate} />}
     {tab === "achievements" && <AchievementsView stats={props.stats} achievements={props.achievements} onNavigate={props.onNavigate} />}
-    {tab === "settings" && <SettingsView email={props.email} displayName={props.displayName} onSaveProfile={props.onSaveProfile} onSignOut={props.onSignOut} onAccountDeleted={props.onAccountDeleted} sapaEnabled={props.sapaEnabled} sapaSaving={props.sapaSaving} onToggleSapa={props.onToggleSapa} />}
+    {tab === "settings" && <SettingsView email={props.email} displayName={props.displayName} avatarMediaId={props.avatarMediaId} onSaveProfile={props.onSaveProfile} onAvatarChanged={props.onAvatarChanged} onSignOut={props.onSignOut} onAccountDeleted={props.onAccountDeleted} sapaEnabled={props.sapaEnabled} sapaSaving={props.sapaSaving} onToggleSapa={props.onToggleSapa} />}
     {tab === "help" && <HelpView onNavigate={props.onNavigate} />}
   </div>;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as LeafletMap, LayerGroup } from "leaflet";
 import type { SapAreas } from "../lib/api/client";
+import { MALANG_CENTER, MALANG_DEFAULT_ZOOM } from "../lib/malang";
 
 type Props = { areas: SapAreas | null; onBoundsChange: (bbox: string) => void; onSelect: (cellId: string) => void };
 
@@ -22,7 +23,7 @@ export default function AreaMap({ areas, onBoundsChange, onSelect }: Props) {
     let current: LeafletMap | null = null;
     void import("leaflet").then(L => {
       if (disposed || !node.current) return;
-      current = L.map(node.current, { scrollWheelZoom: false }).setView([-5.43, 105.26], 12);
+      current = L.map(node.current, { scrollWheelZoom: false }).setView([MALANG_CENTER.latitude, MALANG_CENTER.longitude], MALANG_DEFAULT_ZOOM);
       map.current = current;
       overlays.current = L.layerGroup().addTo(current);
       setReady(value => value + 1);

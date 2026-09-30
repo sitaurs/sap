@@ -4,6 +4,7 @@ import { DatabaseModule } from '../infrastructure/database.module.js';
 import { SessionModule } from '../session/session.module.js';
 import { SessionRepository } from '../session/session.repository.js';
 import { UsersRepository } from '../users/users.repository.js';
+import { MediaRepository } from '../media/media.repository.js';
 import { AccountDeletionController } from './account.controller.js';
 import { AuthController } from './auth.controller.js';
 import { AuthCryptoService } from './auth-crypto.js';
@@ -14,6 +15,9 @@ import { CsrfGuard } from './csrf.guard.js';
 import { CsrfService } from './csrf.service.js';
 import { DeletionRepository } from './deletion.repository.js';
 import { MailerService } from './mailer.service.js';
+import { MfaCryptoService } from './mfa-crypto.js';
+import { MfaRepository } from './mfa.repository.js';
+import { MfaService } from './mfa.service.js';
 import { OutboxRepository } from './outbox.repository.js';
 import { PasswordService } from './password.service.js';
 import { SessionAuthGuard } from './session-auth.guard.js';
@@ -27,10 +31,14 @@ import { UsersController } from './users.controller.js';
     { provide: APP_GUARD, useClass: CsrfGuard },
     AuthService,
     AuthCryptoService,
+    MfaCryptoService,
+    MfaRepository,
+    MfaService,
     PasswordService,
     MailerService,
     SessionAuthGuard,
     UsersRepository,
+    MediaRepository,
     SessionRepository,
     ChallengeRepository,
     DeletionRepository,

@@ -7,11 +7,14 @@
  */
 import {
   CITATION_SNIPPET_MAX,
+  CITATION_SOURCE_MAX,
+  CITATION_TITLE_MAX,
   CITATIONS_MAX,
   type Citation,
   type PageContext,
   type SuggestedAction,
 } from './assistant.types.js';
+import { stripStopwords } from './indonesian-stopwords.js';
 
 export interface KnowledgeEntry {
   readonly id: string;
@@ -190,20 +193,19 @@ export const KNOWLEDGE_BASE: readonly KnowledgeEntry[] = [
 /** Safety-net entries always injected regardless of page/query (§18 note). */
 const SAFETY_NET_IDS = ['fallback-unknown', 'luar-lingkup'] as const;
 
-/** Max KB entries injected per call — keep KONTEKS small to save tokens & focus. */
-const MAX_RETRIEVED = 6;
+/** Whether a KB/corpus entry is one of the always-present safety-net entries. */
+export function isSafetyNetId(id: string): boolean {
+  return (SAFETY_NET_IDS as readonly string[]).includes(id);
+}
 
-const STOPWORDS = new Set([
-  'yang', 'untuk', 'dari', 'dan', 'atau', 'ke', 'di', 'apa', 'apakah', 'kah',
-  'bagaimana', 'kenapa', 'mengapa', 'saya', 'aku', 'itu', 'ini', 'dengan', 'cara',
-]);
+/** Max KB entries injected per call — keep KONTEKS small to save tokens & focus. */
+export const MAX_RETRIEVED = 6;
+
+/** Page-tagged entries get this boost so suggestions match the current screen. */
+const PAGE_BOOST = 3;
 
 function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter((token) => token.length > 2 && !STOPWORDS.has(token));
+  return stripStopwords(text);
 }
 
 /**
@@ -218,7 +220,7 @@ export function retrieveKnowledge(message: string, pageContext: PageContext): Kn
     const entryTokens = tokenize(`${entry.question} ${entry.answer}`);
     let overlap = 0;
     for (const token of entryTokens) if (queryTokens.has(token)) overlap += 1;
-    const pageBoost = entry.pageContext === pageContext ? 3 : 0;
+    const pageBoost = entry.pageContext === pageContext ? PAGE_BOOST : 0;
     return { entry, score: overlap + pageBoost };
   });
 
@@ -267,12 +269,90 @@ export function toCitations(retrieved: KnowledgeEntry[], citedIds: string[]): Ci
     seen.add(id);
     cards.push({
       id: entry.id,
-      title: entry.question,
+      title: entry.question.slice(0, CITATION_TITLE_MAX),
       snippet: entry.answer.slice(0, CITATION_SNIPPET_MAX),
-      source: entry.source ?? DEFAULT_SOURCE,
+      source: (entry.source ?? DEFAULT_SOURCE).slice(0, CITATION_SOURCE_MAX),
       url: entry.url ?? null,
     });
     if (cards.length >= CITATIONS_MAX) break;
   }
   return cards;
+}
+
+/**
+ * A raw `sapa_corpus` row as returned by postgres.js (snake_case columns;
+ * `suggested_actions` arrives already-parsed as JSON). Kept structural so the
+ * repository does not need to import a driver row type.
+ */
+export interface CorpusRow {
+  id: string;
+  page_context: string;
+  question: string;
+  answer: string;
+  suggested_actions: unknown;
+  source: string | null;
+  url: string | null;
+}
+
+/** Coerce a stored jsonb actions array back into validated SuggestedAction[]. */
+function coerceActions(value: unknown): SuggestedAction[] {
+  if (!Array.isArray(value)) return [];
+  const actions: SuggestedAction[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const { label, target } = item as { label?: unknown; target?: unknown };
+    if (typeof label === 'string' && typeof target === 'string') {
+      actions.push({ label, target: target as SuggestedAction['target'] });
+    }
+  }
+  return actions;
+}
+
+/** Map a corpus row to the same KnowledgeEntry shape the KB path produces. */
+export function corpusRowToEntry(row: CorpusRow): KnowledgeEntry {
+  return {
+    id: row.id,
+    pageContext: row.page_context as PageContext,
+    question: row.question,
+    answer: row.answer,
+    suggestedActions: coerceActions(row.suggested_actions),
+    ...(row.source ? { source: row.source } : {}),
+    url: row.url ?? null,
+  };
+}
+
+/** A row ready to upsert into `sapa_corpus` (content_search stripped app-side). */
+export interface CorpusSeedRow {
+  id: string;
+  pageContext: PageContext;
+  question: string;
+  answer: string;
+  suggestedActions: SuggestedAction[];
+  source: string | null;
+  url: string | null;
+  isSafetyNet: boolean;
+  contentSearch: string;
+}
+
+/** Build the stop-word-stripped search text stored in `content_search`. */
+export function buildContentSearch(question: string, answer: string): string {
+  return stripStopwords(`${question} ${answer}`).join(' ');
+}
+
+/**
+ * Derive the seed corpus (text only, no embeddings) from the curated KB. Seeding
+ * writes these rows idempotently; a separate CLI backfills their embedding vector.
+ */
+export function knowledgeBaseSeedRows(): CorpusSeedRow[] {
+  return KNOWLEDGE_BASE.map((entry) => ({
+    id: entry.id,
+    pageContext: entry.pageContext,
+    question: entry.question,
+    answer: entry.answer,
+    suggestedActions: entry.suggestedActions,
+    source: entry.source ?? null,
+    url: entry.url ?? null,
+    isSafetyNet: isSafetyNetId(entry.id),
+    contentSearch: buildContentSearch(entry.question, entry.answer),
+  }));
 }

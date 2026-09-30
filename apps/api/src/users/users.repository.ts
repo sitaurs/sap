@@ -10,6 +10,7 @@ interface UserRow {
   role: 'user' | 'admin';
   email_verified_at: Date | null;
   sapa_enabled: boolean;
+  avatar_media_id: string | null;
   deleted_at: Date | null;
 }
 
@@ -22,11 +23,12 @@ function mapUser(row: UserRow): UserRecord {
     role: row.role,
     emailVerifiedAt: row.email_verified_at,
     sapaEnabled: row.sapa_enabled,
+    avatarMediaId: row.avatar_media_id,
     deletedAt: row.deleted_at,
   };
 }
 
-const COLUMNS = 'id, email_normalized, password_hash, display_name, role, email_verified_at, sapa_enabled, deleted_at';
+const COLUMNS = 'id, email_normalized, password_hash, display_name, role, email_verified_at, sapa_enabled, avatar_media_id, deleted_at';
 
 @Injectable()
 export class UsersRepository {
@@ -91,6 +93,18 @@ export class UsersRepository {
   async updateSapaEnabled(userId: string, sapaEnabled: boolean): Promise<UserRecord | null> {
     const rows = await this.sql<UserRow[]>`
       UPDATE users SET sapa_enabled = ${sapaEnabled}, updated_at = now()
+      WHERE id = ${userId} AND deleted_at IS NULL
+      RETURNING ${this.sql.unsafe(COLUMNS)}`;
+    return rows[0] ? mapUser(rows[0]) : null;
+  }
+
+  /**
+   * Point the account at a stored avatar object, or clear it (`null`). The
+   * caller passes the id from the verified session, never the request body.
+   */
+  async updateAvatar(userId: string, avatarMediaId: string | null): Promise<UserRecord | null> {
+    const rows = await this.sql<UserRow[]>`
+      UPDATE users SET avatar_media_id = ${avatarMediaId}, updated_at = now()
       WHERE id = ${userId} AND deleted_at IS NULL
       RETURNING ${this.sql.unsafe(COLUMNS)}`;
     return rows[0] ? mapUser(rows[0]) : null;

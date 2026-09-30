@@ -27,6 +27,11 @@ let AssistantProvider: typeof import('../src/assistant/assistant-provider.js').A
 let ProviderUnavailableError: typeof import('../src/assistant/assistant-provider.js').ProviderUnavailableError;
 let retrieveKnowledge: typeof import('../src/assistant/assistant-knowledge.js').retrieveKnowledge;
 let toCitations: typeof import('../src/assistant/assistant-knowledge.js').toCitations;
+let buildContentSearch: typeof import('../src/assistant/assistant-knowledge.js').buildContentSearch;
+let knowledgeBaseSeedRows: typeof import('../src/assistant/assistant-knowledge.js').knowledgeBaseSeedRows;
+let stripStopwords: typeof import('../src/assistant/indonesian-stopwords.js').stripStopwords;
+let HybridRetriever: typeof import('../src/assistant/assistant-retrieval.js').HybridRetriever;
+let AssistantStatsTool: typeof import('../src/assistant/assistant-stats-tool.js').AssistantStatsTool;
 let getConfig: typeof import('@sap/config').getConfig;
 
 function errorCode(error: unknown): string {
@@ -41,7 +46,12 @@ function httpStatus(error: unknown): number {
 before(async () => {
   ({ AssistantService } = await import('../src/assistant/assistant.service.js'));
   ({ AssistantProvider, ProviderUnavailableError } = await import('../src/assistant/assistant-provider.js'));
-  ({ retrieveKnowledge, toCitations } = await import('../src/assistant/assistant-knowledge.js'));
+  ({ retrieveKnowledge, toCitations, buildContentSearch, knowledgeBaseSeedRows } = await import(
+    '../src/assistant/assistant-knowledge.js'
+  ));
+  ({ stripStopwords } = await import('../src/assistant/indonesian-stopwords.js'));
+  ({ HybridRetriever } = await import('../src/assistant/assistant-retrieval.js'));
+  ({ AssistantStatsTool } = await import('../src/assistant/assistant-stats-tool.js'));
   ({ getConfig } = await import('@sap/config'));
 });
 
@@ -291,4 +301,137 @@ test('provider requests a non-streaming body and parses fenced JSON', async () =
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+// --- Step 4: hybrid retrieval, corpus seeding, and the deterministic stats tool ---
+
+test('stripStopwords drops Indonesian function words and short tokens', async () => {
+  const terms = stripStopwords('Bagaimana cara membaca peta area yang rawan?');
+  assert.ok(!terms.includes('bagaimana'), 'question word is a stop word');
+  assert.ok(!terms.includes('cara'), 'function word is a stop word');
+  assert.ok(!terms.includes('yang'), 'function word is a stop word');
+  assert.ok(terms.includes('membaca') && terms.includes('peta') && terms.includes('area'));
+  assert.ok(terms.includes('rawan'), 'trailing punctuation is stripped, term survives');
+});
+
+test('buildContentSearch and knowledgeBaseSeedRows produce stripped, safety-net-tagged rows', async () => {
+  const search = buildContentSearch('Bagaimana cara scan sampah?', 'Buka halaman Scan.');
+  assert.ok(!/\bcara\b/.test(search) && !/\bbagaimana\b/.test(search), 'stop words removed from content_search');
+  assert.ok(/scan/.test(search) && /sampah/.test(search));
+
+  const rows = knowledgeBaseSeedRows();
+  assert.ok(rows.length >= 10, 'the full KB is exported for seeding');
+  const fallback = rows.find((r) => r.id === 'fallback-unknown');
+  const normal = rows.find((r) => r.id === 'scan-cara');
+  assert.equal(fallback?.isSafetyNet, true, 'fallback entry is flagged safety-net');
+  assert.equal(normal?.isSafetyNet, false, 'ordinary entries are not safety-net');
+  assert.ok((normal?.contentSearch.length ?? 0) > 0, 'seed rows carry stripped search text');
+});
+
+function makeRetriever(rows: Array<{ id: string; score: number; isSafetyNet: boolean }>, opts: {
+  hasEmbedded?: boolean;
+  embedThrows?: boolean;
+} = {}) {
+  const embedder = {
+    isConfigured: () => true,
+    get dimension() { return 1536; },
+    embed: async () => {
+      if (opts.embedThrows) throw new Error('boom');
+      return new Array(1536).fill(0.01);
+    },
+  };
+  const corpus = {
+    hasEmbeddedRows: async () => opts.hasEmbedded ?? true,
+    hybridSearch: async () =>
+      rows.map((r) => ({
+        entry: {
+          id: r.id, pageContext: 'areas', question: `Q ${r.id}`, answer: `A ${r.id}`,
+          suggestedActions: [], url: null,
+        },
+        score: r.score,
+        isSafetyNet: r.isSafetyNet,
+      })),
+  };
+  return new HybridRetriever(embedder as never, corpus as never);
+}
+
+test('hybrid retriever pins safety-net entries and fills the rest by score, capped at six', async () => {
+  const rows = [
+    { id: 'a', score: 0.9, isSafetyNet: false },
+    { id: 'b', score: 0.8, isSafetyNet: false },
+    { id: 'c', score: 0.7, isSafetyNet: false },
+    { id: 'd', score: 0.6, isSafetyNet: false },
+    { id: 'e', score: 0.5, isSafetyNet: false },
+    { id: 'fallback-unknown', score: 0.01, isSafetyNet: true },
+    { id: 'luar-lingkup', score: 0.0, isSafetyNet: true },
+  ];
+  const entries = await makeRetriever(rows).retrieve('bagaimana membaca peta', 'areas');
+  const ids = entries.map((e) => e.id);
+  assert.ok(entries.length <= 6, 'context stays capped at MAX_RETRIEVED');
+  assert.ok(ids.includes('fallback-unknown') && ids.includes('luar-lingkup'), 'both safety-net entries pinned');
+  assert.ok(ids.includes('a') && ids.includes('b'), 'top-scored entries are included');
+  assert.ok(!ids.includes('e'), 'lowest-scored entry is squeezed out by the cap');
+});
+
+test('hybrid retriever falls back to the in-memory KB when the corpus is unseeded', async () => {
+  const entries = await makeRetriever([], { hasEmbedded: false }).retrieve('cara scan sampah', 'scan');
+  const ids = entries.map((e) => e.id);
+  assert.ok(ids.includes('scan-cara'), 'KB fallback returns the page-relevant entry');
+  assert.ok(ids.includes('fallback-unknown'), 'KB fallback keeps the safety net');
+});
+
+test('hybrid retriever falls back to the KB if retrieval throws', async () => {
+  const entries = await makeRetriever([], { hasEmbedded: true, embedThrows: false });
+  // Force hybridSearch to reject by handing it a corpus that throws.
+  const broken = new HybridRetriever(
+    { isConfigured: () => true, get dimension() { return 1536; }, embed: async () => new Array(1536).fill(0.01) } as never,
+    { hasEmbeddedRows: async () => true, hybridSearch: async () => { throw new Error('db down'); } } as never,
+  );
+  const ids = (await broken.retrieve('cara scan sampah', 'scan')).map((e) => e.id);
+  assert.ok(ids.includes('scan-cara') && ids.includes('fallback-unknown'), 'degrades to KB, never throws');
+  void entries;
+});
+
+const STATS_VIEW = {
+  totalScans: 12, classifiedScans: 9, ecoPoints: 140, streakDays: 3,
+  verifiedReports: 2, resolvedReports: 1,
+  categoryCounts: [{ categoryId: 'plastic', count: 5 }, { categoryId: 'paper', count: 4 }],
+};
+
+function makeStatsTool() {
+  const gamification = { getStats: async () => STATS_VIEW };
+  return new AssistantStatsTool(gamification as never);
+}
+
+test('stats tool detects personal-stat intent and ignores how-to questions', async () => {
+  const tool = makeStatsTool();
+  assert.equal(tool.detectIntent('berapa poin saya?'), true);
+  assert.equal(tool.detectIntent('berapa scan yang sudah saya lakukan'), true);
+  assert.equal(tool.detectIntent('statistik akunku dong'), true);
+  assert.equal(tool.detectIntent('berapa streak ku'), true);
+  assert.equal(tool.detectIntent('bagaimana cara scan sampah?'), false);
+  assert.equal(tool.detectIntent('apa arti hasil scan saya?'), false);
+});
+
+test('stats tool composes a deterministic reply from the account aggregates', async () => {
+  const result = await makeStatsTool().run('u1');
+  assert.match(result.reply, /Scan total: 12/);
+  assert.match(result.reply, /dikenali kategori: 9/);
+  assert.match(result.reply, /Poin: 140/);
+  assert.match(result.reply, /Runtun harian: 3/);
+  assert.equal(result.citations.length, 1);
+  assert.equal(result.citations[0]!.url, null, 'stats card is internal, no URL');
+  assert.ok(result.citations[0]!.title.length <= 160 && result.citations[0]!.snippet.length <= 400);
+});
+
+test('chat short-circuits to the stats tool without calling the LLM provider', async () => {
+  const { store, state } = makeStore();
+  const provider = makeProvider(new Error('provider must not be called for a stats question'));
+  const service = new AssistantService(provider as never, store as never, undefined, makeStatsTool() as never);
+  const result = await service.chat(ENABLED_CALLER, {
+    message: 'berapa poin saya sekarang?', pageContext: 'achievements', conversationId: null,
+  });
+  assert.match(result.reply, /Poin: 140/, 'reply comes from the deterministic tool');
+  assert.equal(result.citations[0]!.id, 'stats-akun');
+  assert.equal(state.appended, 1, 'the deterministic turn is still persisted');
 });

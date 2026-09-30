@@ -37,6 +37,7 @@ import styles from "./dashboard.module.css";
 import DashboardViews from "./dashboard-views";
 import AdminPanel from "./admin-panel";
 import BrandLogo from "./brand-logo";
+import LoadingScreen from "./loading-screen";
 import SapaPet, { type SapaDashboardTab } from "./sapa-pet";
 import type { ReportSummary } from "./report-wizard";
 import { saveSapaAccountPreference } from "./sapa-client";
@@ -180,6 +181,11 @@ export default function Dashboard() {
     setToast("Profil tersimpan di akun SAP Anda.");
   }
 
+  function avatarChanged(account: SapUser) {
+    setUser(account);
+    setToast(account.avatarMediaId ? "Foto profil diperbarui." : "Foto profil dihapus.");
+  }
+
   async function toggleSapa() {
     if (sapaSaving) return;
     const previous = sapaEnabled;
@@ -196,7 +202,7 @@ export default function Dashboard() {
     }
   }
 
-  if (loading || (!user && !loadError)) return <div className={styles.loadingScreen} role="status"><BrandLogo width={165} /><span>Memuat ruang kerja SAP…</span></div>;
+  if (loading || (!user && !loadError)) return <LoadingScreen message="Memuat ruang kerja SAP…" />;
   if (loadError) return <div className={styles.loadingScreen} role="alert"><BrandLogo width={165} /><strong>Ruang kerja belum dapat dimuat</strong><span>{loadError}</span><button className={styles.primaryButton} type="button" onClick={() => { setLoading(true); void refreshData(); }}>Coba lagi</button></div>;
 
   return <div className={styles.shell}>
@@ -260,7 +266,7 @@ export default function Dashboard() {
           </div>
         </>}
 
-        {tab !== "dashboard" && !isAdminTab(tab) && <DashboardViews key={tab} tab={tab} scans={scans} reports={reports} stats={stats} achievements={achievements} categories={categories} email={user?.email || ""} displayName={displayName} onNavigate={openTab} onScanFinished={() => void refreshData()} onOpenReport={openReportFromScan} reportComposerRequested={reportComposerRequested} onReportSubmitted={reportSubmitted} onReportsChanged={() => void refreshData()} onReportWizardChange={setReportWizardOpen} onSaveProfile={saveProfile} onSignOut={signOut} onAccountDeleted={() => { setUser(null); setStats(null); setScans([]); setReports([]); router.replace("/login"); }} sapaEnabled={sapaEnabled} sapaSaving={sapaSaving} onToggleSapa={toggleSapa} />}
+        {tab !== "dashboard" && !isAdminTab(tab) && <DashboardViews key={tab} tab={tab} scans={scans} reports={reports} stats={stats} achievements={achievements} categories={categories} email={user?.email || ""} displayName={displayName} avatarMediaId={user?.avatarMediaId ?? null} onNavigate={openTab} onScanFinished={() => void refreshData()} onOpenReport={openReportFromScan} reportComposerRequested={reportComposerRequested} onReportSubmitted={reportSubmitted} onReportsChanged={() => void refreshData()} onReportWizardChange={setReportWizardOpen} onSaveProfile={saveProfile} onAvatarChanged={avatarChanged} onSignOut={signOut} onAccountDeleted={() => { setUser(null); setStats(null); setScans([]); setReports([]); router.replace("/login"); }} sapaEnabled={sapaEnabled} sapaSaving={sapaSaving} onToggleSapa={toggleSapa} />}
 
         {isAdminTab(tab) && (user?.role === "admin"
           ? <div className={`${styles.subPage} ${styles.referenceView}`}>

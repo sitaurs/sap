@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
-import { ArrowRight, FilePlus2, Map, Recycle, Send, X } from "lucide-react";
+import { ArrowRight, Brain, FilePlus2, Map, Recycle, Search, Send, Sparkles, X } from "lucide-react";
 import { sendSapaMessage, type SapaCitation, type SapaPageContext, type SapaSuggestedAction } from "./sapa-client";
 import styles from "./sapa-pet.module.css";
 
@@ -16,6 +16,19 @@ const tabByTarget: Record<SapaPageContext, SapaDashboardTab> = {
   dashboard: "dashboard", scan: "scan", my_reports: "reports", areas: "map",
   scan_history: "history", achievements: "achievements", settings: "settings", help: "help",
 };
+
+/**
+ * Honest progress labels for the single chat request. These describe the real
+ * pipeline the backend runs — read the question, search the knowledge base,
+ * then compose the answer — so the copy never claims a step that does not
+ * happen. Timing is an estimate: the labels advance forward and hold on the
+ * last one until the real reply lands; none of them signals "done".
+ */
+const SAPA_PHASES = [
+  { icon: Brain, label: "Memahami pertanyaan" },
+  { icon: Search, label: "Mencari info" },
+  { icon: Sparkles, label: "Menyusun jawaban" },
+] as const;
 
 type ChatMessage = { id: string; role: "user" | "assistant"; content: string; citations?: SapaCitation[] };
 type Position = { x: number; y: number };
@@ -39,6 +52,7 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [suggestedActions, setSuggestedActions] = useState<SapaSuggestedAction[]>([]);
   const [sending, setSending] = useState(false);
+  const [phase, setPhase] = useState(0);
   const [error, setError] = useState("");
   const [position, setPosition] = useState<Position | null>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
@@ -72,7 +86,16 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
 
   useEffect(() => () => { if (animationTimer.current) clearTimeout(animationTimer.current); dragCleanup.current?.(); }, []);
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
-  useEffect(() => { if (open) logRef.current?.scrollTo({ top: logRef.current.scrollHeight }); }, [messages, open]);
+  useEffect(() => { if (open) logRef.current?.scrollTo({ top: logRef.current.scrollHeight }); }, [messages, open, sending, phase]);
+  // Advance the progress labels forward while a reply is in flight, then hold on
+  // the last one. Estimated timing only — the request itself is a single call.
+  useEffect(() => {
+    if (!sending) { setPhase(0); return; }
+    setPhase(0);
+    const toSearch = setTimeout(() => setPhase(1), 500);
+    const toCompose = setTimeout(() => setPhase(2), 1400);
+    return () => { clearTimeout(toSearch); clearTimeout(toCompose); };
+  }, [sending]);
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") closePanel(); };
@@ -223,7 +246,15 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
                 </ul>}
               </div>
             : <p className={styles.userMessage} key={item.id}>{item.content}</p>)}
-          {sending && <p className={styles.pendingMessage}>SAPA sedang menyiapkan jawaban…</p>}
+          {sending && (() => {
+            const step = SAPA_PHASES[Math.min(phase, SAPA_PHASES.length - 1)]!;
+            const PhaseIcon = step.icon;
+            return <p className={styles.pendingMessage} aria-live="polite">
+              <PhaseIcon size={15} className={styles.pendingIcon} aria-hidden="true" />
+              <span>{step.label}</span>
+              <span className={styles.pendingDots} aria-hidden="true"><i /><i /><i /></span>
+            </p>;
+          })()}
           {suggestedActions.length > 0 && <div className={styles.suggestions}>{suggestedActions.filter(action => action.target in tabByTarget).map(action => <button type="button" key={`${action.target}-${action.label}`} onClick={() => navigate(tabByTarget[action.target])}>{action.label}<ArrowRight size={14} /></button>)}</div>}
         </div>}
       </div>

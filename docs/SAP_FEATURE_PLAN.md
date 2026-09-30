@@ -7,7 +7,7 @@
 
 ## 1. Executive summary
 
-1. **SAPA:** Current implementation is a single-call, read-only FAQ assistant; it has no agent tool registry or execution loop. Start with deterministic grounding/fallback improvements and a thin, cited retrieval baseline over a small curated corpus (PostgreSQL full-text, no vector DB yet), then consider a small bounded read-only tool runtime in the existing NestJS service. Do not add LangChain for the first tool pilot unless a prototype demonstrates a concrete benefit.
+1. **SAPA (flagship):** Current implementation is a single-call, read-only FAQ assistant; it has no agent tool registry or execution loop. Evolve it into a **bounded, read-only agentic assistant** built on **LangGraph** (its 1.x runtime, via `create_agent`), keeping our OpenAI-compatible gateway through LangChain's `ChatOpenAI` with a custom `baseURL`. Ship in three layers: (a) a **hybrid cited-retrieval** knowledge baseline (PostgreSQL `pgvector` + full-text with an Indonesian stop-list, fused with RRF); (b) a small catalog of **~8 read-only, account-scoped tools** whose identity/scope is enforced in server code, never by the model; (c) LangGraph orchestration for durable conversation state, streaming, and human-in-the-loop slots. Keep the simple FAQ answer path near-direct (do not route trivial lookups through the full agent). All existing guardrails (feature flag, per-account opt-in, rate limit, ownership) wrap the graph rather than being replaced by it. **Decision reversed from the earlier baseline:** LangChain/LangGraph is now adopted deliberately and selectively — see §5 (SAPA-RAG and SAPA-R5) and §17.
 2. **Account settings:** Improve profile/security controls with an authenticated password-change flow, optional MFA with secure recovery, and a carefully isolated avatar upload lifecycle. Do not collect date of birth without a documented product/legal need.
 3. **Malang map:** Correct the map’s initial location to Malang, but do not manufacture reports to fill it. Obtain genuine, permissioned incident records with usable coordinates, dates, evidence, and provenance; moderate them through the normal workflow. Until then show an honest “Belum ada data” state. For the competition demo, if historical coverage is needed, use a separate, clearly labeled **“Data historis bersumber”** layer sourced from cited public material — never by backdating reports into the live verified pipeline (see Part C section 11).
 4. **Loading UX:** Keep explicit form pending states, improve the login-to-dashboard transition and dashboard bootstrap feedback, and use route-level loading UI only where it covers actual navigation waits. Respect reduced motion and accessibility.
@@ -79,7 +79,28 @@ Verified planning concerns:
 
 ### SAPA-R3 — Read-only tools, only after a tool pilot is approved
 
-Potential bounded tools, organized as a competition-demo capability set (not a commitment to ship every tool):
+**Governing safety principle (structural, not filter-based).** SAPA's single biggest security advantage is that it is **read-only by design**: expose only Query tools, never Command (write) tools. Per the cross-vendor prompt-injection design-patterns literature (arXiv:2506.08837) and IPIGuard (arXiv:2508.15310), a read-only tool an attacker hijacks via injected content can still only *read* — it cannot move money, submit reports, or mutate state. Do not add any write/mutate/outbound tool "for later"; an absent capability cannot be latched around. Two rules make this real:
+
+- **Account scope is derived server-side from the authenticated session, never from a model-supplied argument.** The model may pass filters (date range, status, a report id it will be ownership-checked against) but must never pass or override the identity scope. Enforce this in the query builder or via Postgres Row-Level Security — the canonical failure is a missing tenant filter returning other users' rows with HTTP 200 and no warning.
+- **Every retrieved passage and tool result is untrusted data.** Place it only in tool-result slots, never in the system prompt; treat an injection inside a tool result as expected. Detectors are speed bumps, not boundaries (independent testing shows ~100% evasion of injection filters) — rely on the read-only toolset, scope enforcement, and strict output schema; use detectors only to reduce frequency. Redact PII/secrets from results post-tool (return report status + category, not reporter phone/email/exact GPS; round or drop precise coordinates of others' reports).
+
+**Proposed 8-tool read-only catalog** (all scope the account server-side; "risk" is PII/aggregation leakage since none can write):
+
+| Tool | Purpose | Safety |
+|------|---------|--------|
+| `get_my_scans` | List/summarize the caller's own scans + classifications (paginated, own `user_id`) | Safe — own data |
+| `get_scan_detail` / `explain_my_scan` | One own scan by id (category, confidence, timestamp) + cited sorting guidance; never re-interpret the image or expose bytes | Safe — ownership check on id |
+| `get_my_reports` | List the caller's own reports with current status | Safe — own data |
+| `get_report_status` | Status/history of one own report by id; exclude moderator PII/internal notes | Safe — ownership check |
+| `check_report_readiness` | Validate a user-supplied draft against published required fields/categories; return missing-field guidance only, never save/submit | Safe — no persistence |
+| `get_area_hotspots` / `get_public_area_summary` | Verified, H3-aggregated hotspot data for a bounded area/period | **Medium** — aggregate only; k-anonymity, never raw per-report locations or reporter identity |
+| `list_waste_categories` | Waste category taxonomy + descriptions | Safe — static reference |
+| `get_my_achievements` / `get_my_progress` | The caller's own points/achievements (verified read-only projection; must not call methods that reconcile/unlock/revoke) | Safe — own data |
+| `search_help_content` | The RAG tool: retrieve FAQ/help passages, returns citation-ready chunks | **Medium** — untrusted-content ingestion point; fence results, drive citation cards |
+
+The two **Medium** tools (`get_area_hotspots`, `search_help_content`) concentrate injection/PII risk — apply capability discipline and post-tool redaction there. **Deliberately excluded:** any tool returning another user's scans/reports, precise geolocation of others' reports, moderator queues, or user directories — no read-only-safe projection exists for a civic assistant. Keep tool descriptions **sharp and non-overlapping** (the most common cause of wrong-tool selection, fixable without a bigger model).
+
+Retain the earlier pilot framing below (it is compatible with this catalog):
 
 **First pilot — useful, low-risk, and grounded in existing account ownership:**
 
@@ -101,16 +122,17 @@ Expose tools incrementally: start with one or two pilot tools, then add only aft
 ### SAPA-RAG — lightweight, cited knowledge retrieval
 
 - Use a small curated corpus of SAP help, waste-sorting guidance, and approved local education material. Maintain source ID, title, publisher/owner, canonical URL, language, publication/review date, version, reuse/license basis, topic tags, and active/retired status. Reject uncited or unreviewed material from production answers.
-- First baseline: PostgreSQL full-text search (lexical/BM25-style ranking) with small, overlap-aware chunks and metadata/topic filters; optionally use `pg_trgm` for Indonesian spelling variants and typos if evaluation shows a need. Return top passages with scores/source IDs, apply a measured relevance threshold, and answer only from retrieved context with compact citation cards.
+- **Retrieval baseline: hybrid, in PostgreSQL — do not add a separate vector DB.** SAP already runs PostgreSQL; add `pgvector` (`CREATE EXTENSION vector`, HNSW index) so embeddings live in the same ACID row as the source and scoped filters (language, topic, active status) run in the same query plan. Run **two retrievers and fuse them with Reciprocal Rank Fusion (RRF, k=60)**: (1) dense `pgvector` similarity, and (2) PostgreSQL full-text/BM25. **Indonesian correctness is a day-one gate, not a later tuning step:** PostgreSQL's `indonesian` FTS config ships a Snowball stemmer but **no stop-word list**, so `yang`/`dan`/`di`/`dari` become required terms and wreck recall — install the ~93-word Snowball Indonesian stop-list before any eval run. The Snowball stemmer also does not reverse nasal assimilation (`menerima`→`erima` vs `terima`), so the lexical half is structurally weak for Bahasa Indonesia; **weight the dense half higher** (start ~`vector 0.6 / bm25 0.4`) and add `pg_trgm` for typos on short fields. A FAQ/knowledge corpus is tiny (thousands of chunks), far inside pgvector's comfort zone; a hosted vector DB (Pinecone/Qdrant/Weaviate) is not justified at this scale and adds a vendor + consistency boundary. Return top passages with scores/source IDs, apply a measured relevance threshold, and answer only from retrieved context with compact citation cards.
+- Embedding model: a multilingual encoder (`bge-m3`, `multilingual-e5-large-instruct`, or Cohere `embed-multilingual-v3.0`) is measurably stronger on Bahasa Indonesia; `text-embedding-3-small/large` via the OpenAI-compatible gateway is an acceptable start. The lever that matters most is the lexical config, not the embedding choice.
 - Keep retrieval separate from structured operational data: reports, scan ownership, statuses, and public map aggregates come from bounded API/domain tools, not from embedding or searching report text. Retrieval must not expose private content.
 - If no sufficiently relevant passage exists, say that the answer is not available in the approved sources and offer Help/navigation; do not fill the gap with model knowledge. Show publication/review date where useful and distinguish source guidance from SAP policy.
-- Do not introduce a vector database, embeddings, reranker, LangChain, or external web-search tool in the first release. Compare hybrid/dense retrieval only if the measured lexical baseline misses meaningful queries and the expected relevance gain justifies operational cost.
+- Adopt `pgvector` + hybrid retrieval as described above; keep a **reranker and any external web-search tool out of the first release**. Reconsider a reranker only if the measured fused baseline still misses meaningful queries and the relevance gain justifies operational cost. Never add an external/open-web search tool to production answers.
 - Build a versioned Indonesian evaluation set before expanding: realistic user questions, expected source/passages, reference answer or required facts, spelling variants, off-topic and unanswerable cases, prompt injection in user/query/document text, plus tool authorization/privacy cases. Track retrieval Recall@k/MRR (or nDCG), answer groundedness/faithfulness, relevance, citation correctness, abstention quality, latency, and cost. Review failures manually; do not optimize a single aggregate score alone.
 - Never ingest search-result snippets as authoritative answers. For any future externally sourced demo content, retain provenance and reuse basis; citations establish where claims came from, not that an incident was independently verified.
 
 RAG contract/UI impact: internal retrieval can remain server-only if existing response text is sufficient. If citations or source snippets are shown to users, define a bounded citation schema (source ID/title/URL/review date and cited passage excerpt), validate safe URLs, update OpenAPI/fixtures/generated types and accessible citation UI, and avoid leaking internal source notes.
 
-LangChain remains optional and not presumed: the small backend retrieval/tool orchestration is simpler for this bounded pilot. Reconsider only after a runnable comparison demonstrates material value for orchestration, tracing, or resumability; include dependency cost and ensure framework state does not bypass existing user-scoped Redis retention/authorization.
+Framework decision (reversed): **adopt LangGraph as the agent runtime** for the tool loop, durable conversation state, streaming, and human-in-the-loop slots — these are genuinely hard to build well by hand. Keep the hot paths thin: retrieval stays custom (hybrid SQL, above) and the trivial FAQ answer stays near-direct rather than routed through a heavyweight graph. Implement against LangChain's `Tool`/`ChatModel` contracts so an exit path stays open, pin versions (LangChain/LangGraph hit 1.0 GA on 2025-10-22 with a no-breaking-changes-until-2.0 pledge, but the 0.x churn history warrants pinning), and set an explicit `recursion_limit` + token budget to avoid the well-documented runaway-loop cost trap. Framework state must **not** bypass existing user-scoped Redis retention/authorization — use a Redis or Postgres checkpointer that respects the same ownership and TTL rules.
 
 **Illustrative wow-demo flow (read-only):** “Why was this item classified this way?” → `explain_my_scan` + cited approved guidance; “Is my draft ready?” → `check_report_readiness` and a link to the form; “What changed in these two areas?” → `compare_public_areas` over bounded aggregates; “What should I learn next?” → `get_education_quiz`. Every flow discloses limits, uses only the signed-in user’s permitted data, and never submits or verifies an incident.
 
@@ -138,16 +160,16 @@ Eligibility and policy:
 - Decide atomic rate limit increment/expiry and concurrent-turn semantics; prevent accidental duplicate provider spend on retries where feasible.
 - Logs may include request/correlation ID, tool name/version, allow/deny result, duration, provider status category, and bounded usage metadata; never raw prompt, full response, private tool result, photo bytes, auth headers, or secrets.
 - Keep provider-specific request/response formats inside adapters. A provider-neutral internal shape may include text, normalized tool requests, finish reason, and optional usage; do not leak provider-native tool payloads through the public API.
-- LangChain is not required for the initial small tool pilot. Reconsider only after a prototype demonstrates value for materially more complex orchestration, and document dependency/operational cost and compatibility with the configured gateway. If HITL interrupts are ever adopted, persistent checkpoint and resume semantics must be deliberately designed; the current ephemeral Redis chat history is not automatically a compatible checkpoint system.
+- **LangGraph is the adopted runtime for the tool loop** (see SAPA-RAG and §17). Add per-hop guardrails around it (input: PII masking + injection detection on user text *and* tool results; pre-tool: arg validation + permission check; post-tool: PII/secrets redaction), and roll guardrails out in **audit mode first**, review a week of traces, then promote to enforce — a blocked hop can fail a whole turn, so false-positive cost is real. Note LLM-output guardrails are skipped on streamed responses, so decide where a turn must be non-streamed. If HITL interrupts are adopted, persistent checkpoint/resume must be designed deliberately; the current ephemeral Redis chat history is not automatically a compatible checkpoint — use a checkpointer that honors the same user-scoped ownership and TTL.
 
 ## 6. SAPA design and implementation sequence
 
 1. **SAPA-0 — reconcile contract/docs and behavior:** verify active prompt/provider/service; align docs with actual routes and policy; choose grounding/fallback semantics; add tests for known FAQ, unknown, off-topic, malformed output, provider failure, invalid actions, and injection.
-1b. **SAPA-RAG-1 — curated corpus and lexical baseline:** register a small, reviewed, versioned source set; chunk with overlap; implement full-text retrieval with scores/threshold and answer-only-from-context; build the Indonesian eval set (relevant, spelling-variant, off-topic, unanswerable, injection) and record Recall@k/MRR plus groundedness before adding any tool or embedding dependency.
-2. **SAPA-1 — technical spike:** prototype one read-only tool through an internal normalized provider interface; test configured gateway tool-call compatibility, latency, costs, timeout, serialization, error handling and log redaction. No production tool enabled during spike.
-3. **SAPA-2 — bounded runtime:** implement registry, schema validation, policy authorization, ownership-scoped handlers, redaction, budgets, safe loop termination, and tests. Begin with one low-risk tool; enable through a server-side feature flag/canary.
-4. **SAPA-3 — expand only on evidence:** add additional tools only when users cannot complete an important task using FAQ/navigation and the tool has a reviewed data contract and owner.
-5. **SAPA-4 — framework reconsideration:** compare the small runtime with LangChain only if future requirements call for multiple complex tool workflows, durable resumability, or framework capabilities. No framework adoption is presumed by this plan.
+1b. **SAPA-RAG-1 — curated corpus and hybrid retrieval:** register a small, reviewed, versioned source set; chunk with overlap; add `pgvector` (HNSW) + PostgreSQL full-text with the **Indonesian stop-list installed**, fuse with RRF (dense-weighted), and answer-only-from-context; build the Indonesian eval set (relevant, spelling-variant, off-topic, unanswerable, injection) and record Recall@k/MRR + groundedness + citation-F1 before wiring the agent runtime.
+2. **SAPA-1 — technical spike:** prototype one read-only tool through **LangGraph `create_agent`** pointed at the OpenAI-compatible gateway via `ChatOpenAI` (`configuration.baseURL`, `streamUsage:false` if the gateway rejects `stream_options`); test tool-call compatibility, latency, framework overhead, `recursion_limit`, timeout, serialization, error handling and log redaction. No production tool enabled during spike.
+3. **SAPA-2 — bounded runtime:** implement the LangGraph graph + tool registry with strict schema validation, server-derived caller scope, per-hop guardrails (audit mode), ownership-scoped handlers, redaction, budgets/recursion cap, safe termination, and tests. Begin with one low-risk tool behind a server-side feature flag/canary.
+4. **SAPA-3 — expand only on evidence:** add tools from the §5 catalog only when users cannot complete an important task via FAQ/navigation and the tool has a reviewed data contract and owner.
+5. **SAPA-4 — durability & HITL (optional):** add checkpointed resume / human-in-the-loop middleware only if a concrete workflow needs it, honoring existing user-scoped retention/authorization.
 
 ### SAPA API/contract impact
 
@@ -177,6 +199,7 @@ Eligibility and policy:
 
 - Separate **Profil**, **Keamanan akun**, and **Privasi** sections in settings.
 - Do not add date of birth by default. First record the product purpose and whether a less sensitive value (e.g. age band or age-threshold confirmation) meets it. If approved, make optional unless the purpose requires otherwise, validate bounds, use SQL `date`, expose only in self-profile, and define deletion/retention.
+- **Legal grounding (Indonesia PDP Law, UU No. 27/2022, in force since Oct 2024):** Art. 16(2) mandates data-minimization — collection must be "terbatas dan spesifik" to an explicit purpose. Collecting full DOB with no processing purpose violates this and raises breach impact (unlawful collection carries fines up to Rp 6 billion). Children's data is "specific personal data" (high-risk) and **GR No. 17/2025** adds child-oriented duties (age verification, parental consent, privacy-by-default, profiling/location restrictions) for platforms accessible to minors — a civic app plausibly is. **Recommendation: do not collect full DOB; if age-gating is ever needed, collect an age band or self-attested 18+ flag instead**, optional, with a clear purpose statement, and wire deletion into account-delete (honor correction within 3×24h per Art. 30).
 - Do not expose secrets, password hashes, MFA secrets, recovery codes, or private object keys in user response schemas.
 
 ### ACCOUNT-R2 — Change password
@@ -186,6 +209,7 @@ Eligibility and policy:
 - On success update password hash, rotate/revoke sessions per explicit rule, notify through verified email, and return a clear UI outcome.
 - Proposed default: revoke all other active sessions and rotate the current session; test reset-password behavior remains distinct and continues to revoke sessions as designed.
 - Generic-safe failures should not disclose account existence; never log password values.
+- **Concrete choices (OWASP ASVS 5.0 / Top 10:2025):** hash with **Argon2id** (`argon2` npm package; ≥19 MiB memory, 2 iterations, parallelism 1). bcrypt is legacy-only (cost ≥12, 72-byte cap); if SAP already stores bcrypt, opportunistically re-hash to Argon2id on next successful login. Do **not** force periodic rotation — only on suspected breach. Validate the new password against breached-credential lists via the **HaveIBeenPwned k-anonymity range API** (never sends the full password) or at minimum a local top-10k list. Revoking other sessions is the single most important post-change control; use SAP's Redis session store to delete all of the user's session keys except the current one, and rotate the current session id. Notify via SMTP (ASVS §6.3.7); the email discloses that a change happened, never the password. Plan the email-change flow together (dual-email: notify old address, confirm new via time-limited nonce, store new as pending).
 
 ### ACCOUNT-R3 — MFA
 
@@ -196,6 +220,7 @@ Eligibility and policy:
 - Generate single-use recovery codes, show them only at issuance, store only salted hashes, support regeneration after recent re-auth and revoke prior codes.
 - Require existing factor or strong recovery/re-auth process to disable/replace MFA; notify verified email. Recovery must not silently bypass MFA. Define support process and anti-lockout guidance before enabling.
 - Prefer TOTP as first implementation; evaluate WebAuthn/passkeys later because RP ID/domain/origin and recovery require a separate lifecycle and deployment decision.
+- **Concrete choices (RFC 6238 / NIST SP 800-63-4):** use **`otplib`** (or `otpauth`); pin parameters explicitly (`algorithm: sha1`, `digits: 6`, `step: 30`, `window: 1` — do not widen the window; clock skew is an NTP problem). Generate a 160-bit secret, render an `otpauth://` QR with the `qrcode` package, persist the secret **`pending`** and flip to **`active`** only after a live code proves possession. Encrypt the secret at rest (AES-256-GCM, key from env/KMS, store `iv:tag:ciphertext`) — it is password-equivalent. **Replay protection:** store `last_accepted_step` per user and reject any code whose time-step ≤ the stored value. **Rate limiting is mandatory, before the crypto check:** a 2025 analysis shows a 6-digit TOTP reaches ~50% brute-force success in hours at only 20-30 req/s — lock the challenge after 5-10 consecutive failures with backoff (Redis counter). **Backup codes:** issue 8-16 single-use codes at enable time (≥~60 bits entropy each), hash before storing, show plaintext once, delete on use, invalidate all on regenerate; apply the same brute-force protection. Skip SMS/email entirely as a factor (NIST "restricted"; ASVS disallows email as auth). **Passkeys are phase-2, additive** (not passkey-only): older/low-end Android support is uneven and passkey recovery is non-standardized, so keep password + TOTP + backup codes as the base for a broad-access civic app.
 
 ### ACCOUNT-R4 — Avatar
 
@@ -203,6 +228,7 @@ Eligibility and policy:
 - Dedicated user-owned avatar media lifecycle; allowlisted raster formats, byte/pixel limits, actual content validation, safe image decode/re-encode, generated storage keys, metadata stripping, ownership checks, private storage by default, and removal/cleanup of prior or abandoned objects.
 - Decide whether avatar is public within app or authenticated-only. Never expose an unrestricted bucket URL or object key. Prevent SVG/active content unless a reviewed safe rendering path exists.
 - Define remove/replace behavior and consistent response if media upload succeeds but profile reference update fails.
+- **Concrete choices (OWASP File Upload / ASVS 5.0 V5):** allowlist `image/jpeg`, `image/png`, `image/webp` — **reject SVG** (active content / XSS). Validate by **magic bytes** (`file-type` npm), not extension or Content-Type (both spoofable). Enforce a size cap (~5 MB) *and* a pixel cap (reject > ~40 MP) to stop decompression/pixel-flood DoS. **Re-encode + resize server-side with `sharp`** to a fixed size (e.g. 512×512, WebP/JPEG) — this one step destroys embedded scripts/polyglots **and strips EXIF/GPS** (confirm you do **not** call `.withMetadata()`; GPS stripping is PDP-law data-minimization, since user photos often carry coordinates). Use a random UUID storage key, never the client filename. **Architecture fits SAP's worker + R2:** API issues a presigned PUT to a private quarantine prefix → worker (on object-created) validates magic bytes → `sharp` re-encode/resize → writes clean object to the serving prefix → updates the DB record status. Serve public avatars via CDN or private assets via short-lived signed URLs; set `X-Content-Type-Options: nosniff`. Given the forced re-encode, ClamAV is optional defense-in-depth (lower priority). Keep an audit trail (sha256, uploader, timestamp) and an admin takedown path for abusive imagery.
 
 ## 8. Account design and API/database contract impact
 
@@ -265,6 +291,21 @@ SAMBAT Online is an official public complaints channel, but this research did no
 - Examine duplicate IDs, out-of-city points, impossible/future dates, approximate centroids, missing timezone, stale incidents, false precision, inconsistent status labels, and privacy-sensitive free text.
 - Treat a news article, facility location, service boundary, TPS Pemilu record, tonnage statistic, vehicle/composter delivery documentation, or aggregate count as contextual/facility information—not a report incident. Keep any such layer separate and clearly named if later approved.
 - Reject records with invented coordinates, reconstructed incident times, inferred category/severity, unlicensed images, unsupported resolution claims, or no traceable origin.
+
+### Priority D — Open geospatial "shopping list" (facility/context and boundary/geocoding aids only, NOT incidents)
+
+These are open sources the project owner can fetch directly. **None of them are citizen-report incidents** — they are (1) the Kota Malang administrative boundary polygon used to keep the map focused and to run a point-in-polygon Kota-vs-Kabupaten filter, and (2) optional facility/context point layers that, if ever displayed, must live in a separate clearly-labeled layer per the discipline above. Capture license/attribution and retrieval date for each.
+
+| Source | URL | What to fetch | Discipline / how to use |
+| --- | --- | --- | --- |
+| **BIG (Badan Informasi Geospasial) geoservices** | `https://geoservices.big.go.id/` | Kota Malang administrative-boundary polygon (batas wilayah / batas administrasi Kota Malang); optionally the "Tempat Sampah" point layer (a MapServer feature service exposing waste-point features with real coordinates). | The boundary polygon is the **authoritative point-in-polygon filter** — any candidate coordinate that does not fall inside Kota Malang's 5 kecamatan (Klojen, Blimbing, Lowokwaru, Sukun, Kedungkandang) is Kabupaten Malang or Malang Raya and must be excluded or relabeled. The "Tempat Sampah" points are facilities/context, not incidents. |
+| **SIPSN — Sistem Informasi Pengelolaan Sampah Nasional (KLH)** | `https://sampahnasional.kemenlh.go.id/` | City-level waste generation/composition/coverage statistics for Kota Malang; TPS/TPST/TPA facility figures. | Aggregate statistics and facility counts — **context only**, never a report event. Useful to describe the problem, not to place markers. |
+| **Satu Data Kota Malang** | `https://data.malangkota.go.id/` | Official open datasets: facility locations (TPS/TPST/TPA), kelurahan/kecamatan reference geometries, DLH operational data. | Verify each dataset's actual meaning before use (e.g., the "TPS Penanggungan" set is Pemilu polling stations, not waste). Facility/reference layers only. |
+| **BPS Kota Malang** | `https://malangkota.bps.go.id/` | Administrative reference (kecamatan/kelurahan lists, population) for QA and boundary labeling. | Reference/QA context; not incidents. |
+| **OpenStreetMap via Overpass API** | `https://overpass-api.de/api/interpreter` | Query `amenity=waste_disposal`, `amenity=waste_basket`, `amenity=recycling` within the Kota Malang boundary (bbox/area filter). | Community-maintained **facility** points; freshness/accuracy varies. Attribution: © OpenStreetMap contributors (ODbL). Context layer only. |
+| **Nominatim (OSM geocoding)** | `https://nominatim.openstreetmap.org/` | Geocode a named road segment/intersection from a verified news lead to candidate coordinates. | **Only to assist a human-verified event** with a source-stated location; the result MUST then be verified inside the Kota Malang polygon. Never geocode a bare kelurahan/neighborhood name to a false-precision point marker. Honor the 1 req/s usage policy. |
+
+**Point-in-polygon Kota vs Kabupaten filter (mandatory):** load the BIG Kota Malang boundary polygon once, and for every candidate coordinate (from geocoding, a facility layer, or a source coordinate) test membership before it is stored or displayed. A "Malang" mention in a headline is not proof of Kota Malang; only geometry inside the polygon (or an explicit source statement of the kecamatan) confirms it. This is the single discipline that keeps the map "fokus di Malang dan nggak ngawur."
 
 ## 11. Competition demo: historical reports sourced from public material
 
@@ -365,6 +406,17 @@ Use null/unknown rather than guessing. Paraphrase rather than copying article te
 - Test 320px mobile through desktop, keyboard-only, screen reader status announcement, slow network, offline/error, repeated submit, and route interruption.
 - Browser verification is required after implementation because the change is directly observable in preview.
 
+### Concrete React 19 / Next.js 16 patterns (verify against installed docs before coding)
+
+The web app is React 19 + Next.js 16 (App Router, Turbopack). `apps/web/AGENTS.md` warns this Next.js has breaking changes from training priors — **read `node_modules/next/dist/docs/` for the installed version before writing any loading code.** The patterns below are the research-backed direction, not a license to skip that check.
+
+- **Login submit pending state.** If the login uses a form action, a child button component can call React 19 `useFormStatus()` to read `pending` (must be rendered *inside* the `<form>`, not the same component that renders it). If login is a plain client handler, use `useActionState` (server action) or a local `useTransition().isPending` / `useState` busy flag. Disable the submit button while pending to prevent duplicate submits, and swap its label to an accessible busy state.
+- **Redirect / navigation feedback.** For slow-network click feedback on a `next/link`, React's `useLinkStatus()` exposes a `pending` state (debounce ~100 ms so fast navigations don't flash). For the post-login redirect, render the branded transitional shell with a real `role="status"` "Menyiapkan dashboard…" message rather than a bare logo.
+- **Route-segment fallback.** A `loading.tsx` in a route segment is an automatic Suspense boundary shown during navigation to that segment. **Gotcha:** a layout that reads `cookies()`/`headers()` or does an uncached `fetch` blocks the segment's `loading.js` from showing — move that work into the page or a nested `<Suspense>` so the fallback can render. `loading.tsx` does NOT replace client-side submit/fetch state; it only covers server navigation.
+- **Skeletons vs spinners.** Skeleton screens for the dashboard shell are perceived ~20–30% faster than a spinner and avoid layout shift; use them for the dashboard bootstrap. Reserve indeterminate spinners for short unknown-duration waits.
+- **Timing thresholds.** Under ~100–300 ms show nothing (a flash is worse than nothing). Once an indicator is shown, keep it up a ~600 ms minimum to avoid flicker. Apply this to both the login button and the redirect shell.
+- **Accessibility.** Announce status with `role="status"` (polite live region); mark purely-visual spinner elements `aria-hidden`; set `aria-busy` on the container being populated and clear it on both success and failure. Honor `prefers-reduced-motion: reduce` — disable nonessential motion, keep the text status.
+
 ---
 
 # Part E — Delivery, contracts, and sequencing
@@ -416,12 +468,12 @@ Internal SAPA tool protocol is not a public API unless surfaced to the client. D
 
 **Gate:** upload hardening, ownership, cleanup, safe serving and deletion tests pass.
 
-### Phase 4 — SAPA retrieval baseline, then read-only tool pilot
+### Phase 4 — SAPA hybrid retrieval baseline, then LangGraph read-only tool pilot
 
-- Build the curated source registry and lexical (PostgreSQL full-text) cited-answer baseline with the Indonesian eval set and measured threshold; keep FAQ-only behavior available.
-- Prototype adapter compatibility/cost; implement one bounded tool behind a flag only after policy and test suite exist. Expand only on measured user value.
+- Build the curated source registry and **hybrid cited-answer baseline** — PostgreSQL `pgvector` (HNSW) + full-text fused with RRF, with the **Indonesian stop-word list installed day one** — measured against the Indonesian eval set (Recall@k/MRR/nDCG, groundedness, citation-F1) with a tuned answerable/unanswerable threshold; keep FAQ-only behavior available as fallback.
+- Spike LangGraph `create_agent` for gateway compatibility/cost/latency; then stand up the LangGraph graph + tool registry and implement **one** bounded, account-scoped read-only tool behind a flag, only after the structural-safety policy, per-hop guardrails (audit-mode first), `recursion_limit`/token budget, and test suite exist. Expand from the ~8-tool catalog only on measured user value.
 
-**Gate:** retrieval Recall@k/MRR and groundedness/abstention results meet the agreed threshold; tool authz/privacy/injection/budget tests pass; FAQ-only fallback remains; operations can disable the feature (including retrieval).
+**Gate:** retrieval Recall@k/MRR/nDCG and groundedness/abstention results meet the agreed threshold; LangGraph runtime honors Redis ownership/TTL; tool authz/privacy/injection/recursion-budget tests pass; FAQ-only fallback remains; operations can disable the feature (including retrieval and the agent runtime).
 
 ### Phase 5 — Authorized data pilot
 
@@ -437,7 +489,7 @@ Phases can be scheduled in parallel only when dependencies and contract ownershi
 - Backdating historical events, substituting publication dates for event dates, or pushing old sourced records through the live create-report/moderation pipeline to appear verified.
 - Treating TPS Pemilu locations, waste facilities, tonnage totals, news coverage, or municipal statistics as incident reports.
 - Giving SAPA open-ended internet, database, shell, admin, account mutation, moderation, or autonomous report submission tools.
-- Adopting LangChain solely to claim an agent feature; no framework decision is made by this plan.
+- Adopting a heavy agent framework for its own sake, or wiring web-search/reranker/write-capable tools into SAPA's first release. LangGraph is adopted deliberately as the read-only agent runtime (pinned, with `recursion_limit` + token budget), not to "claim an agent feature."
 - Collecting date of birth without need; shipping passkeys before RP ID/recovery design; exposing user media publicly by default.
 - Displaying fake progress percentages, claiming agency response without proof, or interpreting an empty map as a clean area.
 
@@ -447,10 +499,10 @@ Phases can be scheduled in parallel only when dependencies and contract ownershi
 | --- | --- | --- |
 | SAPA grounding behavior and provider-failure fallback | Approved FAQ only; deterministic Help fallback when grounding/provider is insufficient | Product owner + tests against current prompt/provider |
 | SAPA first tool | One minimal account-owned status/aggregate tool behind server feature flag | Product value, existing service purity, data projection review |
-| SAPA retrieval baseline | Curated corpus + PostgreSQL full-text with cited passages and an answerable/unanswerable threshold; no vector DB/embeddings initially | Indonesian eval set results, relevance threshold, operational cost comparison |
+| SAPA retrieval baseline | **Decided (reversed from earlier baseline):** hybrid retrieval — PostgreSQL `pgvector` (HNSW) dense search + `tsvector` full-text, fused with RRF (k≈60, dense-weighted ~0.6/0.4), cited passages, answerable/unanswerable threshold. **Day-one gate:** install the Indonesian Snowball stop-word list (the built-in `indonesian` FTS config ships none) before measuring. | Indonesian eval set (Recall@k/MRR/nDCG, groundedness, citation-F1), embedding-model choice (`bge-m3`/`multilingual-e5`/Cohere v3, or `text-embedding-3-*` via gateway), operational cost |
 | SAPA citation UI | **Decided:** surface compact, structured citation cards in the UI. First implementation slice is contract-first — OpenAPI + fixtures + regenerated web types before backend retrieval/projection and the accessible citation card component. Even though the neutral retrieval-baseline ordering above lists server-only cited passages first, the first slice ships the UI cards alongside the retrieval backend. | Contract change, source-URL safety validation, UX/a11y review |
 | Historical demo layer | Separate, labeled historical-source namespace with its own range rules and kill switch; never mixed into live verified cells | Product/contract approval, boundary policy, attribution and rollback review |
-| LangChain | Do not adopt for initial pilot; revisit after prototype evidence | Gateway compatibility, complexity, maintenance and cost comparison |
+| LangGraph agent runtime | **Decided (reversed from earlier "do not adopt"):** adopt LangGraph 1.x (`create_agent`) as SAPA's read-only agent runtime; keep the OpenAI-compatible gateway via `ChatOpenAI` + `configuration.baseURL` (set `streamUsage:false` if the gateway rejects `stream_options`). Pin versions, set `recursion_limit` + a token budget to cap runaway-loop cost, and honor Redis conversation ownership/TTL in any checkpointer. Vanilla LangChain chains (now `langchain-classic`) and web-search/reranker tools stay out of the first release. | Gateway compatibility spike, framework overhead (~200–400 ms/call) vs value, maintenance and cost comparison |
 | DOB/age | Do not collect until a concrete feature/legal purpose is documented | Product/legal requirement and retention policy |
 | MFA availability | Optional TOTP for users; admin MFA required before privileged production use if recovery support is ready | Operational support, encryption/key management, recovery SOP |
 | Avatar public visibility | Private/authenticated rendering until product explicitly chooses public visibility | Privacy/security review and serving design |
@@ -461,20 +513,54 @@ Phases can be scheduled in parallel only when dependencies and contract ownershi
 
 ## 18. Research references
 
+**SAPA — retrieval (RAG):**
 - PostgreSQL full-text search: https://www.postgresql.org/docs/current/textsearch-intro.html
 - PostgreSQL `pg_trgm` extension (fuzzy/typo matching): https://www.postgresql.org/docs/current/pgtrgm.html
-- Qdrant hybrid search + RRF (future alternative; not a first-release dependency): https://qdrant.tech/documentation/search/hybrid-search/
+- pgvector (dense vector search + HNSW): https://github.com/pgvector/pgvector
+- Reciprocal Rank Fusion (hybrid dense+lexical): https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf
+- Indonesian text search / Snowball stop words (the built-in `indonesian` config ships none): https://www.postgresql.org/docs/current/textsearch-dictionaries.html
+- BGE-M3 multilingual embeddings: https://huggingface.co/BAAI/bge-m3
 - Ragas evaluation datasets: https://docs.ragas.io/en/stable/concepts/components/eval_dataset/
 - NVIDIA RAG metrics overview: https://docs.nvidia.com/nemo/microservices/26.3.0/evaluator/metrics/rag.html
+
+**SAPA — LangGraph agent runtime:**
+- LangChain/LangGraph 1.0 release: https://blog.langchain.com/langchain-langgraph-1dot0/
+- LangChain `create_agent` (JS): https://docs.langchain.com/oss/javascript/langchain/agents
 - LangChain JS tools/runtime context: https://docs.langchain.com/oss/javascript/langchain/tools
 - LangChain JS human-in-the-loop: https://docs.langchain.com/oss/javascript/langchain/human-in-the-loop
 - LangGraph checkpointers: https://docs.langchain.com/oss/javascript/langgraph/checkpointing
+
+**Account security (password / MFA / avatar / DOB):**
 - OWASP Authentication Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
+- OWASP Password Storage Cheat Sheet (Argon2id parameters): https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+- `argon2` npm: https://www.npmjs.com/package/argon2
+- Have I Been Pwned — Pwned Passwords (k-anonymity range API): https://haveibeenpwned.com/API/v3#PwnedPasswords
 - OWASP Multifactor Authentication Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Multifactor_Authentication_Cheat_Sheet.html
+- `otplib` (TOTP): https://github.com/yeojz/otplib
+- RFC 6238 (TOTP): https://datatracker.ietf.org/doc/html/rfc6238
 - OWASP File Upload Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html
-- W3C Web Authentication Level 3: https://www.w3.org/TR/webauthn-3/
-- Next.js loading convention: https://nextjs.org/docs/app/api-reference/file-conventions/loading
-- Satu Data Kota Malang — TPS Penanggungan: https://data.malangkota.go.id/dataset/data-lokasi-tps-di-kelurahan-penanggungan
+- `file-type` (magic-byte detection): https://www.npmjs.com/package/file-type
+- `sharp` (re-encode/resize, strips EXIF/GPS): https://sharp.pixelplumbing.com/
+- W3C Web Authentication Level 3 (passkeys, phase 2): https://www.w3.org/TR/webauthn-3/
+- UU No. 27/2022 Pelindungan Data Pribadi (PDP Law): https://peraturan.bpk.go.id/Details/229798/uu-no-27-tahun-2022
+- PP No. 17/2025 (PDP implementing regulation, child data): https://peraturan.bpk.go.id/Details/318014
+
+**Login / loading UX (React 19 / Next.js 16 — verify against installed docs):**
+- Next.js loading convention (`loading.js`): https://nextjs.org/docs/app/api-reference/file-conventions/loading
+- React `useFormStatus`: https://react.dev/reference/react-dom/hooks/useFormStatus
+- React `useActionState`: https://react.dev/reference/react/useActionState
+- React `useTransition`: https://react.dev/reference/react/useTransition
+- React `useLinkStatus`: https://react.dev/reference/react-dom/hooks/useLinkStatus
+- WAI-ARIA `role="status"` / live regions: https://www.w3.org/WAI/ARIA/apg/patterns/alert/
+
+**Map — Malang data sources (facility/context and boundary/geocoding aids only):**
+- BIG (Badan Informasi Geospasial) geoservices: https://geoservices.big.go.id/
+- SIPSN — Sistem Informasi Pengelolaan Sampah Nasional (KLH): https://sampahnasional.kemenlh.go.id/
+- Satu Data Kota Malang: https://data.malangkota.go.id/
+- BPS Kota Malang: https://malangkota.bps.go.id/
+- OpenStreetMap Overpass API (waste amenities; © OSM contributors, ODbL): https://overpass-api.de/
+- Nominatim geocoding usage policy (1 req/s): https://operations.osmfoundation.org/policies/nominatim/
+- Satu Data Kota Malang — TPS Penanggungan (Pemilu polling stations, NOT waste): https://data.malangkota.go.id/dataset/data-lokasi-tps-di-kelurahan-penanggungan
 - SAMBAT Online Kota Malang: https://sambat.malangkota.go.id/
 - Eko Green launch coverage (1 July 2025; research lead, not authoritative dataset access): https://malang.disway.id/malang-mbois/read/6207/dlh-kota-malang-luncurkan-aplikasi-eko-green-permudah-pengaduan-lingkungan-secara-digital
 

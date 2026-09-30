@@ -1,5 +1,6 @@
 import { getConfig } from '@sap/config';
-import type { Sql } from 'postgres';
+import type { Sql, TransactionSql } from 'postgres';
+import { knowledgeBaseSeedRows } from '../assistant/assistant-knowledge.js';
 
 /** Fixed EcoLens taxonomy. IDs match the OpenAPI CategoryId enum exactly. */
 const CATEGORIES: ReadonlyArray<readonly [id: string, nameId: string, sortOrder: number]> = [
@@ -58,7 +59,48 @@ export async function seedReference(sql: Sql): Promise<void> {
       )
       ON CONFLICT (id) DO NOTHING
     `;
+
+    await seedSapaCorpus(tx);
   });
+}
+
+/**
+ * Seed the SAPA retrieval corpus from the curated in-memory knowledge base
+ * (text only — embeddings are backfilled out-of-band by the sapa:embed CLI).
+ * Prod-safe and idempotent: it makes no network calls and upserts text. When an
+ * entry's stripped search text changes, the stored embedding is invalidated
+ * (set NULL) so the backfill re-embeds only what actually changed.
+ */
+export async function seedSapaCorpus(sql: Sql | TransactionSql): Promise<void> {
+  for (const row of knowledgeBaseSeedRows()) {
+    await sql`
+      INSERT INTO sapa_corpus (
+        id, page_context, question, answer, suggested_actions,
+        source, url, is_safety_net, content_search
+      )
+      VALUES (
+        ${row.id}, ${row.pageContext}, ${row.question}, ${row.answer},
+        ${JSON.stringify(row.suggestedActions)}::jsonb,
+        ${row.source}, ${row.url}, ${row.isSafetyNet}, ${row.contentSearch}
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        page_context = EXCLUDED.page_context,
+        question = EXCLUDED.question,
+        answer = EXCLUDED.answer,
+        suggested_actions = EXCLUDED.suggested_actions,
+        source = EXCLUDED.source,
+        url = EXCLUDED.url,
+        is_safety_net = EXCLUDED.is_safety_net,
+        content_search = EXCLUDED.content_search,
+        embedding = CASE
+          WHEN sapa_corpus.content_search IS DISTINCT FROM EXCLUDED.content_search
+          THEN NULL ELSE sapa_corpus.embedding END,
+        embedding_model = CASE
+          WHEN sapa_corpus.content_search IS DISTINCT FROM EXCLUDED.content_search
+          THEN NULL ELSE sapa_corpus.embedding_model END,
+        updated_at = now()
+    `;
+  }
 }
 
 const DEV_ADMIN_EMAIL = 'admin@sap.local';

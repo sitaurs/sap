@@ -10,6 +10,7 @@ export interface UserRecord {
   role: UserRole;
   emailVerifiedAt: Date | null;
   sapaEnabled: boolean;
+  avatarMediaId: string | null;
   deletedAt: Date | null;
 }
 
@@ -50,6 +51,7 @@ export interface UserView {
   role: UserRole;
   emailVerified: boolean;
   sapaEnabled: boolean;
+  avatarMediaId: string | null;
 }
 
 export function toUserView(user: UserRecord): UserView {
@@ -60,5 +62,6 @@ export function toUserView(user: UserRecord): UserView {
     role: user.role,
     emailVerified: user.emailVerifiedAt !== null,
     sapaEnabled: user.sapaEnabled,
+    avatarMediaId: user.avatarMediaId,
   };
 }

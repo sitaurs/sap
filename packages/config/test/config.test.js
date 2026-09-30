@@ -67,3 +67,20 @@ test('requires HTTPS origins in production', () => {
     'production',
   );
 });
+
+test("keeps TOTP MFA disabled unless explicitly enabled", () => {
+  assert.equal(getConfig(valid).MFA_TOTP_ENABLED, false);
+  assert.equal(getConfig(valid).MFA_TOTP_ENCRYPTION_KEY, undefined);
+});
+
+test("requires a dedicated 256-bit encryption key when MFA is enabled", () => {
+  assert.throws(() => getConfig({ ...valid, MFA_TOTP_ENABLED: "true" }), /MFA_TOTP_ENCRYPTION_KEY/);
+  // Reject a key that is not 64 hex characters (wrong length / non-hex).
+  assert.throws(
+    () => getConfig({ ...valid, MFA_TOTP_ENABLED: "true", MFA_TOTP_ENCRYPTION_KEY: "x".repeat(64) }),
+    /MFA_TOTP_ENCRYPTION_KEY/,
+  );
+  const cfg = getConfig({ ...valid, MFA_TOTP_ENABLED: "true", MFA_TOTP_ENCRYPTION_KEY: "a1".repeat(32) });
+  assert.equal(cfg.MFA_TOTP_ENABLED, true);
+  assert.equal(cfg.MFA_TOTP_ENCRYPTION_KEY, "a1".repeat(32));
+});

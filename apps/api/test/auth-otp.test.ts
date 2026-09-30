@@ -41,10 +41,14 @@ interface Harness {
   };
   user: {
     id: string; emailNormalized: string; passwordHash: string | null; displayName: string;
-    role: 'user' | 'admin'; emailVerifiedAt: Date | null; sapaEnabled: boolean; deletedAt: Date | null;
+    role: 'user' | 'admin'; emailVerifiedAt: Date | null; sapaEnabled: boolean;
+    avatarMediaId: string | null; deletedAt: Date | null;
   };
   revokedUsers: string[];
   deletedTokenHashes: string[];
+  revokedExcept: Array<{ userId: string; keep: string }>;
+  clearedAvatars: string[];
+  scheduledAvatarExpiry: string[];
 }
 
 async function makeHarness(purpose: 'verify_email' | 'reset_password' = 'verify_email'): Promise<Harness> {
@@ -55,7 +59,7 @@ async function makeHarness(purpose: 'verify_email' | 'reset_password' = 'verify_
   const user: Harness['user'] = {
     id: 'u1', emailNormalized: 'user@example.com', passwordHash: await passwords.hash('current-password-1'),
     displayName: 'User One', role: 'user', emailVerifiedAt: purpose === 'reset_password' ? new Date(now) : null,
-    sapaEnabled: true, deletedAt: null,
+    sapaEnabled: true, avatarMediaId: null, deletedAt: null,
   };
   const challenge: Harness['challenge'] = {
     id: 'ch-1', userId: 'u1', emailHash: crypto.hashEmail(user.emailNormalized), purpose,
@@ -64,6 +68,9 @@ async function makeHarness(purpose: 'verify_email' | 'reset_password' = 'verify_
   };
   const revokedUsers: string[] = [];
   const deletedTokenHashes: string[] = [];
+  const revokedExcept: Array<{ userId: string; keep: string }> = [];
+  const clearedAvatars: string[] = [];
+  const scheduledAvatarExpiry: string[] = [];
 
   const users = {
     findActiveByEmail: async (email: string) => (email === user.emailNormalized ? user : null),
@@ -75,11 +82,17 @@ async function makeHarness(purpose: 'verify_email' | 'reset_password' = 'verify_
       user.sapaEnabled = sapaEnabled;
       return user;
     },
+    updateAvatar: async (id: string, avatarMediaId: string | null) => {
+      if (id !== user.id) return null;
+      user.avatarMediaId = avatarMediaId;
+      return user;
+    },
   };
   const sessions = {
     create: async () => {},
     deleteByTokenHash: async (tokenHash: string) => { deletedTokenHashes.push(tokenHash); },
     deleteAllForUser: async (userId: string) => { revokedUsers.push(userId); },
+    deleteAllForUserExcept: async (userId: string, keep: string) => { revokedExcept.push({ userId, keep }); },
     markReauthenticated: async () => {},
   };
   const sessionService = {
@@ -97,12 +110,22 @@ async function makeHarness(purpose: 'verify_email' | 'reset_password' = 'verify_
   const mailer = { sendOtp: async () => {} };
   const deletions = {};
   const outbox = {};
+  const media = {
+    // A stored avatar object the account owns; anything else resolves to null (→ 404/validation).
+    findStoredForOwner: async (mediaId: string, ownerId: string) =>
+      mediaId === 'avatar-1' && ownerId === user.id
+        ? { id: 'avatar-1', ownerId, purpose: 'avatar', objectKey: 'avatar/u1/x.webp', mime: 'image/webp', sizeBytes: 1, expiresAt: new Date() }
+        : null,
+    clearExpiry: async (mediaId: string) => { clearedAvatars.push(mediaId); },
+    scheduleExpiry: async (mediaId: string) => { scheduledAvatarExpiry.push(mediaId); },
+  };
 
   const service = new AuthService(
     users as never, sessions as never, sessionService as never, challenges as never,
     deletions as never, outbox as never, passwords as never, crypto as never, mailer as never,
+    media as never,
   );
-  return { service, challenge, user, revokedUsers, deletedTokenHashes };
+  return { service, challenge, user, revokedUsers, deletedTokenHashes, revokedExcept, clearedAvatars, scheduledAvatarExpiry };
 }
 
 test('verifyEmail consumes the OTP challenge exactly once (single-use)', async () => {
@@ -168,4 +191,67 @@ test('updateSapaPreference rejects an unknown account with NOT_FOUND', async () 
     h.service.updateSapaPreference('nope', true),
     (error) => errorCode(error) === 'NOT_FOUND',
   );
+});
+
+test('changePassword updates the hash and revokes other sessions, keeping the current one', async () => {
+  const h = await makeHarness('verify_email');
+  const ack = await h.service.changePassword('u1', 'token-hash', 'current-password-1', 'brand-new-password-1');
+  assert.match(ack.message, /kata sandi/i);
+  assert.ok(await new PasswordService().verify(h.user.passwordHash, 'brand-new-password-1'), 'new password must be stored');
+  assert.deepEqual(h.revokedExcept, [{ userId: 'u1', keep: 'token-hash' }], 'other sessions revoked, current kept');
+  assert.deepEqual(h.revokedUsers, [], 'must not revoke every session (would boot the caller)');
+});
+
+test('changePassword rejects a wrong current password', async () => {
+  const h = await makeHarness('verify_email');
+  await assert.rejects(
+    h.service.changePassword('u1', 'token-hash', 'wrong-password', 'brand-new-password-1'),
+    (error) => errorCode(error) === 'VALIDATION_ERROR',
+  );
+  assert.deepEqual(h.revokedExcept, [], 'no sessions touched on a failed change');
+  assert.ok(await new PasswordService().verify(h.user.passwordHash, 'current-password-1'), 'password unchanged');
+});
+
+test('changePassword rejects a new password equal to the current one', async () => {
+  const h = await makeHarness('verify_email');
+  await assert.rejects(
+    h.service.changePassword('u1', 'token-hash', 'current-password-1', 'current-password-1'),
+    (error) => errorCode(error) === 'VALIDATION_ERROR',
+  );
+});
+
+test('setAvatar attaches an owned avatar object and persists it against cleanup', async () => {
+  const h = await makeHarness('verify_email');
+  const view = await h.service.setAvatar('u1', 'avatar-1');
+  assert.equal(view.avatarMediaId, 'avatar-1');
+  assert.equal(h.user.avatarMediaId, 'avatar-1');
+  assert.deepEqual(h.clearedAvatars, ['avatar-1'], 'new avatar must have its orphan TTL cleared');
+  assert.deepEqual(h.scheduledAvatarExpiry, [], 'no previous avatar to reclaim');
+});
+
+test('setAvatar re-arms cleanup on the photo it replaces', async () => {
+  const h = await makeHarness('verify_email');
+  h.user.avatarMediaId = 'old-avatar';
+  const view = await h.service.setAvatar('u1', 'avatar-1');
+  assert.equal(view.avatarMediaId, 'avatar-1');
+  assert.deepEqual(h.scheduledAvatarExpiry, ['old-avatar'], 'the replaced photo is reclaimed');
+});
+
+test('setAvatar clears the photo when given null', async () => {
+  const h = await makeHarness('verify_email');
+  h.user.avatarMediaId = 'old-avatar';
+  const view = await h.service.setAvatar('u1', null);
+  assert.equal(view.avatarMediaId, null);
+  assert.equal(h.user.avatarMediaId, null);
+  assert.deepEqual(h.scheduledAvatarExpiry, ['old-avatar'], 'removing re-arms cleanup on the old photo');
+  assert.deepEqual(h.clearedAvatars, [], 'nothing new to persist');
+});
+
+test('setAvatar rejects a media id the account does not own', async () => {
+  const h = await makeHarness('verify_email');
+  await assert.rejects(
+    h.service.setAvatar('u1', '99999999-9999-4999-8999-999999999999'),
+    (error) => errorCode(error) === 'VALIDATION_ERROR',
+  );
+  assert.equal(h.user.avatarMediaId, null, 'avatar unchanged on rejection');
 });

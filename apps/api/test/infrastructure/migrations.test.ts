@@ -39,6 +39,13 @@ const EXPECTED_TABLES = [
   'deletion_tombstones',
   // 0007 hybrid scan detection settings
   'scan_settings',
+  // 0009 SAPA hybrid-retrieval corpus
+  'sapa_corpus',
+  // 0010 optional TOTP MFA
+  'mfa_factors',
+  'mfa_recovery_codes',
+  'mfa_preauth_challenges',
+  'mfa_login_limits',
 ].sort();
 
 test('there are at least five migration files', async () => {

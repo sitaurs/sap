@@ -13,7 +13,8 @@
           "email": "contoh@example.test",
           "role": "user",
           "emailVerified": true,
-          "sapaEnabled": true
+          "sapaEnabled": true,
+          "avatarMediaId": null
         },
         "meta": {
           "requestId": "fixture-login_success"
@@ -939,6 +940,45 @@
       },
       "request": {
         "sapaEnabled": false
+      }
+    },
+    {
+      "name": "password_changed",
+      "operationId": "changePassword",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "message": "Kata sandi berhasil diperbarui. Sesi di perangkat lain telah keluar."
+        },
+        "meta": {
+          "requestId": "fixture-password_changed"
+        }
+      },
+      "request": {
+        "currentPassword": "kata-sandi-lama-123",
+        "newPassword": "kata-sandi-baru-456"
+      }
+    },
+    {
+      "name": "avatar_set",
+      "operationId": "setAvatar",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "id": "11111111-1111-4111-8111-111111111111",
+          "displayName": "Warga Malang",
+          "email": "warga@example.com",
+          "role": "user",
+          "emailVerified": true,
+          "sapaEnabled": true,
+          "avatarMediaId": "22222222-2222-4222-8222-222222222222"
+        },
+        "meta": {
+          "requestId": "fixture-avatar_set"
+        }
+      },
+      "request": {
+        "mediaId": "22222222-2222-4222-8222-222222222222"
       }
     },
     {
