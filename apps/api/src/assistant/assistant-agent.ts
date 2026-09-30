@@ -156,7 +156,10 @@ function parseAgentReply(raw: unknown): AssistantReply {
     throw new ProviderUnavailableError('SAPA agent returned no final message');
   }
   const final = messages[messages.length - 1] as { content?: unknown; tool_calls?: unknown } | null;
-  if (!final || typeof final !== 'object' || typeof final.content !== 'string' || final.tool_calls) {
+  // `tool_calls` is always an array on an AIMessage ([] when the model made none),
+  // so only a NON-EMPTY list means the model stopped mid-tool-loop without answering.
+  const pendingToolCalls = Array.isArray(final?.tool_calls) && final.tool_calls.length > 0;
+  if (!final || typeof final !== 'object' || typeof final.content !== 'string' || pendingToolCalls) {
     throw new ProviderUnavailableError('SAPA agent did not produce a final answer');
   }
   let parsed: unknown;

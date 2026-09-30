@@ -20,6 +20,6 @@ import { UsersMeGamificationController } from './users-me.controller.js';
     SessionRepository,
     SessionAuthGuard,
   ],
-  exports: [GamificationService],
+  exports: [GamificationService, AchievementRepository],
 })
 export class GamificationModule {}

@@ -17,7 +17,7 @@ import { AssistantStore } from './assistant-store.js';
 import { PRIMING_REPLY, SYSTEM_PROMPT } from './assistant.prompt.js';
 import type { KnowledgeEntry } from './assistant-knowledge.js';
 import { sanitizeActions } from './assistant-sanitize.js';
-import { CATEGORY_IDS } from '../scans/scan.types.js';
+import type { HelpPassage } from './assistant-tools.js';
 
 const TOOL_ELIGIBLE_RE = /\b(scan|pindai|riwayat|hasil|klasifikasi|laporan|status|verifikasi|selesai|pencapaian|lencana|badge|poin|progres|kemajuan|sampah|kategori|area|rawan|hotspot|peta|bantuan|panduan|siap|draft)\b/i;
 const FAQ_NEAR_DIRECT_RE = /\b(bagaimana cara|cara scan|cara foto|arti hasil|maksud status|cara membaca peta|kenapa scan gagal|mematikan|menyalakan sapa)\b/i;
@@ -129,6 +129,37 @@ export class AssistantService {
       this.retriever && this.retriever.isEnabled()
         ? await this.retriever.retrieve(message, pageContext)
         : retrieveKnowledge(message, pageContext);
+
+    // 7a. Route to the tool-using LangGraph agent when it is available and the
+    //     turn looks tool-eligible (needs the caller's own status/progress,
+    //     taxonomy, an area summary, etc.). A trivial FAQ turn skips it. If the
+    //     agent path degrades (ProviderUnavailableError — executor absent, budget
+    //     exceeded, tool/auth failure, or bad model output) we fall through to
+    //     the existing single-shot FAQ provider below rather than 503 outright.
+    if (this.agent && this.isToolEligible(message)) {
+      try {
+        const agentReply = await this.agent.run({
+          message,
+          history: (history ?? [])
+            .slice(-MAX_AGENT_HISTORY_MESSAGES)
+            .map((turn) => ({ role: turn.role, content: turn.content })),
+          callerId: caller.id,
+          deadlineAt: Date.now() + Math.min(MAX_TURN_MS, this.config.SAPA_LLM_TIMEOUT_MS),
+          helpPassages: entries.map(toHelpPassage),
+        });
+        await this.store.appendTurn(caller.id, conversationId, message, agentReply.reply, history);
+        return {
+          conversationId,
+          reply: agentReply.reply,
+          suggestedActions: sanitizeActions(agentReply.suggestedActions),
+          citations: toCitations(entries, agentReply.citationIds),
+        };
+      } catch (error) {
+        // Only a graceful-degradation signal falls through to the FAQ path.
+        if (!(error instanceof ProviderUnavailableError)) throw error;
+      }
+    }
+
     const contextBlock = buildContextBlock(entries, pageContext);
     const messages: ProviderMessage[] = [
       { role: 'system', content: SYSTEM_PROMPT },
@@ -170,7 +201,35 @@ export class AssistantService {
     }
   }
 
+  /**
+   * Cheap heuristic for whether a turn should use the tool-using agent instead of
+   * the single-shot FAQ provider. A near-direct FAQ ("bagaimana cara scan") is
+   * answered by the FAQ path; anything referencing the caller's own
+   * status/progress, taxonomy, an area summary, or approved help content is
+   * agent-eligible. When neither pattern is decisive we return false and let the
+   * caller fall back to the FAQ path.
+   */
+  private isToolEligible(message: string): boolean {
+    if (FAQ_NEAR_DIRECT_RE.test(message)) return false;
+    return TOOL_ELIGIBLE_RE.test(message);
+  }
+
   private invalidMessage(message: string): UnprocessableEntityException {
     return new UnprocessableEntityException({ code: 'ASSISTANT_MESSAGE_INVALID', message });
   }
+}
+
+/**
+ * Map a retrieved KB/corpus entry to the approved-passage shape the agent's
+ * search_help_content tool quotes from. Internal FAQ entries default to the
+ * "FAQ SAP" provenance label and carry no external URL.
+ */
+function toHelpPassage(entry: KnowledgeEntry): HelpPassage {
+  return {
+    id: entry.id,
+    title: entry.question,
+    snippet: entry.answer,
+    source: entry.source ?? 'FAQ SAP',
+    url: entry.url ?? null,
+  };
 }

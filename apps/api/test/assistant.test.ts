@@ -32,6 +32,9 @@ let knowledgeBaseSeedRows: typeof import('../src/assistant/assistant-knowledge.j
 let stripStopwords: typeof import('../src/assistant/indonesian-stopwords.js').stripStopwords;
 let HybridRetriever: typeof import('../src/assistant/assistant-retrieval.js').HybridRetriever;
 let AssistantStatsTool: typeof import('../src/assistant/assistant-stats-tool.js').AssistantStatsTool;
+let AssistantTools: typeof import('../src/assistant/assistant-tools.js').AssistantTools;
+let AssistantToolError: typeof import('../src/assistant/assistant-tools.js').AssistantToolError;
+let AssistantAgent: typeof import('../src/assistant/assistant-agent.js').AssistantAgent;
 let getConfig: typeof import('@sap/config').getConfig;
 
 function errorCode(error: unknown): string {
@@ -52,6 +55,8 @@ before(async () => {
   ({ stripStopwords } = await import('../src/assistant/indonesian-stopwords.js'));
   ({ HybridRetriever } = await import('../src/assistant/assistant-retrieval.js'));
   ({ AssistantStatsTool } = await import('../src/assistant/assistant-stats-tool.js'));
+  ({ AssistantTools, AssistantToolError } = await import('../src/assistant/assistant-tools.js'));
+  ({ AssistantAgent } = await import('../src/assistant/assistant-agent.js'));
   ({ getConfig } = await import('@sap/config'));
 });
 
@@ -434,4 +439,287 @@ test('chat short-circuits to the stats tool without calling the LLM provider', a
   assert.match(result.reply, /Poin: 140/, 'reply comes from the deterministic tool');
   assert.equal(result.citations[0]!.id, 'stats-akun');
   assert.equal(state.appended, 1, 'the deterministic turn is still persisted');
+});
+
+// --- Step 5: LangGraph agent routing and read-only tool guardrails ---
+
+/** A fake AssistantAgent injected into the service (5th constructor arg). */
+function makeAgent(
+  behavior: unknown | Error | ((input: AgentRunInput) => unknown),
+) {
+  const calls: { count: number; last: AgentRunInput | null } = { count: 0, last: null };
+  const agent = {
+    run: async (input: AgentRunInput) => {
+      calls.count += 1;
+      calls.last = input;
+      if (behavior instanceof Error) throw behavior;
+      if (typeof behavior === 'function') {
+        return (behavior as (input: AgentRunInput) => unknown)(input);
+      }
+      return behavior;
+    },
+  };
+  return { agent, calls };
+}
+
+interface AgentRunInput {
+  message: string;
+  history: Array<{ role: 'user' | 'assistant'; content: string }>;
+  callerId: string;
+  deadlineAt: number;
+  helpPassages: Array<{ id: string; title: string; snippet: string; source: string; url: string | null }>;
+}
+
+// A tool-eligible turn: matches TOOL_ELIGIBLE_RE ('status'/'laporan') and is not a
+// near-direct FAQ, so the service routes it to the agent.
+const AGENT_REQUEST = { message: 'status laporan saya terbaru', pageContext: 'my_reports', conversationId: null };
+
+test('chat routes a tool-eligible turn to the agent and maps citations from the retrieved entries', async () => {
+  const { store, state } = makeStore();
+  const { agent, calls } = makeAgent((input: AgentRunInput) => ({
+    reply: 'Status laporanmu sedang menunggu pemeriksaan.',
+    suggestedActions: [{ label: 'Laporan saya', target: 'my_reports' }],
+    // Cite the first grounded passage the service handed the agent.
+    citationIds: [input.helpPassages[0]!.id],
+  }));
+  const provider = makeProvider(new Error('FAQ provider must not be called when the agent answers'));
+  const service = new AssistantService(
+    provider as never, store as never, undefined, undefined, agent as never,
+  );
+  const result = await service.chat(ENABLED_CALLER, AGENT_REQUEST);
+
+  assert.equal(calls.count, 1, 'the agent handled the turn');
+  assert.equal(calls.last!.callerId, 'u1', 'caller scope comes from the session, not the message');
+  assert.ok(calls.last!.helpPassages.length > 0, 'help passages are derived from the retrieved entries');
+  assert.equal(result.reply, 'Status laporanmu sedang menunggu pemeriksaan.');
+  assert.equal(result.citations.length, 1, 'the cited passage id maps back to a real retrieved entry');
+  assert.equal(result.citations[0]!.id, calls.last!.helpPassages[0]!.id);
+  assert.equal(state.appended, 1, 'the agent turn is persisted once');
+});
+
+test('chat falls back to the FAQ provider when the agent is unavailable', async () => {
+  const { store, state } = makeStore();
+  const { agent, calls } = makeAgent(new ProviderUnavailableError('SAPA agent executor is unavailable'));
+  const provider = makeProvider(OK_REPLY);
+  const service = new AssistantService(
+    provider as never, store as never, undefined, undefined, agent as never,
+  );
+  const result = await service.chat(ENABLED_CALLER, AGENT_REQUEST);
+
+  assert.equal(calls.count, 1, 'the agent was attempted first');
+  assert.equal(result.reply, 'Jawaban singkat.', 'reply came from the single-shot FAQ provider fallback');
+  assert.equal(state.appended, 1, 'exactly one turn is persisted after fallback');
+});
+
+test('chat maps to 503 only when both the agent and the FAQ provider are unavailable', async () => {
+  const { store } = makeStore();
+  const { agent } = makeAgent(new ProviderUnavailableError('SAPA agent turn deadline exceeded'));
+  const provider = makeProvider(new ProviderUnavailableError('timeout'));
+  const service = new AssistantService(
+    provider as never, store as never, undefined, undefined, agent as never,
+  );
+  await assert.rejects(
+    service.chat(ENABLED_CALLER, AGENT_REQUEST),
+    (error) => errorCode(error) === 'ASSISTANT_UNAVAILABLE' && httpStatus(error) === 503,
+  );
+});
+
+test('chat short-circuits to the stats tool and calls neither the agent nor the provider', async () => {
+  const { store, state } = makeStore();
+  const { agent, calls } = makeAgent(new Error('agent must not be called for a deterministic stats question'));
+  const provider = makeProvider(new Error('provider must not be called for a deterministic stats question'));
+  const service = new AssistantService(
+    provider as never, store as never, undefined, makeStatsTool() as never, agent as never,
+  );
+  const result = await service.chat(ENABLED_CALLER, {
+    message: 'berapa poin saya sekarang?', pageContext: 'achievements', conversationId: null,
+  });
+  assert.match(result.reply, /Poin: 140/, 'reply comes from the deterministic tool');
+  assert.equal(calls.count, 0, 'the agent is bypassed by the deterministic short-circuit');
+  assert.equal(state.appended, 1, 'the deterministic turn is still persisted');
+});
+
+// --- AssistantTools: read-only, closure-scoped, budgeted domain tools ---
+
+const OWNER_ID = 'owner-1';
+
+function makeToolServices() {
+  const seen: Array<[string, ...unknown[]]> = [];
+  const scanRow = (id: string) => ({
+    id, status: 'classified', outcome: 'classified', categoryId: 'plastic',
+    predictions: [{ categoryId: 'plastic', score: 0.9 }, { categoryId: 'paper', score: 0.1 }],
+    createdAt: '2026-01-01T00:00:00.000Z', completedAt: '2026-01-01T00:00:01.000Z',
+  });
+  const scans = {
+    listScans: async (userId: string, limit: number | undefined) => {
+      seen.push(['listScans', userId, limit]);
+      // 20 rows so the MAX_ROWS=10 cap is observable.
+      return { items: Array.from({ length: 20 }, (_v, i) => scanRow(`scan-${i}`)), nextCursor: 'cursor-2' };
+    },
+    getScan: async (userId: string, id: string) => {
+      seen.push(['getScan', userId, id]);
+      return scanRow(id);
+    },
+  };
+  const reports = {
+    listMyReports: async (userId: string, limit: number | undefined, cursor: unknown, status: unknown) => {
+      seen.push(['listMyReports', userId, limit, status]);
+      return { items: [], nextCursor: null };
+    },
+    getReport: async (userId: string, isAdmin: boolean, id: string) => {
+      seen.push(['getReport', userId, isAdmin, id]);
+      return {
+        id, status: 'submitted', categoryId: 'plastic', reportedSeverity: 'small',
+        occurredAt: '2026-01-01T00:00:00.000Z', timeline: [],
+      };
+    },
+  };
+  const gamification = { getStats: async (userId: string) => { seen.push(['getStats', userId]); return STATS_VIEW; } };
+  return { scans, reports, gamification, seen };
+}
+
+function makeToolContext(overrides: Partial<{
+  userId: string; deadlineAt: number; toolCallCount: { value: number };
+  helpPassages: Array<{ id: string; title: string; snippet: string; source: string; url: string | null }>;
+}> = {}) {
+  return {
+    userId: OWNER_ID,
+    deadlineAt: Date.now() + 5_000,
+    toolCallCount: { value: 0 },
+    helpPassages: [{ id: 'scan-cara', title: 'Cara scan', snippet: 'Buka Scan.', source: 'FAQ SAP', url: null }],
+    ...overrides,
+  };
+}
+
+// Look up a built tool by name and expose a plainly-callable invoke. The
+// LangChain tool's invoke has an overloaded signature union TS can't call
+// directly, so we narrow it to a simple function here for the offline tests.
+function toolNamed(
+  tools: ReadonlyArray<{ name: string }>,
+  name: string,
+): { invoke: (input: unknown) => Promise<unknown> } {
+  const found = tools.find((entry) => entry.name === name);
+  assert.ok(found, `tool ${name} exists`);
+  return found as unknown as { invoke: (input: unknown) => Promise<unknown> };
+}
+
+test('AssistantTools scope userId from the trusted context, not the model arguments', async () => {
+  const { scans, reports, gamification, seen } = makeToolServices();
+  const tools = new AssistantTools(scans as never, reports as never, gamification as never);
+  const ctx = makeToolContext();
+  const built = tools.createTools(ctx);
+
+  // The model's arguments carry no userId field; every domain call uses the closure scope.
+  await toolNamed(built, 'get_my_scans').invoke({ limit: 5 });
+  await toolNamed(built, 'get_my_reports').invoke({});
+  await toolNamed(built, 'get_my_progress').invoke({});
+
+  for (const call of seen) {
+    assert.equal(call[1], OWNER_ID, `${call[0]} was scoped to the caller from context`);
+  }
+});
+
+test('AssistantTools cap returned rows at MAX_ROWS and surface hasMore', async () => {
+  const { scans, reports, gamification } = makeToolServices();
+  const tools = new AssistantTools(scans as never, reports as never, gamification as never);
+  const raw = await toolNamed(tools.createTools(makeToolContext()), 'get_my_scans').invoke({ limit: 10 });
+  const parsed = JSON.parse(raw as string);
+  assert.equal(parsed.items.length, 10, 'rows are capped at MAX_ROWS even if the service returns more');
+  assert.equal(parsed.hasMore, true, 'the presence of a next cursor is reported');
+});
+
+test('AssistantTools reject a malformed id before any domain call', async () => {
+  const { scans, reports, gamification, seen } = makeToolServices();
+  const tools = new AssistantTools(scans as never, reports as never, gamification as never);
+  const built = tools.createTools(makeToolContext());
+  await assert.rejects(
+    toolNamed(built, 'get_scan_detail').invoke({ id: 'not-a-uuid' }),
+    'a non-UUID id is rejected by the tool schema',
+  );
+  assert.equal(seen.length, 0, 'no domain method runs for an invalid id');
+
+  // A well-formed UUID passes the schema and is fetched under the caller scope only.
+  await toolNamed(built, 'get_scan_detail').invoke({ id: '123e4567-e89b-42d3-a456-426614174000' });
+  const getScanCall = seen.find((call) => call[0] === 'getScan');
+  assert.ok(getScanCall && getScanCall[1] === OWNER_ID, 'ownership is enforced with the context userId');
+});
+
+test('AssistantTools enforce the byte budget on oversized results', async () => {
+  const { reports, gamification } = makeToolServices();
+  const huge = 'x'.repeat(7_000);
+  const scans = {
+    listScans: async () => ({ items: [{
+      id: huge, status: 'classified', outcome: 'classified', categoryId: 'plastic',
+      predictions: [], createdAt: 't', completedAt: 't',
+    }], nextCursor: null }),
+    getScan: async () => ({}),
+  };
+  const tools = new AssistantTools(scans as never, reports as never, gamification as never);
+  await assert.rejects(
+    toolNamed(tools.createTools(makeToolContext()), 'get_my_scans').invoke({}),
+    (error) => error instanceof AssistantToolError && /size budget/.test((error as Error).message),
+  );
+});
+
+test('AssistantTools enforce the MAX_TOOL_CALLS budget across a turn', async () => {
+  const { scans, reports, gamification } = makeToolServices();
+  const tools = new AssistantTools(scans as never, reports as never, gamification as never);
+  const ctx = makeToolContext();
+  const categories = toolNamed(tools.createTools(ctx), 'list_waste_categories');
+  // Four calls are allowed; the fifth exceeds the shared per-turn budget.
+  for (let i = 0; i < 4; i += 1) await categories.invoke({});
+  await assert.rejects(
+    categories.invoke({}),
+    (error) => error instanceof AssistantToolError && /budget exceeded/.test((error as Error).message),
+  );
+});
+
+test('AssistantTools refuse to run once the turn deadline has passed', async () => {
+  const { scans, reports, gamification, seen } = makeToolServices();
+  const tools = new AssistantTools(scans as never, reports as never, gamification as never);
+  const expired = tools.createTools(makeToolContext({ deadlineAt: Date.now() - 1 }));
+  await assert.rejects(
+    toolNamed(expired, 'list_waste_categories').invoke({}),
+    (error) => error instanceof AssistantToolError && /deadline exceeded/.test((error as Error).message),
+  );
+  assert.equal(seen.length, 0, 'no domain work happens after the deadline');
+});
+
+// --- Step 5 regression: parseAgentReply tolerates an empty tool_calls array ---
+// A LangChain AIMessage always carries `tool_calls` as an array ([] when the model
+// made none). An earlier guard treated the truthy empty array as "still calling a
+// tool" and rejected every real answer, so every agent turn fell back to FAQ.
+
+const AGENT_RUN_INPUT = {
+  message: 'status laporan saya',
+  history: [] as Array<{ role: 'user' | 'assistant'; content: string }>,
+  callerId: 'u1',
+  deadlineAt: Date.now() + 20_000,
+  helpPassages: [] as Array<{ id: string; title: string; snippet: string; source: string; url: string | null }>,
+};
+
+test('AssistantAgent.run accepts a final message with an empty tool_calls array', async () => {
+  const executor = {
+    invoke: async () => ({
+      messages: [
+        { content: '', tool_calls: [{ name: 'get_my_reports', args: {} }] },
+        { content: '{"reply":"Laporanmu sedang diperiksa.","suggestedActions":[],"citations":[]}', tool_calls: [] },
+      ],
+    }),
+  };
+  const agent = new AssistantAgent(executor as never);
+  const reply = await agent.run(AGENT_RUN_INPUT);
+  assert.equal(reply.reply, 'Laporanmu sedang diperiksa.');
+  assert.deepEqual(reply.suggestedActions, []);
+  assert.deepEqual(reply.citationIds, []);
+});
+
+test('AssistantAgent.run fails closed when the model stops with a pending tool call', async () => {
+  const executor = {
+    invoke: async () => ({
+      messages: [{ content: '', tool_calls: [{ name: 'get_my_reports', args: {} }] }],
+    }),
+  };
+  const agent = new AssistantAgent(executor as never);
+  await assert.rejects(agent.run(AGENT_RUN_INPUT), (error) => error instanceof ProviderUnavailableError);
 });

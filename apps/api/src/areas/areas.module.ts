@@ -9,5 +9,6 @@ import { AreasService } from './areas.service.js';
   imports: [DatabaseModule],
   controllers: [AreasController],
   providers: [AreasService, AreasRepository, ObjectStorageService],
+  exports: [AreasService],
 })
 export class AreasModule {}
