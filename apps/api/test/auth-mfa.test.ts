@@ -322,3 +322,84 @@ test('disable and regenerate require fresh reauth and current non-replayed TOTP,
   assert.equal(await h.service.status('u1'), 'disabled');
   assert.deepEqual(h.revokedUsers, ['u1', 'u1'], 'disable revokes all sessions');
 });
+
+// --- Step 5 coverage: TOTP correctness, skew window, concurrency, attempt caps ---
+
+test('TOTP matches the RFC 6238 SHA-1 known-answer vectors (6-digit truncation)', async () => {
+  const crypto = new MfaCryptoService();
+  // RFC 6238 Appendix B seed for the SHA-1 suite is the ASCII "12345678901234567890".
+  const seed = Buffer.from('12345678901234567890');
+  // [epoch seconds, expected 6-digit TOTP] — the low 6 digits of the RFC's 8-digit values.
+  const vectors: Array<[number, string]> = [
+    [59, '287082'],
+    [1111111109, '081804'],
+    [1111111111, '050471'],
+    [1234567890, '005924'],
+    [2000000000, '279037'],
+    [20000000000, '353130'],
+  ];
+  for (const [seconds, expected] of vectors) {
+    const step = crypto.currentStep(seconds * 1000);
+    assert.equal(crypto.totpForStep(seed, step), expected, `RFC 6238 vector at T=${seconds}s`);
+  }
+});
+
+test('verifyTotp accepts only the +/-1 step window and reports the matched step', async () => {
+  const crypto = new MfaCryptoService();
+  const seed = crypto.generateSecret();
+  const now = 1_700_000_000_000; // a fixed instant so the step math is deterministic
+  const center = crypto.currentStep(now);
+  // The current step and its two adjacent neighbours verify and return their own step.
+  assert.equal(crypto.verifyTotp(seed, crypto.totpForStep(seed, center), now), center);
+  assert.equal(crypto.verifyTotp(seed, crypto.totpForStep(seed, center - 1), now), center - 1);
+  assert.equal(crypto.verifyTotp(seed, crypto.totpForStep(seed, center + 1), now), center + 1);
+  // Two steps away (+/-60s) is outside the pinned window and must be rejected.
+  assert.equal(crypto.verifyTotp(seed, crypto.totpForStep(seed, center - 2), now), null);
+  assert.equal(crypto.verifyTotp(seed, crypto.totpForStep(seed, center + 2), now), null);
+  // Anything that is not six digits never matches, regardless of the window.
+  assert.equal(crypto.verifyTotp(seed, '12345', now), null);
+  assert.equal(crypto.verifyTotp(seed, 'abcdef', now), null);
+});
+
+test('concurrent completeLogin with the same preauth + TOTP yields exactly one session', async () => {
+  const h = await makeMfaHarness();
+  const preauth = await issue(h);
+  const now = Date.now();
+  const code = h.crypto.totpForStep(h.factorSecret, h.crypto.currentStep(now));
+  // Fire both submissions together; the single-use preauth must admit exactly one.
+  const settled = await Promise.allSettled([
+    h.service.completeLogin({ preauthToken: preauth.token, code, now }),
+    h.service.completeLogin({ preauthToken: preauth.token, code, now }),
+  ]);
+  const fulfilled = settled.filter((r) => r.status === 'fulfilled');
+  const rejected = settled.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+  assert.equal(fulfilled.length, 1, 'a single-use preauth may complete at most once');
+  assert.equal(rejected.length, 1, 'the losing concurrent submission is refused');
+  assert.equal(errorCode(rejected[0]!.reason), 'MFA_INVALID');
+  assert.equal(h.createdSessions.length, 1, 'exactly one session is minted under the race');
+});
+
+test('a preauth challenge is refused once its attempt cap is reached, even with a correct code', async () => {
+  const h = await makeMfaHarness();
+  const preauth = await issue(h);
+  const now = Date.now();
+  // A code guaranteed to fall outside the accepted +/-1 window, so each attempt is a true miss.
+  const center = h.crypto.currentStep(now);
+  const windowCodes = new Set([center - 1, center, center + 1].map((s) => h.crypto.totpForStep(h.factorSecret, s)));
+  let wrong = '000000';
+  for (let n = 0; windowCodes.has(wrong); n += 1) wrong = String(n).padStart(6, '0');
+  // Five wrong submissions exhaust the per-challenge budget without consuming it.
+  for (let i = 0; i < 5; i += 1) {
+    await assert.rejects(
+      h.service.completeLogin({ preauthToken: preauth.token, code: wrong, now }),
+      (e) => errorCode(e) === 'MFA_INVALID',
+    );
+  }
+  // The sixth attempt is capped before any code cryptography — a valid code cannot save it.
+  const good = h.crypto.totpForStep(h.factorSecret, h.crypto.currentStep(now));
+  await assert.rejects(
+    h.service.completeLogin({ preauthToken: preauth.token, code: good, now }),
+    (e) => errorCode(e) === 'MFA_INVALID',
+  );
+  assert.equal(h.createdSessions.length, 0, 'a capped challenge can never mint a session');
+});
