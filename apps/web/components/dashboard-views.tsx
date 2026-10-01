@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { QRCodeSVG } from "qrcode.react";
 import {
   ArrowRight, Bell, CalendarDays, Camera, Check, ChevronDown, CircleHelp,
   Clock3, FilePlus2, FileText, Filter, Focus, ImagePlus, Info, Layers3,
@@ -309,8 +310,14 @@ function MfaSettingsPanel() {
         {error && <p className={styles.mfaError} role="alert">{error}</p>}
         <div className={styles.modalActions}><button className={styles.outlineButton} type="button" onClick={closeAction} disabled={busy}>Batal</button><button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? "Memverifikasi…" : "Lanjutkan"}</button></div>
       </form> : step === "confirm" && enrollment ? <form onSubmit={submitTotp}>
-        <p>Tambahkan akun SAP ke aplikasi autentikator menggunakan tautan berikut. Tautan ini hanya ditampilkan selama penyiapan tertunda.</p>
-        <code className={styles.provisioningUri}>{enrollment.provisioningUri}</code>
+        <p>Pindai kode QR ini dengan aplikasi autentikator (mis. Google Authenticator, Authy, atau 1Password). Kode ini hanya ditampilkan selama penyiapan tertunda.</p>
+        <div className={styles.mfaQr}>
+          <QRCodeSVG value={enrollment.provisioningUri} size={196} level="M" marginSize={2} role="img" aria-label="Kode QR penyiapan autentikator SAP" />
+        </div>
+        <details className={styles.mfaManualEntry}>
+          <summary>Tidak bisa memindai? Masukkan tautan secara manual</summary>
+          <code className={styles.provisioningUri}>{enrollment.provisioningUri}</code>
+        </details>
         <label htmlFor="mfa-enroll-totp">Kode 6 digit dari aplikasi autentikator</label><input id="mfa-enroll-totp" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={totpCode} onChange={event => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} required />
         {error && <p className={styles.mfaError} role="alert">{error}</p>}
         <div className={styles.modalActions}><button className={styles.outlineButton} type="button" onClick={closeAction} disabled={busy}>Batal</button><button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? "Memeriksa…" : "Konfirmasi & aktifkan"}</button></div>
