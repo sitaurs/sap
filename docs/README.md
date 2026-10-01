@@ -15,7 +15,7 @@ Dokumen ini menggantikan rancangan EcoLens sebelumnya yang berfokus pada sampah 
 - Frontend: Next.js App Router + React + TypeScript + Tailwind CSS; TanStack Query; MapLibre GL JS.
 - Backend: NestJS + TypeScript, REST API, PostgreSQL + PostGIS, Drizzle ORM/SQL migrations, Redis + BullMQ, penyimpanan objek kompatibel S3.
 - ML: layanan inferensi Gradio self-hosted yang configurable; backend berkomunikasi melalui adapter Gradio, tanpa pelatihan ulang. Source EcoLens/Hugging Face hanya menjadi provenance dan referensi model.
-- Kontrak: OpenAPI 3.1 versi `1.0.0`, tipe TypeScript dihasilkan dari schema; fixture bersama dan pengujian kontrak. HTTP browser memakai `/api/v1` melalui satu origin.
+- Kontrak: OpenAPI 3.1 versi `1.1.0`, tipe TypeScript dihasilkan dari schema; fixture bersama dan pengujian kontrak. HTTP browser memakai `/api/v1` melalui satu origin.
 Pilihan ini adalah keputusan rancangan tim untuk pemisahan frontend/backend yang jelas; versi dependensi dikunci saat bootstrap setelah pemeriksaan kompatibilitas.
 
 ## Panduan baca sesuai peran

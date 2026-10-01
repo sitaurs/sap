@@ -59,6 +59,28 @@ export class SessionRepository {
       VALUES (${input.userId}, ${input.tokenHash}, ${input.expiresAt}, now())`;
   }
 
+  /**
+   * Establish a password-authenticated session only while the user's MFA factor
+   * is still absent. Locking the user row serializes this insert with MFA
+   * enrollment, which takes the same lock before activating a factor.
+   */
+  async createIfMfaDisabled(input: { userId: string; tokenHash: string; expiresAt: Date }): Promise<boolean> {
+    return this.sql.begin(async (tx) => {
+      await tx`SELECT id FROM users WHERE id = ${input.userId} FOR UPDATE`;
+      const rows = await tx<{ user_id: string }[]>`
+        INSERT INTO sessions (user_id, token_hash, expires_at, last_seen_at)
+        SELECT u.id, ${input.tokenHash}, ${input.expiresAt}, now()
+        FROM users u
+        WHERE u.id = ${input.userId}
+          AND NOT EXISTS (
+            SELECT 1 FROM mfa_factors f
+            WHERE f.user_id = u.id AND f.state = 'active'
+          )
+        RETURNING user_id`;
+      return rows.length === 1;
+    });
+  }
+
   /** Resolve an unexpired session joined to its (active) owner. */
   async resolveActive(tokenHash: string): Promise<ResolvedSession | null> {
     const rows = await this.sql<SessionUserRow[]>`

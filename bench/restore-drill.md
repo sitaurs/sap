@@ -51,7 +51,7 @@ Execute strictly in this order; do not open traffic until the last step.
 
 - [ ] `verify-restore.mjs` verdict `CLEAN` (no revived users/reports/media, no
       pending tombstone replay).
-- [ ] `/health` → 200 `{status:'ok', contractVersion:'1.0.0'}`.
+- [ ] `/health` → 200 `{status:'ok', contractVersion:'1.1.0'}`.
 - [ ] Public map + leaderboard reads succeed and expose no reporter identity,
       address, exact coordinates, or private photos.
 - [ ] Wall-clock from "start restore" to "smoke passed" recorded and compared to

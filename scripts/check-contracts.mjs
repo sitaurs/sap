@@ -7,7 +7,7 @@ const fixtures = JSON.parse(await readFile(new URL('../contracts/fixtures.json',
 
 // --- Structural checks (unchanged) ---
 if (openapi.openapi !== '3.1.0') throw new Error(`Expected OpenAPI 3.1.0, got ${openapi.openapi}`);
-if (openapi.info?.version !== '1.0.0') throw new Error(`Expected contract 1.0.0, got ${openapi.info?.version}`);
+if (openapi.info?.version !== '1.1.0') throw new Error(`Expected contract 1.1.0, got ${openapi.info?.version}`);
 if (fixtures.contractVersion !== openapi.info.version) throw new Error('Fixture and OpenAPI versions differ');
 
 // Index operations by operationId so fixtures can be matched to their schemas.

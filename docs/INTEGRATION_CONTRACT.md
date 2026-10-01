@@ -4,7 +4,7 @@ v1.0 · Wajib dibaca kedua orang sebelum coding. Tujuannya mendeteksi perbedaan 
 
 ## 1. Satu kontrak bersama
 
-`contracts/openapi.json` menjadi sumber endpoint, tipe, enum, required/null dan HTTP status. `contracts/fixtures.json` menggunakan schema itu. Backend mengimplementasikan kontrak; frontend menghasilkan tipe/client darinya. Jangan menyalin tipe manual ke dua repo. Gunakan commit kontrak yang sama. Kontrak mesin v1.0.0 saat ini mendeklarasikan `X-Contract-Version: 1.0.0` pada respons sukses; perlu PR kontrak terkoordinasi sebelum header itu diwajibkan juga pada semua error.
+`contracts/openapi.json` menjadi sumber endpoint, tipe, enum, required/null dan HTTP status. `contracts/fixtures.json` menggunakan schema itu. Backend mengimplementasikan kontrak; frontend menghasilkan tipe/client darinya. Jangan menyalin tipe manual ke dua repo. Gunakan commit kontrak yang sama. Kontrak mesin v1.1.0 saat ini mendeklarasikan `X-Contract-Version: 1.1.0` pada respons sukses; perlu PR kontrak terkoordinasi sebelum header itu diwajibkan juga pada semua error.
 
 Gap yang wajib ditutup sebelum coding auth: dokumentasikan efek response `Set-Cookie` untuk `sap_csrf`, `sap_session`, dan `sap_deletion` di OpenAPI. Perubahan harus melalui review kontrak serta regenerasi client, bukan hanya dicatat dalam dokumentasi naratif.
 

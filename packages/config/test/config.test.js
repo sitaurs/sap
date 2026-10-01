@@ -5,7 +5,7 @@ import { getConfig } from '../dist/index.js';
 const valid = {
   NODE_ENV: 'test', LOG_LEVEL: 'info', PORT: '3001',
   APP_ORIGIN: 'http://localhost:3000', API_INTERNAL_URL: 'http://localhost:3001',
-  CONTRACT_VERSION: '1.0.0', DATABASE_URL: 'postgresql://u:p@localhost/db',
+  CONTRACT_VERSION: '1.1.0', DATABASE_URL: 'postgresql://u:p@localhost/db',
   REDIS_URL: 'rediss://default:p@localhost:6379', SESSION_SECRET: 'a'.repeat(32),
   CSRF_SECRET: 'b'.repeat(32), SMTP_HOST: 'localhost', SMTP_PORT: '587',
   SMTP_USER: 'user', SMTP_PASSWORD: 'password', MAIL_FROM: 'SAP <sap@localhost>',
@@ -17,7 +17,7 @@ const valid = {
 
 test('accepts the canonical environment contract', () => {
   const cfg = getConfig(valid);
-  assert.equal(cfg.CONTRACT_VERSION, '1.0.0');
+  assert.equal(cfg.CONTRACT_VERSION, '1.1.0');
   // DB readiness cold-start budget defaults when unset and coerces when provided.
   assert.equal(cfg.DB_HEALTH_TIMEOUT_MS, 10000);
   assert.equal(getConfig({ ...valid, DB_HEALTH_TIMEOUT_MS: '8000' }).DB_HEALTH_TIMEOUT_MS, 8000);

@@ -27,7 +27,7 @@ export class HealthService implements OnModuleDestroy {
    * is the critical dependency; Redis/R2 being unreachable degrades scans/uploads
    * but the API can still serve reads, so that reports `degraded` at HTTP 200.
    */
-  async check(): Promise<{ status: 'ok' | 'degraded'; dbOk: boolean; contractVersion: '1.0.0' }> {
+  async check(): Promise<{ status: 'ok' | 'degraded'; dbOk: boolean; contractVersion: '1.1.0' }> {
     const [db, redis, s3] = await Promise.allSettled([
       this.checkDb(),
       this.withTimeout(this.pingRedis(), 3_000),

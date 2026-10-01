@@ -37,7 +37,7 @@ Status aktual ada di [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md); smoke
 | `SAPA_LLM_TIMEOUT_MS`, `SAPA_LLM_MAX_OUTPUT_TOKENS`, `SAPA_LLM_TEMPERATURE` | API | `30000` / `500` / `0.3` |
 | `SAPA_CHAT_RATE_LIMIT_PER_MINUTE` | API | `20`; throttle chat per akun |
 | `NEXT_PUBLIC_MAP_STYLE_URL` | Web | Style/tiles; browser key harus scoped |
-| `CONTRACT_VERSION` | API/web | `1.0.0` |
+| `CONTRACT_VERSION` | API/web | `1.1.0` |
 | `NODE_ENV`, `LOG_LEVEL` | Server | Runtime |
 
 Repo hanya menyediakan `.env.example` berisi placeholder. Nilai nyata disimpan di secret manager/`.env` runtime; `.env*` diabaikan kecuali `.env.example`. Dilarang menaruh password, token, connection string, deployment URL aktual, Authorization header, foto atau koordinat tepat di docs/log/CI.

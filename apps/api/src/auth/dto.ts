@@ -1,6 +1,11 @@
 import { Equals, IsBoolean, IsEmail, IsString, IsUUID, Length, Matches, MaxLength, ValidateIf } from 'class-validator';
 
 const OTP_PATTERN = /^[0-9]{6}$/;
+// A password-login second factor is either a 6-digit TOTP or a base32 recovery
+// code (10 chars, optionally hyphen-grouped as XXXXX-XXXXX; normalized server-side).
+const MFA_LOGIN_CODE_PATTERN = /^(?:[0-9]{6}|[A-Za-z2-7]{5}-?[A-Za-z2-7]{5})$/;
+// Opaque base64url pre-auth token: 32 random bytes -> 43 base64url characters.
+const PREAUTH_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 export class RegisterInputDto {
   @IsString()
@@ -83,6 +88,30 @@ export class SetAvatarInputDto {
   @ValidateIf((o) => o.mediaId !== null)
   @IsUUID()
   mediaId!: string | null;
+}
+
+/** POST /auth/mfa/enroll/confirm body. Proves possession of the pending factor. */
+export class MfaConfirmInputDto {
+  @Matches(OTP_PATTERN, { message: 'code must be six digits' })
+  code!: string;
+}
+
+/**
+ * Body for actions that require the current active factor: regenerate recovery
+ * codes (POST /auth/mfa/recovery-codes) and disable (DELETE /auth/mfa).
+ */
+export class MfaCurrentCodeInputDto {
+  @Matches(OTP_PATTERN, { message: 'currentTotpCode must be six digits' })
+  currentTotpCode!: string;
+}
+
+/** POST /auth/mfa/login body. The pre-auth token plus a TOTP or recovery code. */
+export class MfaLoginInputDto {
+  @Matches(PREAUTH_TOKEN_PATTERN, { message: 'preauthToken is malformed' })
+  preauthToken!: string;
+
+  @Matches(MFA_LOGIN_CODE_PATTERN, { message: 'code must be a 6-digit TOTP or a recovery code' })
+  code!: string;
 }
 
 export class DeleteInputDto {

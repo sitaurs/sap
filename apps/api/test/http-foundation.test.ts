@@ -11,7 +11,7 @@ import type { Server } from 'node:http';
 const environment = {
   NODE_ENV: 'test', LOG_LEVEL: 'fatal', PORT: '3001',
   APP_ORIGIN: 'http://localhost:3000', API_INTERNAL_URL: 'http://localhost:3001',
-  CONTRACT_VERSION: '1.0.0', DATABASE_URL: 'postgresql://u:p@localhost/db',
+  CONTRACT_VERSION: '1.1.0', DATABASE_URL: 'postgresql://u:p@localhost/db',
   REDIS_URL: 'rediss://default:p@localhost:6379', SESSION_SECRET: 's'.repeat(32),
   CSRF_SECRET: 'c'.repeat(32), SMTP_HOST: 'localhost', SMTP_PORT: '587',
   SMTP_USER: 'user', SMTP_PASSWORD: 'password', MAIL_FROM: 'SAP <sap@localhost>',
@@ -69,7 +69,7 @@ before(async () => {
   class TestModule {}
 
   app = await NestFactory.create(TestModule, { logger: false });
-  app.get(HealthService).check = async () => ({ status: 'ok', dbOk: true, contractVersion: '1.0.0' as const });
+  app.get(HealthService).check = async () => ({ status: 'ok', dbOk: true, contractVersion: '1.1.0' as const });
   bootstrapHttpApp(app, (await import('@sap/config')).getConfig(environment));
   await app.init();
   server = app.getHttpServer() as Server;
@@ -82,17 +82,17 @@ after(async () => {
 test('health uses the contract success envelope and request id', async () => {
   const response = await request(server).get('/api/v1/health').expect(200);
   const requestId = header(response, 'x-request-id');
-  assert.equal(response.headers['x-contract-version'], '1.0.0');
+  assert.equal(response.headers['x-contract-version'], '1.1.0');
   assert.match(requestId, /^[0-9a-f-]{36}$/);
   assert.deepEqual(response.body, {
-    data: { status: 'ok', contractVersion: '1.0.0' },
+    data: { status: 'ok', contractVersion: '1.1.0' },
     meta: { requestId },
   });
 });
 
 test('unexpected errors are redacted into a stable error envelope', async () => {
   const response = await request(server).get('/api/v1/_test/error').expect(500);
-  assert.equal(response.headers['x-contract-version'], '1.0.0');
+  assert.equal(response.headers['x-contract-version'], '1.1.0');
   assert.deepEqual(response.body, {
     error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred.' },
     meta: { requestId: response.headers['x-request-id'] },
@@ -113,7 +113,7 @@ test('CSRF endpoint issues a signed double-submit token without a session', asyn
 test('mutations reject missing or mismatched CSRF and Origin', async () => {
   const missing = await request(server).post('/api/v1/_test/mutation').send({ name: 'valid' }).expect(403);
   assert.equal(missing.body.error.code, 'CSRF_INVALID');
-  assert.equal(missing.headers['x-contract-version'], '1.0.0');
+  assert.equal(missing.headers['x-contract-version'], '1.1.0');
 
   const issued = await request(server).get('/api/v1/auth/csrf').expect(200);
   const cookie = firstSetCookie(issued).split(';')[0]!;

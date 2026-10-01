@@ -12,6 +12,10 @@ export type SapAreaFeature = Schema["AreaFeature"];
 export type SapAreaDetail = Schema["AreaDetail"];
 export type SapPublicReport = Schema["PublicReport"];
 export type SapChallenge = Schema["Challenge"];
+export type SapLoginResult = Schema["LoginResult"];
+export type SapMfaStatus = Schema["MfaStatus"];
+export type SapMfaEnrollment = Schema["MfaEnrollment"];
+export type SapMfaRecoveryCodes = Schema["MfaRecoveryCodes"];
 export type SapMediaUrl = Schema["MediaUrl"];
 
 type Envelope<T> = { data?: T; error?: { code?: string; message?: string; fields?: Record<string, string[]> } };
@@ -20,7 +24,7 @@ type Envelope<T> = { data?: T; error?: { code?: string; message?: string; fields
 // echoes X-Contract-Version on every response; a mismatch means the backend moved
 // to a contract this build was not generated for, so surface it once for drift
 // detection instead of failing silently.
-const EXPECTED_CONTRACT_VERSION = "1.0.0";
+const EXPECTED_CONTRACT_VERSION = "1.1.0";
 let contractDriftWarned = false;
 
 function checkContractVersion(response: Response) {
@@ -78,10 +82,29 @@ export async function apiMutate<T>(method: "POST" | "PUT" | "PATCH" | "DELETE", 
 }
 
 export const getMe = (signal?: AbortSignal) => apiGet<SapUser>("/auth/me", signal);
-export async function login(email: string, password: string): Promise<SapUser> {
-  const user = await apiMutate<SapUser>("POST", "/auth/login", { body: { email, password } });
+export async function login(email: string, password: string): Promise<SapLoginResult> {
+  const result = await apiMutate<SapLoginResult>("POST", "/auth/login", { body: { email, password } });
+  // Keep the CSRF token available during the second-factor challenge. It is
+  // cleared only once the actual session has been issued.
+  if (!("mfaRequired" in result)) clearApiSession();
+  return result;
+}
+
+export async function completeMfaLogin(preauthToken: string, code: string): Promise<SapUser> {
+  const user = await apiMutate<SapUser>("POST", "/auth/mfa/login", { body: { preauthToken, code } });
   clearApiSession();
   return user;
+}
+
+export const getMfaStatus = (signal?: AbortSignal) => apiGet<SapMfaStatus>("/auth/mfa", signal);
+export const beginMfaEnrollment = () => apiMutate<SapMfaEnrollment>("POST", "/auth/mfa/enroll");
+export const confirmMfaEnrollment = (code: string) => apiMutate<SapMfaRecoveryCodes>("POST", "/auth/mfa/enroll/confirm", { body: { code } });
+export const regenerateMfaRecoveryCodes = (currentTotpCode: string) => apiMutate<SapMfaRecoveryCodes>("POST", "/auth/mfa/recovery-codes", { body: { currentTotpCode } });
+export const disableMfa = (currentTotpCode: string) => apiMutate<Schema["Ack"]>("DELETE", "/auth/mfa", { body: { currentTotpCode } });
+
+export type SapMfaRequired = Extract<SapLoginResult, { mfaRequired: true }>;
+export function isMfaLoginRequired(result: SapLoginResult): result is SapMfaRequired {
+  return "mfaRequired" in result;
 }
 export const register = (displayName: string, email: string, password: string) => apiMutate<SapChallenge>("POST", "/auth/register", { body: { displayName, email, password } });
 export async function verifyEmail(challengeId: string, code: string): Promise<SapUser> {

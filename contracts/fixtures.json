@@ -1,6 +1,6 @@
 {
   "notice": "Semua fixture sintetis. Polygon ilustratif bukan hasil komputasi H3 nyata; untuk rendering/schema, bukan tes geospasial.",
-  "contractVersion": "1.0.0",
+  "contractVersion": "1.1.0",
   "cases": [
     {
       "name": "login_success",
@@ -1096,6 +1096,145 @@
         "meta": {
           "requestId": "fixture-assistant_conversation_not_found"
         }
+      }
+    },
+    {
+      "name": "login_mfa_required",
+      "operationId": "login",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "mfaRequired": true,
+          "preauthToken": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "expiresAt": "2026-09-30T05:05:00Z"
+        },
+        "meta": {
+          "requestId": "fixture-login_mfa_required"
+        }
+      },
+      "request": {
+        "email": "contoh@example.test",
+        "password": "Contoh-Saja-1234"
+      }
+    },
+    {
+      "name": "mfa_status_active",
+      "operationId": "getMfaStatus",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "status": "active"
+        },
+        "meta": {
+          "requestId": "fixture-mfa_status_active"
+        }
+      }
+    },
+    {
+      "name": "mfa_enroll_begin",
+      "operationId": "beginMfaEnrollment",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "provisioningUri": "otpauth://totp/SAP:contoh@example.test?secret=JBSWY3DPEHPK3PXP&issuer=SAP&algorithm=SHA1&digits=6&period=30",
+          "expiresAt": "2026-09-30T05:10:00Z"
+        },
+        "meta": {
+          "requestId": "fixture-mfa_enroll_begin"
+        }
+      }
+    },
+    {
+      "name": "mfa_enroll_confirm",
+      "operationId": "confirmMfaEnrollment",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "recoveryCodes": [
+            "ABCDE-FGHIJ",
+            "KLMNO-PQRST",
+            "UVWXY-Z2345",
+            "67ABC-DEFGH",
+            "IJKLM-NOPQR",
+            "STUVW-XYZ23",
+            "4567A-BCDEF",
+            "GHIJK-LMNOP",
+            "QRSTU-VWXYZ",
+            "23456-7ABCD"
+          ]
+        },
+        "meta": {
+          "requestId": "fixture-mfa_enroll_confirm"
+        }
+      },
+      "request": {
+        "code": "123456"
+      }
+    },
+    {
+      "name": "mfa_recovery_regenerate",
+      "operationId": "regenerateMfaRecoveryCodes",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "recoveryCodes": [
+            "ABCDE-FGHIJ",
+            "KLMNO-PQRST",
+            "UVWXY-Z2345",
+            "67ABC-DEFGH",
+            "IJKLM-NOPQR",
+            "STUVW-XYZ23",
+            "4567A-BCDEF",
+            "GHIJK-LMNOP",
+            "QRSTU-VWXYZ",
+            "23456-7ABCD"
+          ]
+        },
+        "meta": {
+          "requestId": "fixture-mfa_recovery_regenerate"
+        }
+      },
+      "request": {
+        "currentTotpCode": "123456"
+      }
+    },
+    {
+      "name": "mfa_disable",
+      "operationId": "disableMfa",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "message": "Autentikasi dua faktor dinonaktifkan."
+        },
+        "meta": {
+          "requestId": "fixture-mfa_disable"
+        }
+      },
+      "request": {
+        "currentTotpCode": "123456"
+      }
+    },
+    {
+      "name": "mfa_login_success",
+      "operationId": "completeMfaLogin",
+      "httpStatus": 200,
+      "response": {
+        "data": {
+          "id": "11111111-1111-4111-8111-111111111111",
+          "displayName": "Pengguna Contoh",
+          "email": "contoh@example.test",
+          "role": "user",
+          "emailVerified": true,
+          "sapaEnabled": true,
+          "avatarMediaId": null
+        },
+        "meta": {
+          "requestId": "fixture-mfa_login_success"
+        }
+      },
+      "request": {
+        "preauthToken": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "code": "123456"
       }
     }
   ]

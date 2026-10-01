@@ -136,7 +136,7 @@ Endpoint moderasi **sudah lengkap** (`GET /admin/reports`, `/duplicates`, `POST 
 ### 4.10 Kontrak OpenAPI & tipe web
 - Endpoint moderasi laporan **sudah ada** di kontrak (`schema.d.ts`: `listAdminReports`, `getAdminStats`, `listAuditEvents`, dll) → UI bisa langsung pakai.
 - Yang **baru** hanya `GET/PUT /admin/scan-settings`: ditambahkan ke `contracts/openapi.json` beserta skema `ScanSettings` / `ScanSettingsUpdateInput`, lalu `apps/web/lib/api/schema.d.ts` diregen.
-- **KEPUTUSAN: versi kontrak TIDAK dinaikkan, tetap `1.0.0`.** Perubahan bersifat *additive* (menambah path/skema, tak mengubah yang lama), dan `EXPECTED_CONTRACT_VERSION` di web di-*hardcode* `"1.0.0"` — menaikkan versi akan memicu cascade ke `check-contracts`, `z.literal` di config, dan pengecekan web tanpa manfaat. `contracts:lint` = 36 paths/40 ops; `contracts:routes` mencocokkan 40 rute API dengan 40 operasi terdokumentasi.
+- **Keputusan pada rilis tersebut (v1.0.0):** versi kontrak tidak dinaikkan karena perubahan scan-settings bersifat *additive*. Kontrak API kini telah maju ke `1.1.0` untuk menambahkan operasi MFA dan mengubah respons login menjadi hasil terdiskriminasi; rujuk `contracts/openapi.json` untuk kontrak terkini.
 
 ## 5. Rencana Tes (status akhir)
 - Unit worker (`apps/worker/test/hybrid.test.ts`): `shouldUseVision` & `resolveClassification` tiap mode, batas threshold, fallback saat LLM error/timeout, vision-disabled tetap ML. ✅
@@ -150,7 +150,7 @@ Endpoint moderasi **sudah lengkap** (`GET /admin/reports`, `/duplicates`, `POST 
 1. ✅ **Config + migrasi 0007 + seed** `scan_settings`.
 2. ✅ **Worker**: `VisionClient` + `ScanSettingsRepository` + logika mode (`hybrid.ts`) di `scan-processor.ts` + wiring `main.ts` (+tes).
 3. ✅ **Admin API** scan-settings (controller/service/repo/DTO + audit + guard 422) (+tes).
-4. ✅ **Kontrak**: tambah scan-settings ke `contracts/openapi.json`, regen `schema.d.ts` (versi tetap `1.0.0`, lihat §4.10).
+4. ✅ **Kontrak**: tambah scan-settings ke `contracts/openapi.json`, regen `schema.d.ts` (versi rilis saat itu `1.0.0`, lihat §4.10).
 5. ✅ **Web kerangka admin** (tab role-gated + client wrappers).
 6. ✅ **Web panel Moderasi Laporan** (pakai API yang sudah ada).
 7. ✅ **Web panel Pengaturan scan**.
@@ -180,7 +180,7 @@ Berkas yang dibuat/diubah:
 | Worker | `apps/worker/src/scan-settings-repository.ts` | cache TTL ~5s; gagal-baca → default |
 | Worker | `apps/worker/src/scan-processor.ts`, `main.ts` | wiring + terapkan §4.4; set `provider_revision` |
 | API | `apps/api/src/admin/scan-settings.service.ts` + repo + DTO + `admin.controller.ts` | `GET/PUT /admin/scan-settings`, guard 422 |
-| Kontrak | `contracts/openapi.json`, `apps/web/lib/api/schema.d.ts` | additive; versi tetap `1.0.0` |
+| Kontrak | `contracts/openapi.json`, `apps/web/lib/api/schema.d.ts` | additive; versi rilis saat itu `1.0.0` |
 | Web | `apps/web/lib/api/client.ts` | `apiMutate` + `PUT`; 7 wrapper admin |
 | Web | `apps/web/components/admin-panel.tsx` + `admin-panel.module.css` | panel Moderasi + Pengaturan scan |
 | Web | `apps/web/components/dashboard.tsx` | tab admin role-gated |

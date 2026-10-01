@@ -37,10 +37,10 @@ export interface MfaPreauthToken {
 }
 
 /**
- * Internal MFA primitives. No controller/routes are registered in this phase:
- * the versioned OpenAPI contract does not define MFA response shapes yet. Login
- * orchestration can use isActive/issuePreauth/completeLogin after the contract is
- * designed; callers must not create a normal session before completeLogin.
+ * MFA primitives exposed through MfaController (contract v1.1.0) and the login
+ * challenge flow in AuthService. Callers must never create a normal session
+ * before completeLogin: password login issues only a pre-auth token when a
+ * factor is active, and the session is minted here after the second factor.
  */
 @Injectable()
 export class MfaService {
@@ -108,8 +108,9 @@ export class MfaService {
   }
 
   /** Confirm setup by proving possession; activation + recovery hashes are atomic. */
-  async confirmEnrollment(userId: string, code: string, now = Date.now()): Promise<MfaRecoveryReveal> {
+  async confirmEnrollment(userId: string, code: string, reauthenticatedAt: Date | null, now = Date.now()): Promise<MfaRecoveryReveal> {
     this.assertAvailable();
+    this.assertFreshReauth(reauthenticatedAt, now);
     await this.assertAccountAttempt(userId, now);
     const factor = await this.repository.getFactor(userId);
     if (!factor || factor.state !== 'pending' || !factor.pendingExpiresAt || factor.pendingExpiresAt.getTime() <= now) {
@@ -124,8 +125,7 @@ export class MfaService {
     const activated = await this.repository.completeEnrollment(userId, step, hashes);
     if (!activated) throw this.invalidFactor();
     await this.repository.clearLoginLimit(userId);
-    // Newly enabling MFA is a security-state change: drop any other live sessions.
-    await this.sessions.deleteAllForUser(userId);
+    // Enrollment transaction already revokes sessions while holding the user lock.
     return { recoveryCodes: codes };
   }
 
@@ -180,7 +180,12 @@ export class MfaService {
     const user = await this.users.findActiveById(preauth.userId);
     if (!user || !user.emailVerifiedAt) throw this.invalidFactor();
     const token = this.sessionService.createToken();
-    await this.sessions.create({ userId: user.id, tokenHash: token.tokenHash, expiresAt: token.expiresAt });
+    const created = await this.repository.createSessionWhileMfaActive({
+      userId: user.id,
+      tokenHash: token.tokenHash,
+      expiresAt: token.expiresAt,
+    });
+    if (!created) throw this.invalidFactor();
     return { user: toUserView(user), sessionToken: token.token, sessionTokenHash: token.tokenHash };
   }
 
@@ -199,7 +204,11 @@ export class MfaService {
     this.assertFreshReauth(input.reauthenticatedAt, now);
     await this.requireCurrentTotp(input.userId, input.currentTotpCode, now);
     const codes = this.mfaCrypto.generateRecoveryCodes();
-    await this.repository.replaceRecoveryCodes(input.userId, codes.map((code) => this.mfaCrypto.hashRecoveryCode(code)));
+    const replaced = await this.repository.replaceRecoveryCodesAndRevokeSessions(
+      input.userId,
+      codes.map((code) => this.mfaCrypto.hashRecoveryCode(code)),
+    );
+    if (!replaced) throw this.invalidFactor();
     return { recoveryCodes: codes };
   }
 
@@ -213,11 +222,12 @@ export class MfaService {
     this.assertAvailable();
     const now = input.now ?? Date.now();
     this.assertFreshReauth(input.reauthenticatedAt, now);
+    // requireCurrentTotp proves possession and advances the replay step; the
+    // factor is then torn down with its sessions in one transaction.
     await this.requireCurrentTotp(input.userId, input.currentTotpCode, now);
-    await this.repository.deleteRecoveryCodes(input.userId);
-    await this.repository.deleteFactor(input.userId);
-    await this.repository.clearLoginLimit(input.userId);
-    await this.sessions.deleteAllForUser(input.userId);
+    if (!(await this.repository.disableActiveFactor(input.userId))) {
+      throw this.invalidFactor();
+    }
   }
 
   private async requireCurrentTotp(userId: string, code: string, now: number): Promise<void> {

@@ -654,6 +654,107 @@ export interface paths {
         patch: operations["setAvatar"];
         trace?: never;
     };
+    "/auth/mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lihat status MFA akun saat ini
+         * @description Lihat status MFA akun saat ini. Session identity only; no userId in the body. Enrollment start, recovery regeneration, and disable require live password reauthentication within 10 minutes. All mutations require CSRF.
+         */
+        get: operations["getMfaStatus"];
+        put?: never;
+        post?: never;
+        /**
+         * Nonaktifkan MFA dengan reautentikasi terbaru dan TOTP aktif
+         * @description Nonaktifkan MFA dengan reautentikasi terbaru dan TOTP aktif. Requires a live session and password reauthentication within 10 minutes. Identity is taken from the session, never the body. All mutations require CSRF.
+         */
+        delete: operations["disableMfa"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mulai enrollment MFA setelah reautentikasi terbaru
+         * @description Mulai enrollment MFA setelah reautentikasi terbaru. Requires a live session and password reauthentication within 10 minutes. Identity is taken from the session, never the body. All mutations require CSRF.
+         */
+        post: operations["beginMfaEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/enroll/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Konfirmasi TOTP dan aktifkan MFA; recovery codes tampil sekali
+         * @description Konfirmasi TOTP dan aktifkan MFA; recovery codes tampil sekali. Requires a live session and password reauthentication within 10 minutes. Identity is taken from the session, never the body. All mutations require CSRF.
+         */
+        post: operations["confirmMfaEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/recovery-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ganti recovery codes setelah reautentikasi terbaru dan TOTP aktif
+         * @description Ganti recovery codes setelah reautentikasi terbaru dan TOTP aktif. Requires a live session and password reauthentication within 10 minutes. Identity is taken from the session, never the body. All mutations require CSRF.
+         */
+        post: operations["regenerateMfaRecoveryCodes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Selesaikan login dengan TOTP atau recovery code */
+        post: operations["completeMfaLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1034,7 +1135,7 @@ export interface components {
             /** @enum {string} */
             status: "ok" | "degraded";
             /** @enum {string} */
-            contractVersion: "1.0.0";
+            contractVersion: "1.1.0";
         };
         ScanPage: {
             items: components["schemas"]["Scan"][];
@@ -1255,13 +1356,65 @@ export interface components {
         SetAvatarInput: {
             mediaId: string | null;
         };
+        /** @description Password verified, but no session exists yet. Use preauthToken at POST /auth/mfa/login; the server does not set a session cookie for this branch. */
+        MfaRequired: {
+            /** @constant */
+            mfaRequired: true;
+            preauthToken: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        /** @description Either an authenticated User (session cookie set), or an MFA challenge (no session cookie). The mfaRequired discriminator is present only on the challenge branch. */
+        LoginResult: components["schemas"]["User"] | components["schemas"]["MfaRequired"];
+        LoginResponse: {
+            data: components["schemas"]["LoginResult"];
+            meta: components["schemas"]["Meta"];
+        };
+        MfaStatus: {
+            /** @enum {string} */
+            status: "disabled" | "pending" | "active";
+        };
+        /** @description One-time provisioning URI; do not persist or log. */
+        MfaEnrollment: {
+            /** Format: uri */
+            provisioningUri: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        /** @description Plaintext recovery codes are revealed once and cannot be fetched again. */
+        MfaRecoveryCodes: {
+            recoveryCodes: string[];
+        };
+        MfaConfirmInput: {
+            code: string;
+        };
+        /** @description Identity is taken from the authenticated session, never from this body. */
+        MfaCurrentCodeInput: {
+            currentTotpCode: string;
+        };
+        MfaLoginInput: {
+            preauthToken: string;
+            code: string;
+        };
+        MfaStatusResponse: {
+            data: components["schemas"]["MfaStatus"];
+            meta: components["schemas"]["Meta"];
+        };
+        MfaEnrollmentResponse: {
+            data: components["schemas"]["MfaEnrollment"];
+            meta: components["schemas"]["Meta"];
+        };
+        MfaRecoveryCodesResponse: {
+            data: components["schemas"]["MfaRecoveryCodes"];
+            meta: components["schemas"]["Meta"];
+        };
     };
     responses: never;
     parameters: never;
     requestBodies: never;
     headers: {
         /** @description Contract version echoed on every response (success and error) so clients can detect contract drift. */
-        ContractVersion: "1.0.0";
+        ContractVersion: "1.1.0";
         /** @description Sets or clears a host-only cookie. All auth cookies are HttpOnly, Secure, SameSite=Lax, Path=/. sap_csrf carries the signed double-submit CSRF token (GET /auth/csrf; rotated on login/logout). sap_session is the opaque session token set on verify-email/login and cleared on logout, reset-password, and account deletion. sap_deletion is the account-deletion receipt set by DELETE /users/me. A single response may emit more than one Set-Cookie line. */
         SetCookie: string;
     };
@@ -1840,15 +1993,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Success */
+            /** @description Success. If data is User, a session is issued and Set-Cookie is emitted. If data.mfaRequired is true, no session is issued and no Set-Cookie header is emitted. */
             200: {
                 headers: {
                     "X-Contract-Version": components["headers"]["ContractVersion"];
-                    "Set-Cookie": components["headers"]["SetCookie"];
+                    /** @description Conditional: emitted only when data is the User branch; never emitted for data.mfaRequired=true. When emitted it sets sap_session and rotates sap_csrf. */
+                    "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserResponse"];
+                    "application/json": components["schemas"]["LoginResponse"];
                 };
             };
             /** @description Validation error */
@@ -6772,6 +6926,374 @@ export interface operations {
             };
             /** @description Unexpected error */
             500: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getMfaStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MFA status */
+            200: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaStatusResponse"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description MFA unavailable */
+            503: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    disableMfa: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Nilai dari getCsrf; cocok cookie/token terverifikasi. */
+                "X-CSRF-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaCurrentCodeInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AckResponse"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden or CSRF invalid */
+            403: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    beginMfaEnrollment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Nilai dari getCsrf; cocok cookie/token terverifikasi. */
+                "X-CSRF-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaEnrollmentResponse"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden or CSRF invalid */
+            403: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    confirmMfaEnrollment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Nilai dari getCsrf; cocok cookie/token terverifikasi. */
+                "X-CSRF-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaConfirmInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaRecoveryCodesResponse"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden or CSRF invalid */
+            403: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    regenerateMfaRecoveryCodes: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Nilai dari getCsrf; cocok cookie/token terverifikasi. */
+                "X-CSRF-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaCurrentCodeInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaRecoveryCodesResponse"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden or CSRF invalid */
+            403: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    completeMfaLogin: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Nilai dari getCsrf; cocok cookie/token terverifikasi. */
+                "X-CSRF-Token": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaLoginInput"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserResponse"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Forbidden or CSRF invalid */
+            403: {
                 headers: {
                     "X-Contract-Version": components["headers"]["ContractVersion"];
                     [name: string]: unknown;

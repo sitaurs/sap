@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import type { AuthenticatedSession, AuthenticatedUser } from '../platform/http/request-context.js';
-import { AuthService } from './auth.service.js';
+import { AuthService, isMfaRequired } from './auth.service.js';
 import { CsrfService } from './csrf.service.js';
 import { CurrentSession, CurrentUser } from './current-user.decorator.js';
 import { EmailInputDto, LoginInputDto, ReauthInputDto, RegisterInputDto, ResetInputDto, VerifyInputDto } from './dto.js';
@@ -40,6 +40,11 @@ export class AuthController {
   @HttpCode(200)
   async login(@Body() dto: LoginInputDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.auth.login(dto);
+    if (isMfaRequired(result)) {
+      // MFA is active: withhold the session cookie and return the pre-auth handle
+      // so the client can complete the second factor at POST /auth/mfa/login.
+      return { mfaRequired: true, preauthToken: result.preauthToken, expiresAt: result.expiresAt };
+    }
     this.openSession(response, result.sessionToken, result.sessionTokenHash);
     return result.user;
   }

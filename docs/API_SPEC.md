@@ -1,10 +1,10 @@
 # API_SPEC — SAP REST API
 
-v1.0 · Sumber mesin: [contracts/openapi.json](contracts/openapi.json). Base URL `/api/v1`; tanggal UTC dan hari Asia/Jakarta. Kontrak ini untuk implementasi, belum endpoint berjalan.
+v1.1 · Sumber mesin: [contracts/openapi.json](contracts/openapi.json). Base URL `/api/v1`; tanggal UTC dan hari Asia/Jakarta. Kontrak ini untuk implementasi, belum endpoint berjalan.
 
 ## 1. Envelope dan autentikasi
 
-Sukses `{data,meta:{requestId}}`; error `{error:{code,message,fields?},meta:{requestId}}`. Kontrak mesin saat ini mendeklarasikan `X-Contract-Version: 1.0.0` pada respons sukses, belum pada seluruh respons error. Penambahan header pada error adalah perubahan kontrak terkoordinasi yang masih pending dan harus mengubah OpenAPI, generated client, fixture/test, serta implementasi bersama; dokumen ini tidak menganggapnya sudah berlaku. Cookie `sap_session` opaque, HttpOnly; GET auth/csrf memberi token untuk X-CSRF-Token pada mutasi. Login akun belum terverifikasi mengembalikan403 EMAIL_UNVERIFIED, frontend membuka resend/verify; verify sukses memulai sesi. Reset password mencabut semua sesi dan meminta login ulang. recent reauth diperlukan untuk delete account.
+Sukses `{data,meta:{requestId}}`; error `{error:{code,message,fields?},meta:{requestId}}`. Kontrak mesin saat ini mendeklarasikan `X-Contract-Version: 1.1.0` pada respons sukses, belum pada seluruh respons error. Penambahan header pada error adalah perubahan kontrak terkoordinasi yang masih pending dan harus mengubah OpenAPI, generated client, fixture/test, serta implementasi bersama; dokumen ini tidak menganggapnya sudah berlaku. Cookie `sap_session` opaque, HttpOnly; GET auth/csrf memberi token untuk X-CSRF-Token pada mutasi. Login akun belum terverifikasi mengembalikan403 EMAIL_UNVERIFIED, frontend membuka resend/verify; verify sukses memulai sesi. Reset password mencabut semua sesi dan meminta login ulang. recent reauth diperlukan untuk delete account.
 
 `Idempotency-Key` wajib tepat pada createScan, createReport, decideReport dan deleteMe; auth mutation dan uploadMedia tidak memakainya. Key sama + canonical payload sama mengembalikan respons original selama 24 jam; key sama + payload berbeda menghasilkan409 IDEMPOTENCY_CONFLICT. PATCH report dan keputusan admin wajib If-Match integer revision. User tidak pernah menentukan userId/role/points/status lewat payload create umum. Header wajib yang hilang menghasilkan400, expired session401, role403, resource bukan pemilik404.
 

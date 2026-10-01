@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "SAP API",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Kontrak rancangan SAP untuk frontend/backend. Kebutuhan otorisasi dan domain ada di API_SPEC.md. Belum merupakan layanan berjalan."
   },
   "servers": [
@@ -918,19 +918,23 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "Success. If data is User, a session is issued and Set-Cookie is emitted. If data.mfaRequired is true, no session is issued and no Set-Cookie header is emitted.",
             "headers": {
               "X-Contract-Version": {
                 "$ref": "#/components/headers/ContractVersion"
               },
               "Set-Cookie": {
-                "$ref": "#/components/headers/SetCookie"
+                "description": "Conditional: emitted only when data is the User branch; never emitted for data.mfaRequired=true. When emitted it sets sap_session and rotates sap_csrf.",
+                "required": false,
+                "schema": {
+                  "type": "string"
+                }
               }
             },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserResponse"
+                  "$ref": "#/components/schemas/LoginResponse"
                 }
               }
             }
@@ -9053,6 +9057,619 @@
         },
         "x-required-role": "user"
       }
+    },
+    "/auth/mfa": {
+      "get": {
+        "operationId": "getMfaStatus",
+        "summary": "Lihat status MFA akun saat ini",
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "MFA status",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "MFA unavailable",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-required-role": "user",
+        "description": "Lihat status MFA akun saat ini. Session identity only; no userId in the body. Enrollment start, recovery regeneration, and disable require live password reauthentication within 10 minutes. All mutations require CSRF."
+      },
+      "delete": {
+        "operationId": "disableMfa",
+        "summary": "Nonaktifkan MFA dengan reautentikasi terbaru dan TOTP aktif",
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Nilai dari getCsrf; cocok cookie/token terverifikasi."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AckResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden or CSRF invalid",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-required-role": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaCurrentCodeInput"
+              }
+            }
+          }
+        },
+        "description": "Nonaktifkan MFA dengan reautentikasi terbaru dan TOTP aktif. Requires a live session and password reauthentication within 10 minutes. Identity is taken from the session, never the body. All mutations require CSRF."
+      }
+    },
+    "/auth/mfa/enroll": {
+      "post": {
+        "operationId": "beginMfaEnrollment",
+        "summary": "Mulai enrollment MFA setelah reautentikasi terbaru",
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Nilai dari getCsrf; cocok cookie/token terverifikasi."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrollmentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden or CSRF invalid",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-required-role": "user",
+        "description": "Mulai enrollment MFA setelah reautentikasi terbaru. Requires a live session and password reauthentication within 10 minutes. Identity is taken from the session, never the body. All mutations require CSRF."
+      }
+    },
+    "/auth/mfa/enroll/confirm": {
+      "post": {
+        "operationId": "confirmMfaEnrollment",
+        "summary": "Konfirmasi TOTP dan aktifkan MFA; recovery codes tampil sekali",
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Nilai dari getCsrf; cocok cookie/token terverifikasi."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaRecoveryCodesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden or CSRF invalid",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-required-role": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaConfirmInput"
+              }
+            }
+          }
+        },
+        "description": "Konfirmasi TOTP dan aktifkan MFA; recovery codes tampil sekali. Requires a live session and password reauthentication within 10 minutes. Identity is taken from the session, never the body. All mutations require CSRF."
+      }
+    },
+    "/auth/mfa/recovery-codes": {
+      "post": {
+        "operationId": "regenerateMfaRecoveryCodes",
+        "summary": "Ganti recovery codes setelah reautentikasi terbaru dan TOTP aktif",
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Nilai dari getCsrf; cocok cookie/token terverifikasi."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaRecoveryCodesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden or CSRF invalid",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-required-role": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaCurrentCodeInput"
+              }
+            }
+          }
+        },
+        "description": "Ganti recovery codes setelah reautentikasi terbaru dan TOTP aktif. Requires a live session and password reauthentication within 10 minutes. Identity is taken from the session, never the body. All mutations require CSRF."
+      }
+    },
+    "/auth/mfa/login": {
+      "post": {
+        "operationId": "completeMfaLogin",
+        "summary": "Selesaikan login dengan TOTP atau recovery code",
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Nilai dari getCsrf; cocok cookie/token terverifikasi."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Set-Cookie": {
+                "$ref": "#/components/headers/SetCookie"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden or CSRF invalid",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependency unavailable",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-required-role": "public",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaLoginInput"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -10786,7 +11403,7 @@
           "contractVersion": {
             "type": "string",
             "enum": [
-              "1.0.0"
+              "1.1.0"
             ]
           }
         },
@@ -11754,6 +12371,208 @@
           "mediaId"
         ],
         "additionalProperties": false
+      },
+      "MfaRequired": {
+        "type": "object",
+        "description": "Password verified, but no session exists yet. Use preauthToken at POST /auth/mfa/login; the server does not set a session cookie for this branch.",
+        "properties": {
+          "mfaRequired": {
+            "const": true
+          },
+          "preauthToken": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 43,
+            "pattern": "^[A-Za-z0-9_-]{43}$"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "mfaRequired",
+          "preauthToken",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "LoginResult": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/User"
+          },
+          {
+            "$ref": "#/components/schemas/MfaRequired"
+          }
+        ],
+        "description": "Either an authenticated User (session cookie set), or an MFA challenge (no session cookie). The mfaRequired discriminator is present only on the challenge branch."
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LoginResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "MfaStatus": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "pending",
+              "active"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "MfaEnrollment": {
+        "type": "object",
+        "description": "One-time provisioning URI; do not persist or log.",
+        "properties": {
+          "provisioningUri": {
+            "type": "string",
+            "format": "uri"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "provisioningUri",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "MfaRecoveryCodes": {
+        "type": "object",
+        "description": "Plaintext recovery codes are revealed once and cannot be fetched again.",
+        "properties": {
+          "recoveryCodes": {
+            "type": "array",
+            "minItems": 10,
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z2-7]{5}-[A-Z2-7]{5}$"
+            }
+          }
+        },
+        "required": [
+          "recoveryCodes"
+        ],
+        "additionalProperties": false
+      },
+      "MfaConfirmInput": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "MfaCurrentCodeInput": {
+        "type": "object",
+        "description": "Identity is taken from the authenticated session, never from this body.",
+        "properties": {
+          "currentTotpCode": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$"
+          }
+        },
+        "required": [
+          "currentTotpCode"
+        ],
+        "additionalProperties": false
+      },
+      "MfaLoginInput": {
+        "type": "object",
+        "properties": {
+          "preauthToken": {
+            "type": "string",
+            "minLength": 43,
+            "maxLength": 43,
+            "pattern": "^[A-Za-z0-9_-]{43}$"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^(?:[0-9]{6}|[A-Za-z2-7]{5}-?[A-Za-z2-7]{5})$"
+          }
+        },
+        "required": [
+          "preauthToken",
+          "code"
+        ],
+        "additionalProperties": false
+      },
+      "MfaStatusResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MfaStatus"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "MfaEnrollmentResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MfaEnrollment"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "MfaRecoveryCodesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MfaRecoveryCodes"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
       }
     },
     "securitySchemes": {
@@ -11780,7 +12599,7 @@
         "schema": {
           "type": "string",
           "enum": [
-            "1.0.0"
+            "1.1.0"
           ]
         }
       },

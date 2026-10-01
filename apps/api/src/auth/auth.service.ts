@@ -13,6 +13,7 @@ import { MailerService } from './mailer.service.js';
 import { OutboxRepository } from './outbox.repository.js';
 import { PasswordService } from './password.service.js';
 import { ORPHAN_TTL_MS } from '../media/media.service.js';
+import { MfaService } from './mfa.service.js';
 
 const OTP_TTL_MS = 10 * 60 * 1_000;
 const RESEND_COOLDOWN_MS = 60 * 1_000;
@@ -46,6 +47,25 @@ export interface SessionResult {
   sessionTokenHash: string;
 }
 
+/**
+ * Login stopped at the first factor: the account has an active TOTP factor, so no
+ * session is issued. The client must call POST /auth/mfa/login with the preauth
+ * token and a code to obtain a session.
+ */
+export interface MfaRequiredResult {
+  mfaRequired: true;
+  preauthToken: string;
+  expiresAt: string;
+}
+
+/** Password-login outcome: either a live session or a pending second factor. */
+export type LoginOutcome = SessionResult | MfaRequiredResult;
+
+/** Discriminates the login union without leaking token internals to callers. */
+export function isMfaRequired(outcome: LoginOutcome): outcome is MfaRequiredResult {
+  return 'mfaRequired' in outcome;
+}
+
 export interface DeleteAccountResult {
   deletion: DeletionResult;
   receiptToken: string;
@@ -64,6 +84,7 @@ export class AuthService {
     private readonly crypto: AuthCryptoService,
     private readonly mailer: MailerService,
     private readonly media: MediaRepository,
+    private readonly mfa: MfaService,
   ) {}
 
   async register(input: { displayName: string; email: string; password: string }): Promise<ChallengeResult> {
@@ -110,7 +131,7 @@ export class AuthService {
     return this.startSession(user);
   }
 
-  async login(input: { email: string; password: string }): Promise<SessionResult> {
+  async login(input: { email: string; password: string }): Promise<LoginOutcome> {
     const email = this.crypto.normalizeEmail(input.email);
     const user = await this.users.findActiveByEmail(email);
     const valid = await this.passwords.verify(user?.passwordHash, input.password);
@@ -120,7 +141,24 @@ export class AuthService {
     if (!user.emailVerifiedAt) {
       throw new ForbiddenException({ code: 'EMAIL_UNVERIFIED', message: 'Email belum diverifikasi.' });
     }
-    return this.startSession(user);
+    // Second factor gate: an active TOTP factor means the password alone is not
+    // enough. Session creation and enrollment activation serialize on the user
+    // row, so a stale MFA check can never mint a password-only session afterward.
+    if (await this.mfa.isActive(user.id)) {
+      const preauth = await this.mfa.issuePreauth(user.id);
+      return { mfaRequired: true, preauthToken: preauth.token, expiresAt: preauth.expiresAt };
+    }
+    const token = this.sessionService.createToken();
+    const created = await this.sessions.createIfMfaDisabled({
+      userId: user.id,
+      tokenHash: token.tokenHash,
+      expiresAt: token.expiresAt,
+    });
+    if (!created) {
+      const preauth = await this.mfa.issuePreauth(user.id);
+      return { mfaRequired: true, preauthToken: preauth.token, expiresAt: preauth.expiresAt };
+    }
+    return { user: toUserView(user), sessionToken: token.token, sessionTokenHash: token.tokenHash };
   }
 
   async forgotPassword(input: { email: string }): Promise<ChallengeResult> {

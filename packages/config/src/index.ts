@@ -34,7 +34,7 @@ const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   APP_ORIGIN: z.string().url(),
   API_INTERNAL_URL: z.string().url(),
-  CONTRACT_VERSION: z.literal('1.0.0'),
+  CONTRACT_VERSION: z.literal('1.1.0'),
   DATABASE_URL: urlWithProtocols(['postgres:', 'postgresql:']),
   DATABASE_DIRECT_URL: z.preprocess(emptyToUndefined, urlWithProtocols(['postgres:', 'postgresql:']).optional()),
   REDIS_URL: urlWithProtocols(['redis:', 'rediss:']),

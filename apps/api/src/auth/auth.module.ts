@@ -7,6 +7,7 @@ import { UsersRepository } from '../users/users.repository.js';
 import { MediaRepository } from '../media/media.repository.js';
 import { AccountDeletionController } from './account.controller.js';
 import { AuthController } from './auth.controller.js';
+import { MfaController } from './mfa.controller.js';
 import { AuthCryptoService } from './auth-crypto.js';
 import { AuthService } from './auth.service.js';
 import { ChallengeRepository } from './challenge.repository.js';
@@ -25,7 +26,7 @@ import { UsersController } from './users.controller.js';
 
 @Module({
   imports: [DatabaseModule, SessionModule],
-  controllers: [CsrfController, AuthController, UsersController, AccountDeletionController],
+  controllers: [CsrfController, AuthController, MfaController, UsersController, AccountDeletionController],
   providers: [
     CsrfService,
     { provide: APP_GUARD, useClass: CsrfGuard },

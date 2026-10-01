@@ -90,6 +90,8 @@ export class MfaRepository {
   /** Activate a pending factor and install its recovery hashes atomically. */
   async completeEnrollment(userId: string, step: number, codeHashes: string[]): Promise<boolean> {
     return this.sql.begin(async (tx) => {
+      // Serialize activation with password-only session creation on the user row.
+      await tx`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
       const rows = await tx<{ user_id: string }[]>`
         UPDATE mfa_factors
         SET state = 'active', last_accepted_step = ${step}, pending_expires_at = NULL, updated_at = now()
@@ -100,9 +102,58 @@ export class MfaRepository {
       for (const codeHash of codeHashes) {
         await tx`INSERT INTO mfa_recovery_codes (user_id, code_hash) VALUES (${userId}, ${codeHash})`;
       }
+      // Revoke any password-only session inserted before this lock was acquired.
+      await tx`DELETE FROM sessions WHERE user_id = ${userId}`;
       return true;
     });
   }
+
+  /** Mint a second-factor session only while the factor is still active. */
+  async createSessionWhileMfaActive(input: { userId: string; tokenHash: string; expiresAt: Date }): Promise<boolean> {
+    return this.sql.begin(async (tx) => {
+      await tx`SELECT id FROM users WHERE id = ${input.userId} FOR UPDATE`;
+      const rows = await tx<{ user_id: string }[]>`
+        INSERT INTO sessions (user_id, token_hash, expires_at, last_seen_at)
+        SELECT u.id, ${input.tokenHash}, ${input.expiresAt}, now()
+        FROM users u
+        WHERE u.id = ${input.userId}
+          AND EXISTS (SELECT 1 FROM mfa_factors f WHERE f.user_id = u.id AND f.state = 'active')
+        RETURNING user_id`;
+      return rows.length === 1;
+    });
+  }
+
+  /** Disable the active factor and revoke sessions in one transaction. */
+  async disableActiveFactor(userId: string): Promise<boolean> {
+    return this.sql.begin(async (tx) => {
+      await tx`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+      const rows = await tx<{ user_id: string }[]>`
+        DELETE FROM mfa_factors WHERE user_id = ${userId} AND state = 'active'
+        RETURNING user_id`;
+      if (rows.length !== 1) return false;
+      await tx`DELETE FROM mfa_recovery_codes WHERE user_id = ${userId}`;
+      await tx`DELETE FROM sessions WHERE user_id = ${userId}`;
+      await tx`DELETE FROM mfa_login_limits WHERE user_id = ${userId}`;
+      return true;
+    });
+  }
+
+  /** Replace recovery codes only while active, revoking sessions atomically. */
+  async replaceRecoveryCodesAndRevokeSessions(userId: string, codeHashes: string[]): Promise<boolean> {
+    return this.sql.begin(async (tx) => {
+      await tx`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+      const active = await tx<{ user_id: string }[]>`
+        SELECT user_id FROM mfa_factors WHERE user_id = ${userId} AND state = 'active'`;
+      if (active.length !== 1) return false;
+      await tx`DELETE FROM mfa_recovery_codes WHERE user_id = ${userId}`;
+      for (const codeHash of codeHashes) {
+        await tx`INSERT INTO mfa_recovery_codes (user_id, code_hash) VALUES (${userId}, ${codeHash})`;
+      }
+      await tx`DELETE FROM sessions WHERE user_id = ${userId}`;
+      return true;
+    });
+  }
+
 
   /**
    * Monotonic replay guard for an active factor: accept a step only if it is

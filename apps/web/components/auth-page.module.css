@@ -27,15 +27,13 @@
 .remember input:focus-visible+.customCheck,.agreement input:focus-visible+.customCheck{outline:3px solid #1380ff;outline-offset:3px}
 .textButton,.agreement button{border:0;padding:0;background:transparent;color:#164d82;font-size:inherit;font-weight:650;text-decoration:underline;text-underline-offset:4px}
 .textButton:hover,.agreement button:hover,.switch a:hover{color:#0071e3}
-.submit{display:inline-flex;align-items:center;justify-content:center;gap:11px;width:100%;min-height:56px;margin-top:22px;border:0;border-radius:8px;background:linear-gradient(110deg,#0a664e,#116c52);color:#fff;font:800 20px/1 var(--font-display),Arial,sans-serif;box-shadow:0 8px 18px #0c69451c;transition:transform .23s cubic-bezier(.2,.9,.2,1.2),box-shadow .23s,filter .23s}
+.submit{width:100%;min-height:56px;margin-top:22px;border:0;border-radius:8px;background:linear-gradient(110deg,#0a664e,#116c52);color:#fff;font:800 20px/1 var(--font-display),Arial,sans-serif;box-shadow:0 8px 18px #0c69451c;transition:transform .23s cubic-bezier(.2,.9,.2,1.2),box-shadow .23s,filter .23s}
 .submit:hover{transform:translateY(-3px);box-shadow:0 14px 26px #0c69453b;filter:brightness(1.05)}
-.submit:disabled{cursor:progress;filter:saturate(.85)}
-.submit:disabled:hover{transform:none;box-shadow:0 8px 18px #0c69451c}
-.submit .spinner{width:19px;height:19px;flex:0 0 auto;border-radius:50%;border:2.5px solid #ffffff66;border-top-color:#fff;animation:authSpin .7s linear infinite}
-@keyframes authSpin{to{transform:rotate(360deg)}}
-@keyframes authSpinPulse{0%,100%{opacity:1}50%{opacity:.4}}
 .submit:active{transform:translateY(0) scale(.98)}
 .notice{margin:15px 0 0;padding:11px 13px;border-left:3px solid #0c7858;border-radius:6px;background:#ecf9f3;color:#205c49;font-size:13px;line-height:1.45;animation:noticeEnter .25s ease both}
+.notice[role=alert]{border-color:#b83d36;background:#fff1ee;color:#9e302b}
+.fieldGroup>.textButton{display:block;margin-top:11px}
+.securityNote{margin:13px 0 0;color:#68768a;font-size:13px;line-height:1.45}
 .switch{width:100%;margin:24px 0 0;padding-top:17px;border-top:1px solid #dbe3ee;text-align:center;color:#384861;font-size:15px}
 .switch a{font-weight:750;color:#164d82;transition:color .2s}
 .sceneSide{position:relative;align-self:center;justify-self:center;width:min(100%,700px,calc((100svh - 180px)*.882));aspect-ratio:732/830;overflow:hidden;border-radius:32px;background:#f3f9fc}
@@ -58,4 +56,4 @@
 @media(max-width:1100px){.paper{grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:28px;padding:30px}.formSide{padding:0}.formContent{margin-top:32px}.formContent h1{font-size:clamp(28px,3.3vw,38px)}.signup .formContent h1{font-size:clamp(30px,3.5vw,40px)}.sceneSide{width:min(100%,calc((100svh - 150px)*.882))}}
 @media(max-width:800px){.stage{display:block;padding:0;background:#fff}.browser{max-width:620px;margin:auto}.paper{display:flex;flex-direction:column;align-items:stretch;gap:28px;min-height:100svh;padding:40px 34px;border:0;border-radius:0;box-shadow:none}.formSide{align-items:stretch;height:auto;padding:0}.brand{width:100%}.formContent,.signup .formContent{width:100%;margin-top:29px}.formContent h1,.signup .formContent h1{font-size:clamp(30px,6vw,40px)}.intro,.signup .intro{font-size:18px;margin-bottom:27px}.fieldGroup+.fieldGroup{margin-top:18px}.signup .fieldGroup+.fieldGroup{margin-top:13px}.field,.signup .field{height:55px}.sceneSide{width:100%;height:360px;flex:0 0 360px;aspect-ratio:auto;border-radius:24px}.scene{object-fit:cover}}
 @media(max-width:500px){.paper{gap:24px;padding:30px 22px}.formContent,.signup .formContent{margin-top:26px}.intro,.signup .intro{font-size:16px}.formContent h1,.signup .formContent h1{font-size:clamp(29px,8vw,35px)}.field{gap:12px}.field input{font-size:15px}.signup .agreement{font-size:14px}.submit{min-height:54px;font-size:19px}.switch{font-size:14px}.sceneSide{height:290px;flex-basis:290px}}
-@media(prefers-reduced-motion:reduce){.browser,.scene,.notice{animation:none!important}.scene,.field,.reveal,.submit,.brand,.switch a,.textButton{transition:none!important}.submit .spinner{animation:authSpinPulse 1.6s ease-in-out infinite}}
+@media(prefers-reduced-motion:reduce){.browser,.scene,.notice{animation:none!important}.scene,.field,.reveal,.submit,.brand,.switch a,.textButton{transition:none!important}}

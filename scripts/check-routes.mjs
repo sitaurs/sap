@@ -17,7 +17,7 @@ Object.assign(process.env, {
   NODE_ENV: 'test',
   APP_ORIGIN: 'http://localhost:3000',
   API_INTERNAL_URL: 'http://localhost:3001',
-  CONTRACT_VERSION: '1.0.0',
+  CONTRACT_VERSION: '1.1.0',
   DATABASE_URL: 'postgres://route:check@localhost:5432/routecheck',
   REDIS_URL: 'redis://localhost:6379',
   SESSION_SECRET: 'route-check-session-secret-0000000000000000',

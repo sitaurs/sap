@@ -16,7 +16,7 @@ import AreaView from "./area-view";
 import ReportDetail from "./report-detail";
 import { createBackendScan, waitForBackendScan, type ScanResponse } from "./scan-client";
 import type { ScanOperation } from "./scan-client";
-import { changePassword, deleteAccount, mediaUrl, reauthenticate, setAvatar, uploadMedia, type SapAchievement, type SapCategory, type SapReport, type SapScan, type SapStats, type SapUser } from "../lib/api/client";
+import { beginMfaEnrollment, changePassword, confirmMfaEnrollment, deleteAccount, disableMfa, getMfaStatus, mediaUrl, reauthenticate, regenerateMfaRecoveryCodes, setAvatar, uploadMedia, type SapAchievement, type SapCategory, type SapMfaEnrollment, type SapMfaStatus, type SapReport, type SapScan, type SapStats, type SapUser } from "../lib/api/client";
 
 type Tab = "dashboard" | "scan" | "reports" | "map" | "history" | "achievements" | "settings" | "help";
 type Props = {
@@ -207,6 +207,125 @@ function AchievementsView({ stats, achievements, onNavigate }: Pick<Props, "stat
   </>;
 }
 
+type MfaAction = "enroll" | "regenerate" | "disable";
+type MfaActionStep = "password" | "totp" | "confirm";
+
+function MfaSettingsPanel() {
+  const [status, setStatus] = useState<SapMfaStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [statusError, setStatusError] = useState("");
+  const [action, setAction] = useState<MfaAction | null>(null);
+  const [step, setStep] = useState<MfaActionStep>("password");
+  const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [enrollment, setEnrollment] = useState<SapMfaEnrollment | null>(null);
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function refreshStatus() {
+    setStatusError("");
+    try { setStatus(await getMfaStatus()); }
+    catch (cause) { setStatusError(cause instanceof Error ? cause.message : "Status verifikasi dua langkah belum dapat dimuat."); }
+    finally { setLoading(false); }
+  }
+  useEffect(() => { void refreshStatus(); }, []);
+
+  function openAction(next: MfaAction) {
+    setAction(next); setStep("password"); setPassword(""); setTotpCode(""); setEnrollment(null); setError(""); setMessage("");
+  }
+  function closeAction() {
+    if (busy) return;
+    setAction(null); setStep("password"); setPassword(""); setTotpCode(""); setEnrollment(null); setError("");
+  }
+  async function submitPassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!action || busy) return;
+    setBusy(true); setError("");
+    try {
+      await reauthenticate(password);
+      setPassword("");
+      if (action === "enroll") {
+        const result = await beginMfaEnrollment();
+        setEnrollment(result); setStep("confirm");
+        setStatus({ status: "pending" });
+        setStatusError("");
+        setLoading(false);
+      } else setStep("totp");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Verifikasi kata sandi belum berhasil."); }
+    finally { setBusy(false); }
+  }
+  async function submitTotp(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!action || busy) return;
+    setBusy(true); setError("");
+    try {
+      if (action === "enroll") {
+        const result = await confirmMfaEnrollment(totpCode);
+        setTotpCode(""); setEnrollment(null); setAction(null); setRecoveryCodes(result.recoveryCodes);
+        setMessage("Verifikasi dua langkah aktif. Simpan kode pemulihan ini sekarang. Anda perlu masuk kembali setelah menyimpan kode.");
+        setStatus({ status: "active" });
+        setStatusError("");
+        setLoading(false);
+      } else if (action === "regenerate") {
+        const result = await regenerateMfaRecoveryCodes(totpCode);
+        setTotpCode(""); setAction(null); setRecoveryCodes(result.recoveryCodes);
+        setMessage("Kode pemulihan lama sudah tidak berlaku. Simpan kode baru ini sekarang. Anda perlu masuk kembali setelahnya.");
+        setStatus({ status: "active" });
+        setStatusError("");
+        setLoading(false);
+      } else {
+        await disableMfa(totpCode);
+        setTotpCode(""); setAction(null); setRecoveryCodes(null); setMessage("Verifikasi dua langkah telah dinonaktifkan.");
+        await refreshStatus();
+      }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Perubahan verifikasi dua langkah belum berhasil."); }
+    finally { setBusy(false); }
+  }
+  function dismissRecoveryCodes() { setRecoveryCodes(null); setMessage(""); }
+  const active = status?.status === "active";
+  const pending = status?.status === "pending";
+
+  return <>
+    <section className={styles.mfaCard} aria-labelledby="mfa-title">
+      <div className={styles.mfaHeader}><span className={styles.mfaIcon}><ShieldCheck size={25} /></span><div><h2 id="mfa-title">Verifikasi dua langkah</h2><p>Gunakan aplikasi autentikator untuk melindungi akun SAP.</p></div><span className={`${styles.mfaStatus} ${active ? styles.mfaStatusActive : pending ? styles.mfaStatusPending : ""}`} role="status">{loading ? "Memuat status…" : active ? "Aktif" : pending ? "Penyiapan tertunda" : status ? "Tidak aktif" : "Status tidak tersedia"}</span></div>
+      {statusError && <p className={styles.mfaError} role="alert">{statusError}</p>}
+      {pending && !enrollment && <p className={styles.mfaInfo} role="status">Penyiapan sebelumnya belum selesai. Mulai ulang untuk menampilkan kode penyiapan baru.</p>}
+      {!active && !pending && <p className={styles.mfaDescription}>Saat aktif, Anda perlu kode autentikator atau kode pemulihan setiap kali masuk.</p>}
+      {active && <p className={styles.mfaDescription}>Akun Anda meminta kode tambahan setiap kali masuk. Kode pemulihan hanya ditampilkan saat dibuat.</p>}
+      <div className={styles.mfaActions}>
+        {!active && <button className={styles.primaryButton} type="button" disabled={loading || !status} onClick={() => openAction("enroll")}>{pending ? "Mulai ulang penyiapan" : "Aktifkan verifikasi dua langkah"}</button>}
+        {active && <><button className={styles.outlineButton} type="button" onClick={() => openAction("regenerate")}>Buat kode pemulihan baru</button><button className={styles.mfaDisableButton} type="button" onClick={() => openAction("disable")}>Nonaktifkan verifikasi dua langkah</button></>}
+      </div>
+      {message && !recoveryCodes && <p className={styles.mfaSuccess} role="status">{message}</p>}
+    </section>
+
+    {action && <div className={styles.modalBackdrop} role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) closeAction(); }}><section className={styles.mfaModal} role="dialog" aria-modal="true" aria-labelledby="mfa-dialog-title">
+      <button className={styles.modalClose} type="button" onClick={closeAction} aria-label="Tutup" disabled={busy}><X size={20} /></button>
+      <span className={styles.modalIcon}><LockKeyhole size={25} /></span>
+      <h2 id="mfa-dialog-title">{action === "enroll" ? step === "confirm" ? "Hubungkan aplikasi autentikator" : "Aktifkan verifikasi dua langkah" : action === "regenerate" ? "Buat kode pemulihan baru" : "Nonaktifkan verifikasi dua langkah"}</h2>
+      {step === "password" ? <form onSubmit={submitPassword}>
+        <p>Masukkan kata sandi untuk memastikan ini memang Anda. {action === "enroll" ? "Setelah itu, pindai tautan penyiapan dengan aplikasi autentikator." : "Anda juga akan diminta kode autentikator saat ini."}</p>
+        <label htmlFor="mfa-reauth-password">Kata sandi</label><input id="mfa-reauth-password" type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} required maxLength={128} />
+        {error && <p className={styles.mfaError} role="alert">{error}</p>}
+        <div className={styles.modalActions}><button className={styles.outlineButton} type="button" onClick={closeAction} disabled={busy}>Batal</button><button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? "Memverifikasi…" : "Lanjutkan"}</button></div>
+      </form> : step === "confirm" && enrollment ? <form onSubmit={submitTotp}>
+        <p>Tambahkan akun SAP ke aplikasi autentikator menggunakan tautan berikut. Tautan ini hanya ditampilkan selama penyiapan tertunda.</p>
+        <code className={styles.provisioningUri}>{enrollment.provisioningUri}</code>
+        <label htmlFor="mfa-enroll-totp">Kode 6 digit dari aplikasi autentikator</label><input id="mfa-enroll-totp" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={totpCode} onChange={event => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} required />
+        {error && <p className={styles.mfaError} role="alert">{error}</p>}
+        <div className={styles.modalActions}><button className={styles.outlineButton} type="button" onClick={closeAction} disabled={busy}>Batal</button><button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? "Memeriksa…" : "Konfirmasi & aktifkan"}</button></div>
+      </form> : <form onSubmit={submitTotp}>
+        <p>{action === "regenerate" ? "Masukkan kode autentikator saat ini. Kode pemulihan lama akan langsung tidak berlaku." : "Masukkan kode autentikator saat ini untuk menonaktifkan perlindungan ini."}</p>
+        <label htmlFor="mfa-current-totp">Kode autentikator 6 digit</label><input id="mfa-current-totp" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={totpCode} onChange={event => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} required />
+        {error && <p className={styles.mfaError} role="alert">{error}</p>}
+        <div className={styles.modalActions}><button className={styles.outlineButton} type="button" onClick={closeAction} disabled={busy}>Batal</button><button className={action === "disable" ? styles.dangerButton : styles.primaryButton} type="submit" disabled={busy}>{busy ? "Memverifikasi…" : action === "disable" ? "Nonaktifkan MFA" : "Buat kode baru"}</button></div>
+      </form>}
+    </section></div>}
+
+    {recoveryCodes && <div className={styles.modalBackdrop} role="presentation"><section className={styles.mfaModal} role="dialog" aria-modal="true" aria-labelledby="mfa-recovery-title"><span className={styles.modalIcon}><ShieldCheck size={25} /></span><h2 id="mfa-recovery-title">Simpan kode pemulihan</h2><p>Kode ini hanya ditampilkan sekali. Simpan di tempat aman di luar SAP. Setiap kode hanya dapat digunakan satu kali.</p>{message && <p className={styles.mfaInfo} role="status">{message}</p>}<ul className={styles.recoveryCodes}>{recoveryCodes.map((recoveryCode, index) => <li key={index}>{recoveryCode}</li>)}</ul><button className={styles.primaryButton} type="button" onClick={dismissRecoveryCodes}>Saya sudah menyimpannya</button></section></div>}
+  </>;
+}
+
 function SettingsView({ email, displayName, avatarMediaId, onSaveProfile, onAvatarChanged, onSignOut, onAccountDeleted, sapaEnabled, sapaSaving, onToggleSapa }: Pick<Props, "email" | "displayName" | "avatarMediaId" | "onSaveProfile" | "onAvatarChanged" | "onSignOut" | "onAccountDeleted" | "sapaEnabled" | "sapaSaving" | "onToggleSapa">) {
   const [name, setName] = useState(displayName);
   const [saving, setSaving] = useState(false);
@@ -291,6 +410,7 @@ function SettingsView({ email, displayName, avatarMediaId, onSaveProfile, onAvat
   return <>
     <PageTitle title="Pengaturan" description="Kelola akun dan preferensi SAP." />
     <div className={styles.settingsGrid}><section className={styles.profileCard}><h2><UserRound size={27} />Profil</h2><div className={styles.avatarRow}><span className={styles.avatarPreview}>{avatarUrl ? <Image src={avatarUrl} alt="Foto profil" width={72} height={72} unoptimized /> : <UserRound size={34} />}</span><div className={styles.avatarActions}><input ref={avatarInputRef} type="file" accept="image/*" hidden onChange={onPickAvatar} /><button className={styles.outlineButton} type="button" onClick={() => avatarInputRef.current?.click()} disabled={avatarBusy}>{avatarBusy ? "Mengunggah…" : "Ubah foto"}</button>{avatarMediaId && <button className={styles.textButton} type="button" onClick={removeAvatar} disabled={avatarBusy}>Hapus</button>}{avatarError && <p role="alert">{avatarError}</p>}</div></div><form onSubmit={submit}><label>Nama lengkap<span><UserRound size={20} /><input value={name} onChange={event => setName(event.target.value)} placeholder="Nama Anda" minLength={2} required /></span></label><label>Email<span><Mail size={20} /><input type="email" value={email} readOnly aria-readonly="true" /></span></label><button className={styles.primaryButton} type="submit" disabled={saving}>{saving ? "Menyimpan…" : "Simpan perubahan"}</button>{error && <p role="alert">{error}</p>}{saved && <p role="status">Profil berhasil disimpan.</p>}</form><Image className={styles.settingsArt} src="/images/dashboard/views/settings-profile.webp" alt="" width={420} height={129} /></section><div className={styles.settingsRight}><section className={styles.profileCard}><h2><LockKeyhole size={26} />Kata sandi</h2><form onSubmit={submitPassword}><label>Kata sandi saat ini<span><LockKeyhole size={20} /><input type="password" autoComplete="current-password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} placeholder="Kata sandi sekarang" required /></span></label><label>Kata sandi baru<span><LockKeyhole size={20} /><input type="password" autoComplete="new-password" value={newPassword} onChange={event => setNewPassword(event.target.value)} placeholder="Minimal 12 karakter" minLength={12} maxLength={128} required /></span></label><label>Konfirmasi kata sandi baru<span><LockKeyhole size={20} /><input type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="Ulangi kata sandi baru" minLength={12} maxLength={128} required /></span></label><button className={styles.primaryButton} type="submit" disabled={pwBusy}>{pwBusy ? "Memperbarui…" : "Perbarui kata sandi"}</button>{pwError && <p role="alert">{pwError}</p>}{pwSaved && <p role="status">Kata sandi diperbarui. Sesi di perangkat lain telah keluar.</p>}</form></section><section className={styles.privacyCard}><h2><ShieldCheck size={26} />Privasi laporan</h2><span className={styles.privacyIcon}><LockKeyhole size={27} /></span><p>Foto dan lokasi laporan bersifat privat sampai publikasi data yang aman.</p><Image src="/images/dashboard/views/settings-privacy.webp" alt="" width={245} height={132} /></section></div></div>
+    <MfaSettingsPanel />
     <section className={styles.sapaSettingCard} aria-label="Pengaturan Pet SAPA"><Image src="/images/sapa/SAPA_Chat_Avatar.png" alt="" width={54} height={54} /><div><h2>Pet SAPA</h2><p>Tampilkan asisten kecil di dashboard.</p></div><button className={`${styles.toggle} ${sapaEnabled ? styles.toggleOn : ""}`} type="button" role="switch" aria-label="Aktifkan Pet SAPA" aria-checked={sapaEnabled} disabled={sapaSaving} onClick={onToggleSapa}><span /></button></section>
     <section className={styles.accountCard}><h2><Settings size={25} />Akun</h2><div><button className={styles.signOutAction} type="button" onClick={onSignOut}><LogOut size={29} /><span><strong>Keluar</strong><small>Akhiri sesi akun pada perangkat ini.</small></span></button><div className={styles.deleteAction}><button type="button" onClick={() => setDeleteOpen(true)}><Trash2 size={20} />Hapus akun</button><small>Penghapusan akun dan data diproses secara permanen.</small></div></div></section>
     {deleteOpen && <div className={styles.modalBackdrop} role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !deletionQueued) setDeleteOpen(false); }}><div className={styles.composerModal} role="dialog" aria-modal="true" aria-labelledby="delete-account-title"><span className={styles.modalIcon}><Trash2 size={27} /></span><h2 id="delete-account-title">{deletionQueued ? "Permintaan diterima" : "Hapus akun SAP?"}</h2>{deletionQueued ? <><p>Permintaan penghapusan akun telah diterima dan sedang diproses.</p><button className={styles.primaryButton} type="button" onClick={onAccountDeleted}>Selesai</button></> : <form onSubmit={submitDeletion}><p>Tindakan ini akan menghapus akun dan data secara permanen. Masukkan kata sandi dan ketik HAPUS AKUN untuk melanjutkan.</p><label>Kata sandi<input type="password" autoComplete="current-password" value={deletePassword} onChange={event => setDeletePassword(event.target.value)} required /></label><label>Ketik HAPUS AKUN<input value={deleteConfirm} onChange={event => setDeleteConfirm(event.target.value)} required /></label>{deleteError && <p role="alert">{deleteError}</p>}<div className={styles.modalActions}><button className={styles.outlineButton} type="button" onClick={() => setDeleteOpen(false)}>Batal</button><button className={styles.dangerButton} type="submit" disabled={deleteBusy || deleteConfirm !== "HAPUS AKUN"}>{deleteBusy ? "Memproses…" : "Hapus akun permanen"}</button></div></form>}</div></div>}

@@ -33,7 +33,7 @@ NODE_ENV
 LOG_LEVEL
 ```
 
-`CONTRACT_VERSION` untuk rilis ini adalah `1.0.0`.
+`CONTRACT_VERSION` untuk rilis ini adalah `1.1.0`.
 
 ## Kriteria siap implementasi
 

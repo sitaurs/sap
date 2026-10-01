@@ -5,12 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Eye, EyeOff, LockKeyhole, Mail, UserRound } from "lucide-react";
-import { ApiError, forgotPassword, login, register, resendVerification, resetPassword, verifyEmail } from "../lib/api/client";
+import { ApiError, completeMfaLogin, forgotPassword, isMfaLoginRequired, login, register, resendVerification, resetPassword, verifyEmail } from "../lib/api/client";
 import styles from "./auth-page.module.css";
 import BrandLogo from "./brand-logo";
 
 type Mode = "login" | "signup";
-type Stage = "form" | "verify" | "forgot" | "reset";
+type Stage = "form" | "verify" | "forgot" | "reset" | "mfa";
 
 function Brand() {
   return (
@@ -34,6 +34,9 @@ export default function AuthPage({ mode }: { mode: Mode }) {
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState("");
   const [challengeId, setChallengeId] = useState("");
+  const [mfaPreauthToken, setMfaPreauthToken] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaRecoveryMode, setMfaRecoveryMode] = useState(false);
 
   useEffect(() => {
     if (!isSignup) {
@@ -50,7 +53,13 @@ export default function AuthPage({ mode }: { mode: Mode }) {
     if (busy) return;
     setError(""); setNotice(""); setBusy(true);
     try {
-      if (stage === "verify") {
+      if (stage === "mfa") {
+        await completeMfaLogin(mfaPreauthToken, mfaCode.trim());
+        setMfaPreauthToken(""); setMfaCode(""); setMfaRecoveryMode(false);
+        if (remember) window.localStorage.setItem("sap-remembered-email", email.trim());
+        else window.localStorage.removeItem("sap-remembered-email");
+        router.replace("/dashboard"); router.refresh();
+      } else if (stage === "verify") {
         await verifyEmail(challengeId, code);
         router.replace("/dashboard"); router.refresh();
       } else if (stage === "forgot") {
@@ -66,10 +75,17 @@ export default function AuthPage({ mode }: { mode: Mode }) {
         setChallengeId(challenge.challengeId); setStage("verify"); setPassword("");
         setNotice("Kode verifikasi telah dikirim ke email Anda.");
       } else {
-        await login(email.trim(), password);
-        if (remember) window.localStorage.setItem("sap-remembered-email", email.trim());
-        else window.localStorage.removeItem("sap-remembered-email");
-        router.replace("/dashboard"); router.refresh();
+        const result = await login(email.trim(), password);
+        if (isMfaLoginRequired(result)) {
+          setMfaPreauthToken(result.preauthToken);
+          setMfaCode(""); setMfaRecoveryMode(false); setStage("mfa");
+          setPassword("");
+          setNotice("Masukkan kode dari aplikasi autentikator atau gunakan kode pemulihan.");
+        } else {
+          if (remember) window.localStorage.setItem("sap-remembered-email", email.trim());
+          else window.localStorage.removeItem("sap-remembered-email");
+          router.replace("/dashboard"); router.refresh();
+        }
       }
     } catch (cause) {
       if (cause instanceof ApiError && cause.code === "EMAIL_UNVERIFIED" && stage === "form" && !isSignup) {
@@ -90,8 +106,8 @@ export default function AuthPage({ mode }: { mode: Mode }) {
     finally { setBusy(false); }
   }
 
-  const title = stage === "verify" ? "Verifikasi email" : stage === "forgot" ? "Lupa kata sandi?" : stage === "reset" ? "Atur kata sandi baru" : isSignup ? "Buat akun SAP" : "Selamat datang kembali";
-  const intro = stage === "verify" ? `Masukkan enam digit kode yang dikirim ke ${email}.` : stage === "forgot" ? "Masukkan email akun untuk menerima kode pemulihan." : stage === "reset" ? "Masukkan kode dari email dan kata sandi baru." : isSignup ? "Mulai kenali sampah, laporkan penumpukan, dan pantau area." : "Masuk untuk melanjutkan aksi peduli lingkungan.";
+  const title = stage === "mfa" ? "Verifikasi masuk" : stage === "verify" ? "Verifikasi email" : stage === "forgot" ? "Lupa kata sandi?" : stage === "reset" ? "Atur kata sandi baru" : isSignup ? "Buat akun SAP" : "Selamat datang kembali";
+  const intro = stage === "mfa" ? mfaRecoveryMode ? "Masukkan salah satu kode pemulihan yang Anda simpan." : "Masukkan kode 6 digit dari aplikasi autentikator Anda." : stage === "verify" ? `Masukkan enam digit kode yang dikirim ke ${email}.` : stage === "forgot" ? "Masukkan email akun untuk menerima kode pemulihan." : stage === "reset" ? "Masukkan kode dari email dan kata sandi baru." : isSignup ? "Mulai kenali sampah, laporkan penumpukan, dan pantau area." : "Masuk untuk melanjutkan aksi peduli lingkungan.";
 
   return (
     <main className={`${styles.stage} ${isSignup ? styles.signup : styles.login}`}>
@@ -119,6 +135,12 @@ export default function AuthPage({ mode }: { mode: Mode }) {
                   <div className={styles.field}><Mail size={22} /><input id="auth-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} placeholder="000000" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, ""))} required /></div>
                 </div>}
 
+                {stage === "mfa" && <div className={styles.fieldGroup}>
+                  <label htmlFor="mfa-code">{mfaRecoveryMode ? "Kode pemulihan" : "Kode autentikator 6 digit"}</label>
+                  <div className={styles.field}><LockKeyhole size={22} /><input id="mfa-code" type="text" inputMode={mfaRecoveryMode ? "text" : "numeric"} autoComplete="one-time-code" pattern={mfaRecoveryMode ? "[A-Za-z2-7]{5}-?[A-Za-z2-7]{5}" : "[0-9]{6}"} maxLength={mfaRecoveryMode ? 11 : 6} placeholder={mfaRecoveryMode ? "ABCDE-FG234" : "000000"} value={mfaCode} onChange={event => setMfaCode(mfaRecoveryMode ? event.target.value.replace(/[^a-zA-Z2-7-]/g, "").slice(0, 11) : event.target.value.replace(/\D/g, "").slice(0, 6))} required /></div>
+                  <button className={styles.textButton} type="button" onClick={() => { setMfaRecoveryMode(value => !value); setMfaCode(""); setError(""); setNotice(""); }}>{mfaRecoveryMode ? "Gunakan kode autentikator" : "Gunakan kode pemulihan"}</button>
+                </div>}
+
                 {(stage === "form" || stage === "reset") && <div className={styles.fieldGroup}>
                   <label htmlFor="auth-password">{stage === "reset" ? "Kata sandi baru" : "Kata sandi"}</label>
                   <div className={styles.field}><LockKeyhole size={22} /><input id="auth-password" type={showPassword ? "text" : "password"} autoComplete={stage === "reset" || isSignup ? "new-password" : "current-password"} placeholder={stage === "reset" || isSignup ? "Minimal 12 karakter" : "Kata sandi"} value={password} onChange={event => setPassword(event.target.value)} minLength={stage === "reset" || isSignup ? 12 : 1} maxLength={128} required /><button className={styles.reveal} type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"} aria-pressed={showPassword}>{showPassword ? <EyeOff size={23} /> : <Eye size={23} />}</button></div>
@@ -126,9 +148,10 @@ export default function AuthPage({ mode }: { mode: Mode }) {
 
                 {stage === "form" && !isSignup && <div className={styles.options}><label className={styles.remember}><input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} /><span className={styles.customCheck} aria-hidden="true" />Ingat email saya</label><button type="button" className={styles.textButton} onClick={() => { setStage("forgot"); setError(""); setNotice(""); }}>Lupa kata sandi?</button></div>}
 
-                <button className={styles.submit} type="submit" disabled={busy} aria-busy={busy}>{busy ? <><span className={styles.spinner} aria-hidden="true" />Memproses…</> : stage === "verify" ? "Verifikasi & masuk" : stage === "forgot" ? "Kirim kode" : stage === "reset" ? "Simpan kata sandi" : isSignup ? "Daftar" : "Masuk"}</button>
+                <button className={styles.submit} type="submit" disabled={busy} aria-busy={busy}>{busy ? "Memproses…" : stage === "mfa" ? "Verifikasi & masuk" : stage === "verify" ? "Verifikasi & masuk" : stage === "forgot" ? "Kirim kode" : stage === "reset" ? "Simpan kata sandi" : isSignup ? "Daftar" : "Masuk"}</button>
                 {stage === "verify" && <button className={styles.textButton} type="button" disabled={busy} onClick={resendCode}>Kirim ulang kode</button>}
-                {stage !== "form" && <button className={styles.textButton} type="button" onClick={() => { setStage("form"); setError(""); setNotice(""); }}><ArrowLeft size={16} /> Kembali</button>}
+                {stage === "mfa" && <p className={styles.securityNote}>Kunci sementara login ini hanya berlaku untuk menyelesaikan verifikasi.</p>}
+                {stage !== "form" && <button className={styles.textButton} type="button" disabled={busy} onClick={() => { const leavingMfa = stage === "mfa"; setStage("form"); setError(""); setNotice(""); if (leavingMfa) { setMfaCode(""); setMfaPreauthToken(""); setMfaRecoveryMode(false); } }}><ArrowLeft size={16} /> {stage === "mfa" ? "Batal dan kembali ke login" : "Kembali"}</button>}
                 {notice && <p className={styles.notice} role="status">{notice}</p>}
                 {error && <p className={styles.notice} role="alert">{error}</p>}
               </form>
