@@ -24,6 +24,7 @@ export interface ScanPrediction {
 /** Domain record mirrored from the `scans` table. */
 export interface ScanRecord {
   id: string;
+  mediaId?: string;
   status: ScanStatus;
   outcome: ScanOutcome | null;
   categoryId: CategoryId | null;
@@ -37,6 +38,7 @@ export interface ScanRecord {
 /** Contract `Scan` shape (OpenAPI). */
 export interface ScanView {
   id: string;
+  mediaId?: string;
   status: ScanStatus;
   outcome: ScanOutcome | null;
   categoryId: CategoryId | null;
@@ -50,6 +52,7 @@ export interface ScanView {
 export function toScanView(record: ScanRecord): ScanView {
   return {
     id: record.id,
+    ...(record.mediaId ? { mediaId: record.mediaId } : {}),
     status: record.status,
     outcome: record.outcome,
     categoryId: record.categoryId,

@@ -38,6 +38,7 @@ import DashboardViews from "./dashboard-views";
 import AdminPanel from "./admin-panel";
 import BrandLogo from "./brand-logo";
 import LoadingScreen from "./loading-screen";
+import MediaThumbnail from "./media-thumbnail";
 import SapaPet, { type SapaDashboardTab } from "./sapa-pet";
 import type { ReportSummary } from "./report-wizard";
 import { saveSapaAccountPreference } from "./sapa-client";
@@ -242,7 +243,7 @@ export default function Dashboard() {
           </div>}
         </div>
         <div className={styles.headerTools}>
-          <div className={styles.popoverAnchor}><button className={styles.profileButton} type="button" onClick={() => setProfileOpen(value => !value)} aria-expanded={profileOpen}><span className={styles.avatar}><UserRound size={21} /></span><span>{displayName}</span><ChevronDown size={18} /></button>{profileOpen && <div className={styles.popover}><strong>Akun SAP</strong><p>{user?.email}</p><button className={styles.popoverAction} type="button" onClick={() => openTab("settings")}>Pengaturan</button><button className={styles.popoverAction} type="button" onClick={() => void signOut()}>Keluar</button></div>}</div>
+          <div className={styles.popoverAnchor}><button className={styles.profileButton} type="button" onClick={() => setProfileOpen(value => !value)} aria-expanded={profileOpen} aria-label={`Buka menu akun ${displayName}`}><span className={styles.avatar}>{user?.avatarMediaId ? <MediaThumbnail mediaId={user.avatarMediaId} alt={`Foto profil ${displayName}`} className={styles.headerAvatarPhoto} fallback={<UserRound size={21} aria-hidden="true" />} /> : <UserRound size={21} aria-hidden="true" />}</span><span>{displayName}</span><ChevronDown size={18} /></button>{profileOpen && <div className={styles.popover}><strong>Akun SAP</strong><p>{user?.email}</p><button className={styles.popoverAction} type="button" onClick={() => openTab("settings")}>Pengaturan</button><button className={styles.popoverAction} type="button" onClick={() => void signOut()}>Keluar</button></div>}</div>
         </div>
       </header>
 

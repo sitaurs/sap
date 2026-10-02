@@ -1,0 +1,7 @@
+.wrap{display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0}
+.frame{position:relative;display:grid;place-items:center;width:100%;aspect-ratio:1;min-width:0;overflow:hidden;border-radius:inherit;background:#edf5f1;color:#528372}
+.frame img{object-fit:cover}
+.wrap small{font-size:10px;color:#71869f;line-height:1.3;white-space:nowrap}
+.spinner{animation:rotate 1.2s linear infinite}
+@keyframes rotate{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spinner{animation:none}}
