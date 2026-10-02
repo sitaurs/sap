@@ -1,0 +1,1321 @@
+{
+  "version": 1,
+  "created_at": "2026-10-02",
+  "status": "Generated pose artwork; playback and registration require integration preview.",
+  "tool": "Built-in image_gen.imagegen",
+  "grid": {
+    "columns": 4,
+    "rows": 2,
+    "frame_count_per_sheet": 8,
+    "order": "row-major"
+  },
+  "timing_status": "Proposed durations, not measured source FPS or completed playback.",
+  "registration": {
+    "target_anchor_fraction": {
+      "x": 0.5,
+      "y": 0.95
+    },
+    "method": "Approximate foot anchor from opaque green pixels in the lower third of each cell.",
+    "notes": [
+      "Use normalized source rectangles or fractional pixel coordinates.",
+      "Offsets are measured suggestions; inspect rendered movement at actual display size.",
+      "Success intentionally retains a vertical flight lift.",
+      "Do not center each silhouette independently."
+    ]
+  },
+  "master": {
+    "file": "sapa-master.png",
+    "width": 1254,
+    "height": 1254,
+    "mode": "RGBA",
+    "has_alpha": true,
+    "fully_transparent_fraction": 0.6451,
+    "sha256": "be22375e46ef6cea86fa5444ddfae7e8f35fceeae543c7cdd1ea770b3f9b6de2"
+  },
+  "states": {
+    "idle": {
+      "file": "sapa-idle-blink-sheet.png",
+      "width": 1774,
+      "height": 887,
+      "mode": "RGBA",
+      "has_alpha": true,
+      "fully_transparent_fraction": 0.554717,
+      "sha256": "ff60921ee896570ea71eb9282ae6f6707e7ec211e2419df529054a2023f8060a",
+      "loop": true,
+      "trigger": "No active interaction or pending request.",
+      "cycle_duration_ms": 8000,
+      "frames": [
+        {
+          "index": 0,
+          "duration_ms": 4000,
+          "source_rect_pixels": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 207.0,
+            "y": 431
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 14.75,
+            "y": -9.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 1,
+          "duration_ms": 220,
+          "source_rect_pixels": {
+            "x": 443.5,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.25,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 204.0,
+            "y": 431
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 17.25,
+            "y": -9.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 2,
+          "duration_ms": 50,
+          "source_rect_pixels": {
+            "x": 887.0,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.5,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 208.0,
+            "y": 431
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 13.75,
+            "y": -9.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 3,
+          "duration_ms": 70,
+          "source_rect_pixels": {
+            "x": 1330.5,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.75,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 208.0,
+            "y": 432
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 14.25,
+            "y": -10.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 4,
+          "duration_ms": 50,
+          "source_rect_pixels": {
+            "x": 0.0,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.0,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 207.0,
+            "y": 429
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 14.75,
+            "y": -8.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 5,
+          "duration_ms": 220,
+          "source_rect_pixels": {
+            "x": 443.5,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.25,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 206.0,
+            "y": 429
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 15.25,
+            "y": -8.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 6,
+          "duration_ms": 1600,
+          "source_rect_pixels": {
+            "x": 887.0,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.5,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 208.0,
+            "y": 430
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 13.75,
+            "y": -9.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 7,
+          "duration_ms": 1790,
+          "source_rect_pixels": {
+            "x": 1330.5,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.75,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 208.0,
+            "y": 430
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 14.25,
+            "y": -9.175
+          },
+          "intentional_flight_lift_fraction": 0
+        }
+      ]
+    },
+    "wave": {
+      "file": "sapa-wave-sheet.png",
+      "width": 1774,
+      "height": 887,
+      "mode": "RGBA",
+      "has_alpha": true,
+      "fully_transparent_fraction": 0.549472,
+      "sha256": "7e420ec557bed36a4e82748ce6d289a959d5d936770b69f87e5b38dddbbc3e18",
+      "loop": false,
+      "trigger": "Opening the SAPA chat.",
+      "cycle_duration_ms": 800,
+      "frames": [
+        {
+          "index": 0,
+          "duration_ms": 100,
+          "source_rect_pixels": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 232.0,
+            "y": 439
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -10.25,
+            "y": -17.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 1,
+          "duration_ms": 90,
+          "source_rect_pixels": {
+            "x": 443.5,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.25,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 231.0,
+            "y": 439
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -9.75,
+            "y": -17.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 2,
+          "duration_ms": 90,
+          "source_rect_pixels": {
+            "x": 887.0,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.5,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 210.5,
+            "y": 439
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 11.25,
+            "y": -17.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 3,
+          "duration_ms": 100,
+          "source_rect_pixels": {
+            "x": 1330.5,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.75,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 233.0,
+            "y": 439
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -10.75,
+            "y": -17.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 4,
+          "duration_ms": 100,
+          "source_rect_pixels": {
+            "x": 0.0,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.0,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 208.0,
+            "y": 439
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 13.75,
+            "y": -18.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 5,
+          "duration_ms": 100,
+          "source_rect_pixels": {
+            "x": 443.5,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.25,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 232.0,
+            "y": 439
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -10.75,
+            "y": -18.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 6,
+          "duration_ms": 90,
+          "source_rect_pixels": {
+            "x": 887.0,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.5,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 208.0,
+            "y": 439
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 13.75,
+            "y": -18.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 7,
+          "duration_ms": 130,
+          "source_rect_pixels": {
+            "x": 1330.5,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.75,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 233.0,
+            "y": 439
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -10.75,
+            "y": -18.175
+          },
+          "intentional_flight_lift_fraction": 0
+        }
+      ]
+    },
+    "curious": {
+      "file": "sapa-curious-sheet.png",
+      "width": 1774,
+      "height": 887,
+      "mode": "RGBA",
+      "has_alpha": true,
+      "fully_transparent_fraction": 0.52096,
+      "sha256": "7099fc70eeaea115cb136223b34740f7d82e5a1c433b62654e701d53b9428fb0",
+      "loop": false,
+      "trigger": "Pointer hover or keyboard focus, with a cooldown.",
+      "cycle_duration_ms": 800,
+      "frames": [
+        {
+          "index": 0,
+          "duration_ms": 100,
+          "source_rect_pixels": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 202.0,
+            "y": 430
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 19.75,
+            "y": -8.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 1,
+          "duration_ms": 90,
+          "source_rect_pixels": {
+            "x": 443.5,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.25,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 203.0,
+            "y": 430
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 18.25,
+            "y": -8.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 2,
+          "duration_ms": 90,
+          "source_rect_pixels": {
+            "x": 887.0,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.5,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 232.5,
+            "y": 430
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -10.75,
+            "y": -8.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 3,
+          "duration_ms": 100,
+          "source_rect_pixels": {
+            "x": 1330.5,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.75,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 241.0,
+            "y": 430
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -18.75,
+            "y": -8.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 4,
+          "duration_ms": 90,
+          "source_rect_pixels": {
+            "x": 0.0,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.0,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 226.0,
+            "y": 429
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -4.25,
+            "y": -8.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 5,
+          "duration_ms": 90,
+          "source_rect_pixels": {
+            "x": 443.5,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.25,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 204.0,
+            "y": 429
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 17.25,
+            "y": -8.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 6,
+          "duration_ms": 90,
+          "source_rect_pixels": {
+            "x": 887.0,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.5,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 233.0,
+            "y": 429
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -11.25,
+            "y": -8.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 7,
+          "duration_ms": 150,
+          "source_rect_pixels": {
+            "x": 1330.5,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.75,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 215.0,
+            "y": 429
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 7.25,
+            "y": -8.175
+          },
+          "intentional_flight_lift_fraction": 0
+        }
+      ]
+    },
+    "thinking": {
+      "file": "sapa-thinking-sheet.png",
+      "width": 1774,
+      "height": 887,
+      "mode": "RGBA",
+      "has_alpha": true,
+      "fully_transparent_fraction": 0.541675,
+      "sha256": "02d7d5109e7798b866f870a9e96da493b3df9075bdf085ea1ebe303fd08005dd",
+      "loop": true,
+      "trigger": "A real AI request remains pending.",
+      "cycle_duration_ms": 1600,
+      "frames": [
+        {
+          "index": 0,
+          "duration_ms": 240,
+          "source_rect_pixels": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 255.0,
+            "y": 432
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -33.25,
+            "y": -10.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 1,
+          "duration_ms": 180,
+          "source_rect_pixels": {
+            "x": 443.5,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.25,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 231.0,
+            "y": 434
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -9.75,
+            "y": -12.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 2,
+          "duration_ms": 160,
+          "source_rect_pixels": {
+            "x": 887.0,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.5,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 209.0,
+            "y": 433
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 12.75,
+            "y": -11.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 3,
+          "duration_ms": 180,
+          "source_rect_pixels": {
+            "x": 1330.5,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.75,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 194.0,
+            "y": 434
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 28.25,
+            "y": -12.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 4,
+          "duration_ms": 120,
+          "source_rect_pixels": {
+            "x": 0.0,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.0,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 257.0,
+            "y": 426
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -35.25,
+            "y": -5.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 5,
+          "duration_ms": 240,
+          "source_rect_pixels": {
+            "x": 443.5,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.25,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 231.0,
+            "y": 426
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -9.75,
+            "y": -5.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 6,
+          "duration_ms": 240,
+          "source_rect_pixels": {
+            "x": 887.0,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.5,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 208.0,
+            "y": 426
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 13.75,
+            "y": -5.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 7,
+          "duration_ms": 240,
+          "source_rect_pixels": {
+            "x": 1330.5,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.75,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 197.0,
+            "y": 426
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 25.25,
+            "y": -5.175
+          },
+          "intentional_flight_lift_fraction": 0
+        }
+      ]
+    },
+    "success": {
+      "file": "sapa-success-jump-sheet.png",
+      "width": 1774,
+      "height": 887,
+      "mode": "RGBA",
+      "has_alpha": true,
+      "fully_transparent_fraction": 0.544041,
+      "sha256": "7a6683053c0a0ce614996c49adc4ad9336172ce175b5402d8bd82a380aca2d15",
+      "loop": false,
+      "trigger": "A real operation returns success.",
+      "cycle_duration_ms": 640,
+      "frames": [
+        {
+          "index": 0,
+          "duration_ms": 90,
+          "source_rect_pixels": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 208.5,
+            "y": 437
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 13.25,
+            "y": -15.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 1,
+          "duration_ms": 70,
+          "source_rect_pixels": {
+            "x": 443.5,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.25,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 224.5,
+            "y": 437
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -3.25,
+            "y": -15.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 2,
+          "duration_ms": 60,
+          "source_rect_pixels": {
+            "x": 887.0,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.5,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 224.0,
+            "y": 398
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -2.25,
+            "y": 1.15
+          },
+          "intentional_flight_lift_fraction": 0.05
+        },
+        {
+          "index": 3,
+          "duration_ms": 90,
+          "source_rect_pixels": {
+            "x": 1330.5,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.75,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 236.0,
+            "y": 386
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -13.75,
+            "y": -9.025
+          },
+          "intentional_flight_lift_fraction": 0.1
+        },
+        {
+          "index": 4,
+          "duration_ms": 60,
+          "source_rect_pixels": {
+            "x": 0.0,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.0,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 243.0,
+            "y": 388
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -21.25,
+            "y": 10.65
+          },
+          "intentional_flight_lift_fraction": 0.05
+        },
+        {
+          "index": 5,
+          "duration_ms": 80,
+          "source_rect_pixels": {
+            "x": 443.5,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.25,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 239.0,
+            "y": 417
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -17.75,
+            "y": 3.825
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 6,
+          "duration_ms": 80,
+          "source_rect_pixels": {
+            "x": 887.0,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.5,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 229.0,
+            "y": 419
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -7.25,
+            "y": 1.825
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 7,
+          "duration_ms": 110,
+          "source_rect_pixels": {
+            "x": 1330.5,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.75,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 236.5,
+            "y": 419
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -14.25,
+            "y": 1.825
+          },
+          "intentional_flight_lift_fraction": 0
+        }
+      ]
+    },
+    "error": {
+      "file": "sapa-helpful-error-sheet.png",
+      "width": 1774,
+      "height": 887,
+      "mode": "RGBA",
+      "has_alpha": true,
+      "fully_transparent_fraction": 0.5272,
+      "sha256": "2b5770883db27d030c5b1c72bb08e82f02018745d252f91edda4a78cd5df6abd",
+      "loop": false,
+      "trigger": "A request fails; retain the textual error message.",
+      "cycle_duration_ms": 900,
+      "frames": [
+        {
+          "index": 0,
+          "duration_ms": 120,
+          "source_rect_pixels": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 248.0,
+            "y": 431
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -26.25,
+            "y": -9.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 1,
+          "duration_ms": 100,
+          "source_rect_pixels": {
+            "x": 443.5,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.25,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 224.0,
+            "y": 430
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -2.75,
+            "y": -8.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 2,
+          "duration_ms": 110,
+          "source_rect_pixels": {
+            "x": 887.0,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.5,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 237.0,
+            "y": 431
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -15.25,
+            "y": -9.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 3,
+          "duration_ms": 130,
+          "source_rect_pixels": {
+            "x": 1330.5,
+            "y": 0.0,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.75,
+            "y": 0.0,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 239.0,
+            "y": 431
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -16.75,
+            "y": -9.675
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 4,
+          "duration_ms": 90,
+          "source_rect_pixels": {
+            "x": 0.0,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.0,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 224.5,
+            "y": 428
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -2.75,
+            "y": -7.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 5,
+          "duration_ms": 100,
+          "source_rect_pixels": {
+            "x": 443.5,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.25,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 221.0,
+            "y": 428
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": 0.25,
+            "y": -7.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 6,
+          "duration_ms": 100,
+          "source_rect_pixels": {
+            "x": 887.0,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.5,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 229.0,
+            "y": 428
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -7.25,
+            "y": -7.175
+          },
+          "intentional_flight_lift_fraction": 0
+        },
+        {
+          "index": 7,
+          "duration_ms": 150,
+          "source_rect_pixels": {
+            "x": 1330.5,
+            "y": 443.5,
+            "width": 443.5,
+            "height": 443.5
+          },
+          "source_rect_normalized": {
+            "x": 0.75,
+            "y": 0.5,
+            "width": 0.25,
+            "height": 0.5
+          },
+          "estimated_foot_anchor_in_rounded_crop_pixels": {
+            "x": 229.0,
+            "y": 427
+          },
+          "suggested_draw_offset_source_pixels": {
+            "x": -6.75,
+            "y": -6.175
+          },
+          "intentional_flight_lift_fraction": 0
+        }
+      ]
+    }
+  }
+}

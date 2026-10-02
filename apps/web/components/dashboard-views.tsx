@@ -20,6 +20,7 @@ import ScanHistoryView from "./scan-history-view";
 import MediaThumbnail from "./media-thumbnail";
 import { createBackendScan, waitForBackendScan, type ScanResponse } from "./scan-client";
 import type { ScanOperation } from "./scan-client";
+import type { SapaActivityPhase } from "./sapa-motion-data";
 import type { SapAchievement, SapCategory, SapReport, SapScan, SapStats, SapUser } from "../lib/api/client";
 
 const CameraCapture = dynamic(() => import("./camera-capture"), { ssr: false });
@@ -36,6 +37,7 @@ type Props = {
   displayName: string;
   onNavigate: (tab: Tab) => void;
   onScanFinished: () => void;
+  onScanActivity: (phase: SapaActivityPhase) => void;
   onOpenReport: () => void;
   reportComposerRequested: boolean;
   onReportSubmitted: (summary: ReportSummary) => void;
@@ -69,7 +71,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
 }
 
-function ScanView({ onScanFinished, onOpenReport, onNavigate, categories }: Pick<Props, "onScanFinished" | "onOpenReport" | "onNavigate" | "categories">) {
+function ScanView({ onScanFinished, onScanActivity, onOpenReport, onNavigate, categories }: Pick<Props, "onScanFinished" | "onScanActivity" | "onOpenReport" | "onNavigate" | "categories">) {
   const [cameraOpen, setCameraOpen] = useState(false);
   const uploadRef = useRef<HTMLInputElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
@@ -86,11 +88,15 @@ function ScanView({ onScanFinished, onOpenReport, onNavigate, categories }: Pick
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
-  useEffect(() => () => controllerRef.current?.abort(), []);
+  useEffect(() => () => {
+    controllerRef.current?.abort();
+    onScanActivity("idle");
+  }, [onScanActivity]);
 
   function selectFile(next: File | null) {
     if (!next) return;
     controllerRef.current?.abort();
+    onScanActivity("idle");
     setBusy(false);
     setResult(null);
     operationRef.current = null;
@@ -109,15 +115,24 @@ function ScanView({ onScanFinished, onOpenReport, onNavigate, categories }: Pick
     const controller = new AbortController();
     controllerRef.current = controller;
     setBusy(true);
+    onScanActivity("thinking");
     setScanError("");
     try {
       const operation = operationRef.current || { file, idempotencyKey: crypto.randomUUID() };
       operationRef.current = operation;
       const created = await createBackendScan(operation, controller.signal);
       const completed = await waitForBackendScan(created, controller.signal);
-      if (!controller.signal.aborted) { setResult(completed); onScanFinished(); }
+      if (!controller.signal.aborted) {
+        setResult(completed);
+        // A successful HTTP response may still contain a queued or failed scan.
+        onScanActivity(completed.status === "succeeded" ? "success" : completed.status === "failed" ? "error" : "idle");
+        onScanFinished();
+      }
     } catch (cause) {
-      if (!controller.signal.aborted) setScanError(cause instanceof Error ? cause.message : "Scan belum berhasil. Coba lagi.");
+      if (!controller.signal.aborted) {
+        setScanError(cause instanceof Error ? cause.message : "Scan belum berhasil. Coba lagi.");
+        onScanActivity("error");
+      }
     } finally {
       if (!controller.signal.aborted) setBusy(false);
     }
@@ -235,7 +250,7 @@ function HelpView({ onNavigate }: Pick<Props, "onNavigate">) {
 export default function DashboardViews(props: Props) {
   const { tab } = props;
   return <div className={`${styles.subPage} ${tab === "settings" || tab === "history" ? "" : styles.referenceView}`}>
-    {tab === "scan" && <ScanView onScanFinished={props.onScanFinished} onOpenReport={props.onOpenReport} onNavigate={props.onNavigate} categories={props.categories} />}
+    {tab === "scan" && <ScanView onScanFinished={props.onScanFinished} onScanActivity={props.onScanActivity} onOpenReport={props.onOpenReport} onNavigate={props.onNavigate} categories={props.categories} />}
     {tab === "reports" && <ReportsView reports={props.reports} categories={props.categories} onReportSubmitted={props.onReportSubmitted} onReportsChanged={props.onReportsChanged} onReportWizardChange={props.onReportWizardChange} reportComposerRequested={props.reportComposerRequested} />}
     {tab === "map" && <MapView categories={props.categories} />}
     {tab === "history" && <ScanHistoryView scans={props.scans} categories={props.categories} onNavigate={props.onNavigate} onOpenReport={props.onOpenReport} />}

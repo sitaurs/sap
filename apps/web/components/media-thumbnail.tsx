@@ -3,12 +3,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { Camera, ImageOff, LoaderCircle } from "lucide-react";
-import { mediaUrl } from "../lib/api/client";
+import { mediaUrl, type SapMediaUrl } from "../lib/api/client";
 import styles from "./media-thumbnail.module.css";
 
 /** Private media stays behind the existing ownership-checked signed-URL endpoint. */
-export default function MediaThumbnail({ mediaId, alt, caption = false, className = "", fallback }: {
+export default function MediaThumbnail({ mediaId, alt, caption = false, className = "", fallback, loadUrl = mediaUrl }: {
   mediaId?: string | null; alt: string; caption?: boolean; className?: string; fallback?: ReactNode;
+  loadUrl?: (id: string, signal?: AbortSignal) => Promise<SapMediaUrl>;
 }) {
   const [photo, setPhoto] = useState<{ id: string; url: string } | null>(null);
   const [failedId, setFailedId] = useState<string | null>(null);
@@ -19,7 +20,7 @@ export default function MediaThumbnail({ mediaId, alt, caption = false, classNam
     setFailedId(null);
     async function load() {
       try {
-        const signed = await mediaUrl(mediaId!, controller.signal);
+        const signed = await loadUrl(mediaId!, controller.signal);
         if (controller.signal.aborted) return;
         setPhoto({ id: mediaId!, url: signed.url });
         setFailedId(null);
@@ -28,7 +29,7 @@ export default function MediaThumbnail({ mediaId, alt, caption = false, classNam
     }
     void load();
     return () => { controller.abort(); if (timer) clearTimeout(timer); };
-  }, [mediaId]);
+  }, [mediaId, loadUrl]);
   const available = !!mediaId && photo?.id === mediaId && failedId !== mediaId;
   const failed = !mediaId || failedId === mediaId;
   const label = available ? "Foto unggahan" : failed ? "Foto tidak tersedia" : "Memuat foto…";

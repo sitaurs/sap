@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, EyeOff, LockKeyhole, Mail, UserRound } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, LockKeyhole, Mail, RotateCw, UserRound } from "lucide-react";
 import { ApiError, completeMfaLogin, forgotPassword, isMfaLoginRequired, login, register, resendVerification, resetPassword, verifyEmail } from "../lib/api/client";
 import styles from "./auth-page.module.css";
 import BrandLogo from "./brand-logo";
@@ -32,6 +32,7 @@ export default function AuthPage({ mode }: { mode: Mode }) {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [resendingCode, setResendingCode] = useState(false);
   const [code, setCode] = useState("");
   const [challengeId, setChallengeId] = useState("");
   const [mfaPreauthToken, setMfaPreauthToken] = useState("");
@@ -100,10 +101,10 @@ export default function AuthPage({ mode }: { mode: Mode }) {
 
   async function resendCode() {
     if (busy) return;
-    setBusy(true); setError("");
-    try { const challenge = stage === "reset" ? await forgotPassword(email.trim()) : await resendVerification(email.trim()); setChallengeId(challenge.challengeId); setNotice("Jika akun memenuhi syarat, kode baru telah dikirim."); }
+    setBusy(true); setResendingCode(true); setError(""); setNotice("");
+    try { const challenge = stage === "reset" ? await forgotPassword(email.trim()) : await resendVerification(email.trim()); setChallengeId(challenge.challengeId); setCode(""); setNotice("Jika akun memenuhi syarat, kode baru telah dikirim."); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Kode belum dapat dikirim."); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setResendingCode(false); }
   }
 
   const title = stage === "mfa" ? "Verifikasi masuk" : stage === "verify" ? "Verifikasi email" : stage === "forgot" ? "Lupa kata sandi?" : stage === "reset" ? "Atur kata sandi baru" : isSignup ? "Buat akun SAP" : "Selamat datang kembali";
@@ -148,10 +149,18 @@ export default function AuthPage({ mode }: { mode: Mode }) {
 
                 {stage === "form" && !isSignup && <div className={styles.options}><label className={styles.remember}><input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} /><span className={styles.customCheck} aria-hidden="true" />Ingat email saya</label><button type="button" className={styles.textButton} onClick={() => { setStage("forgot"); setError(""); setNotice(""); }}>Lupa kata sandi?</button></div>}
 
-                <button className={styles.submit} type="submit" disabled={busy} aria-busy={busy}>{busy ? "Memproses…" : stage === "mfa" ? "Verifikasi & masuk" : stage === "verify" ? "Verifikasi & masuk" : stage === "forgot" ? "Kirim kode" : stage === "reset" ? "Simpan kata sandi" : isSignup ? "Daftar" : "Masuk"}</button>
-                {stage === "verify" && <button className={styles.textButton} type="button" disabled={busy} onClick={resendCode}>Kirim ulang kode</button>}
+                <button className={styles.submit} type="submit" disabled={busy} aria-busy={busy && !resendingCode}>{busy && !resendingCode ? "Memproses…" : stage === "mfa" ? "Verifikasi & masuk" : stage === "verify" ? "Verifikasi & masuk" : stage === "forgot" ? "Kirim kode" : stage === "reset" ? "Simpan kata sandi" : isSignup ? "Daftar" : "Masuk"}</button>
                 {stage === "mfa" && <p className={styles.securityNote}>Kunci sementara login ini hanya berlaku untuk menyelesaikan verifikasi.</p>}
-                {stage !== "form" && <button className={styles.textButton} type="button" disabled={busy} onClick={() => { const leavingMfa = stage === "mfa"; setStage("form"); setError(""); setNotice(""); if (leavingMfa) { setMfaCode(""); setMfaPreauthToken(""); setMfaRecoveryMode(false); } }}><ArrowLeft size={16} /> {stage === "mfa" ? "Batal dan kembali ke login" : "Kembali"}</button>}
+                {stage !== "form" && <div className={styles.secondaryActions}>
+                  <button className={styles.backAction} type="button" disabled={busy} onClick={() => { const leavingMfa = stage === "mfa"; setStage("form"); setCode(""); setError(""); setNotice(""); if (leavingMfa) { setMfaCode(""); setMfaPreauthToken(""); setMfaRecoveryMode(false); } }}>
+                    <ArrowLeft size={20} aria-hidden="true" />
+                    <span>{stage === "mfa" ? "Batal dan kembali ke login" : "Kembali"}</span>
+                  </button>
+                  {stage === "verify" && <button className={styles.resendAction} type="button" disabled={busy} aria-busy={resendingCode} onClick={resendCode}>
+                    <RotateCw size={21} className={resendingCode ? styles.resendIconBusy : undefined} aria-hidden="true" />
+                    <span>{resendingCode ? "Mengirim…" : "Kirim ulang kode"}</span>
+                  </button>}
+                </div>}
                 {notice && <p className={styles.notice} role="status">{notice}</p>}
                 {error && <p className={styles.notice} role="alert">{error}</p>}
               </form>
