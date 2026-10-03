@@ -18,8 +18,8 @@ export async function saveSapaAccountPreference(enabled: boolean): Promise<void>
   if (result.sapaEnabled !== enabled) throw new Error("Preferensi SAPA belum tersimpan di akun.");
 }
 
-export async function sendSapaMessage(message: string, pageContext: SapaPageContext, conversationId: string | null): Promise<SapaChatResult> {
-  const result = await apiMutate<SapaChatResult>("POST", "/assistant/chat", { body: { message, pageContext, conversationId } });
+export async function sendSapaMessage(message: string, pageContext: SapaPageContext, conversationId: string | null, signal?: AbortSignal): Promise<SapaChatResult> {
+  const result = await apiMutate<SapaChatResult>("POST", "/assistant/chat", { body: { message, pageContext, conversationId }, signal });
   if (!result.reply?.trim() || !result.conversationId || !Array.isArray(result.suggestedActions) || !Array.isArray(result.citations)) throw new Error("Respons SAPA tidak sesuai kontrak.");
   return result;
 }

@@ -10352,6 +10352,11 @@
             "type": "string",
             "format": "uuid"
           },
+          "mediaId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Uploaded scan photo owned by the authenticated account. Resolve with GET /media/{mediaId}/url; older responses may omit this field."
+          },
           "status": {
             "type": "string",
             "enum": [

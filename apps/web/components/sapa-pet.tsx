@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
 import { ArrowRight, Brain, FilePlus2, Map, Recycle, Search, Send, Sparkles, X } from "lucide-react";
 import { sendSapaMessage, type SapaCitation, type SapaPageContext, type SapaSuggestedAction } from "./sapa-client";
+import SapaSprite from "./sapa-sprite";
+import type { SapaActivity, SapaMotion } from "./sapa-motion-data";
 import styles from "./sapa-pet.module.css";
 
 export type SapaDashboardTab = "dashboard" | "scan" | "reports" | "map" | "history" | "achievements" | "settings" | "help";
@@ -34,19 +36,20 @@ type ChatMessage = { id: string; role: "user" | "assistant"; content: string; ci
 type Position = { x: number; y: number };
 
 const edgeGap = 12;
-const launcherSize = (width: number) => width <= 600 ? 67 : 76;
+const launcherSize = (width: number) => width <= 600 ? { width: 90, height: 106 } : { width: 112, height: 130 };
 const clampPosition = (position: Position, width: number, height: number): Position => ({
-  x: Math.min(Math.max(position.x, edgeGap), Math.max(edgeGap, width - launcherSize(width) - edgeGap)),
-  y: Math.min(Math.max(position.y, edgeGap), Math.max(edgeGap, height - launcherSize(width) - edgeGap)),
+  x: Math.min(Math.max(position.x, edgeGap), Math.max(edgeGap, width - launcherSize(width).width - edgeGap)),
+  y: Math.min(Math.max(position.y, edgeGap), Math.max(edgeGap, height - launcherSize(width).height - edgeGap)),
 });
 
-export default function SapaPet({ tab, backendLinked, onNavigate }: {
+export default function SapaPet({ tab, backendLinked, activity, onNavigate }: {
   tab: SapaDashboardTab;
   backendLinked: boolean;
+  activity: SapaActivity;
   onNavigate: (tab: SapaDashboardTab) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [activating, setActivating] = useState(false);
+  const [reaction, setReaction] = useState<{ motion: SapaMotion; id: number } | null>(null);
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -60,11 +63,26 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
   const launchRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
-  const animationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reactionSequence = useRef(0);
+  const lastAttention = useRef(0);
+  const suppressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chatController = useRef<AbortController | null>(null);
   const dragStart = useRef<{ pointerId: number; pointerX: number; pointerY: number; x: number; y: number; moved: boolean } | null>(null);
   const latestPosition = useRef<Position | null>(null);
   const suppressClick = useRef(false);
   const dragCleanup = useRef<(() => void) | null>(null);
+
+  const react = useCallback((motion: SapaMotion) => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    setReaction({ motion, id: ++reactionSequence.current });
+  }, []);
+  const finishReaction = useCallback((id: number) => {
+    setReaction(current => current?.id === id ? null : current);
+  }, []);
+  useEffect(() => {
+    if (activity.phase === "success" || activity.phase === "error") react(activity.phase);
+    else if (activity.phase === "thinking") setReaction(null);
+  }, [activity.id, activity.phase, react]);
 
   useEffect(() => {
     const updateViewport = () => {
@@ -84,7 +102,11 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
     return () => window.removeEventListener("resize", updateViewport);
   }, []);
 
-  useEffect(() => () => { if (animationTimer.current) clearTimeout(animationTimer.current); dragCleanup.current?.(); }, []);
+  useEffect(() => () => {
+    if (suppressTimer.current) clearTimeout(suppressTimer.current);
+    dragCleanup.current?.();
+    chatController.current?.abort();
+  }, []);
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
   useEffect(() => { if (open) logRef.current?.scrollTo({ top: logRef.current.scrollHeight }); }, [messages, open, sending, phase]);
   // Advance the progress labels forward while a reply is in flight, then hold on
@@ -111,10 +133,16 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
   function activate() {
     if (suppressClick.current) { suppressClick.current = false; return; }
     if (open) { closePanel(); return; }
-    if (activating) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setOpen(true); return; }
-    setActivating(true);
-    animationTimer.current = setTimeout(() => { setActivating(false); setOpen(true); }, 410);
+    setOpen(true);
+    react("wave");
+  }
+
+  function attention() {
+    if (open || dragging || sending || reaction || activity.phase === "thinking") return;
+    const now = Date.now();
+    if (now - lastAttention.current < 5000) return;
+    lastAttention.current = now;
+    react("curious");
   }
 
   // Drag is tracked on `window`, not the button, so movement keeps flowing even
@@ -122,7 +150,10 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
   // relying on setPointerCapture alone let a single press-and-hold stall after a
   // few pixels. Listeners are added on pointer-down and torn down on release.
   function onPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
+    if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+    dragCleanup.current?.();
+    if (suppressTimer.current) clearTimeout(suppressTimer.current);
+    suppressClick.current = false;
     const bounds = event.currentTarget.getBoundingClientRect();
     const pointerId = event.pointerId;
     dragStart.current = { pointerId, pointerX: event.clientX, pointerY: event.clientY, x: bounds.left, y: bounds.top, moved: false };
@@ -149,10 +180,11 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
       dragCleanup.current = null;
       dragStart.current = null;
       setDragging(false);
+      if (e.type === "pointercancel") suppressClick.current = true;
       if (start.moved && latestPosition.current) {
         suppressClick.current = true;
         try { window.localStorage.setItem("sap-pet-position", JSON.stringify(latestPosition.current)); } catch { /* Drag still works for this visit. */ }
-        window.setTimeout(() => { suppressClick.current = false; }, 120);
+        suppressTimer.current = setTimeout(() => { suppressClick.current = false; }, 120);
       }
     };
     dragCleanup.current = () => {
@@ -174,22 +206,28 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
     const message = value.trim();
     if (!message || sending) return;
     const id = crypto.randomUUID();
+    const controller = new AbortController();
+    chatController.current = controller;
     setError("");
     setDraft("");
     setSuggestedActions([]);
     setMessages(current => [...current, { id, role: "user", content: message }]);
     setSending(true);
     try {
-      const result = await sendSapaMessage(message, contextByTab[tab], conversationId);
+      const result = await sendSapaMessage(message, contextByTab[tab], conversationId, controller.signal);
+      if (controller.signal.aborted) return;
       setConversationId(result.conversationId);
       setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: result.reply, citations: result.citations }]);
       setSuggestedActions(result.suggestedActions);
+      react("success");
     } catch (cause) {
+      if (controller.signal.aborted) return;
       setMessages(current => current.filter(item => item.id !== id));
       setDraft(message);
       setError(cause instanceof Error ? cause.message : "Pesan belum dapat dikirim.");
+      react("error");
     } finally {
-      setSending(false);
+      if (!controller.signal.aborted) setSending(false);
     }
   }
 
@@ -199,14 +237,16 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
   }
 
   const size = launcherSize(viewport.width || 1200);
-  const petX = position?.x ?? viewport.width - size - (viewport.width <= 600 ? 13 : 24);
-  const petY = position?.y ?? viewport.height - size - (viewport.width <= 600 ? 13 : 32);
+  const petX = position?.x ?? viewport.width - size.width - (viewport.width <= 600 ? 13 : 24);
+  const petY = position?.y ?? viewport.height - size.height - (viewport.width <= 600 ? 13 : 24);
   const panelWidth = Math.min(viewport.width <= 600 ? 354 : 366, Math.max(0, viewport.width - (viewport.width <= 600 ? 26 : 30)));
-  const panelLeft = Math.min(Math.max(petX + size - panelWidth, edgeGap), Math.max(edgeGap, viewport.width - panelWidth - edgeGap));
+  const panelLeft = Math.min(Math.max(petX + size.width - panelWidth, edgeGap), Math.max(edgeGap, viewport.width - panelWidth - edgeGap));
   const spaceAbove = petY - 13 - edgeGap;
-  const spaceBelow = viewport.height - petY - size - 13 - edgeGap;
+  const spaceBelow = viewport.height - petY - size.height - 13 - edgeGap;
   const panelBelow = spaceBelow > spaceAbove;
   const panelMaxHeight = Math.max(0, Math.min(viewport.width <= 600 ? 460 : 514, panelBelow ? spaceBelow : spaceAbove));
+  const working = sending || activity.phase === "thinking";
+  const motion = dragging ? "idle" : working ? "thinking" : reaction?.motion ?? "idle";
 
   return <div className={styles.root} style={position ? { left: position.x, top: position.y, right: "auto", bottom: "auto" } : undefined}>
     {open && <section className={`${styles.panel} ${panelBelow ? styles.panelBelow : ""}`} style={{ left: panelLeft - petX, right: "auto", maxHeight: panelMaxHeight }} id="sapa-chat-panel" role="dialog" aria-modal="false" aria-labelledby="sapa-chat-title">
@@ -223,7 +263,7 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
             <p>Hai! Aku SAPA.<br /><strong>Mau bantu apa hari ini?</strong></p>
           </div>
           <div className={styles.quickActions} aria-label="Bantuan cepat SAPA">
-            <button type="button" onClick={() => void sendMessage("Bagaimana cara pilah sampah?")}><Recycle size={18} /><span>Cara pilah sampah</span><ArrowRight size={16} /></button>
+            <button type="button" disabled={sending} onClick={() => void sendMessage("Bagaimana cara pilah sampah?")}><Recycle size={18} /><span>Cara pilah sampah</span><ArrowRight size={16} /></button>
             <button type="button" onClick={() => navigate("reports")}><FilePlus2 size={18} /><span>Buat laporan</span><ArrowRight size={16} /></button>
             <button type="button" onClick={() => navigate("map")}><Map size={18} /><span>Lihat peta area</span><ArrowRight size={16} /></button>
           </div>
@@ -269,8 +309,9 @@ export default function SapaPet({ tab, backendLinked, onNavigate }: {
       </div>
     </section>}
 
-    <button ref={launchRef} className={`${styles.launcher} ${!open && !activating && !dragging ? styles.idle : ""} ${activating ? styles.pressed : ""} ${dragging ? styles.dragging : ""}`} type="button" onPointerDown={onPointerDown} onClick={activate} onDragStart={event => event.preventDefault()} aria-label={open ? "Tutup chat SAPA" : "Buka chat SAPA"} aria-expanded={open} aria-controls="sapa-chat-panel" title="Seret untuk memindahkan SAPA">
-      <Image src="/images/sapa/SAPA_Chat_Avatar.png" alt="" width={65} height={65} priority draggable={false} />
+    <button ref={launchRef} className={`${styles.launcher} ${dragging ? styles.dragging : ""}`} type="button" onPointerDown={onPointerDown} onPointerEnter={event => { if (event.pointerType === "mouse") attention(); }} onFocus={attention} onClick={activate} onDragStart={event => event.preventDefault()} aria-label={open ? "Tutup chat SAPA" : "Buka chat SAPA"} aria-expanded={open} aria-controls="sapa-chat-panel" title={`${open ? "Tutup" : "Buka"} chat SAPA · Seret untuk memindahkan`}>
+      <span className={styles.character}><SapaSprite motion={motion} playId={reaction?.id ?? 0} paused={dragging} calm={open} onComplete={finishReaction} /></span>
+      <span className={`${styles.petLabel} ${working ? styles.workingLabel : ""}`} aria-hidden="true">{working ? "AI bekerja" : "SAPA"}</span>
     </button>
   </div>;
 }

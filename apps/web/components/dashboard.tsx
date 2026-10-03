@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -15,6 +16,7 @@ import {
   FileText,
   Flame,
   Info,
+  Instagram,
   LayoutDashboard,
   LogOut,
   Map,
@@ -38,14 +40,20 @@ import DashboardViews from "./dashboard-views";
 import AdminPanel from "./admin-panel";
 import BrandLogo from "./brand-logo";
 import LoadingScreen from "./loading-screen";
+import MediaThumbnail from "./media-thumbnail";
 import SapaPet, { type SapaDashboardTab } from "./sapa-pet";
+import type { SapaActivity, SapaActivityPhase } from "./sapa-motion-data";
 import type { ReportSummary } from "./report-wizard";
 import { saveSapaAccountPreference } from "./sapa-client";
 import { ApiError, getAchievements, getMe, getStats, listCategories, listReports, listScans, logout, updateProfile, type SapAchievement, type SapCategory, type SapReport, type SapScan, type SapStats, type SapUser } from "../lib/api/client";
 
-type AdminTab = "admin-moderation" | "admin-settings";
+const InstagramPublication = dynamic(() => import("./instagram/publication-page"), {
+  loading: () => <div role="status" style={{ padding: 32, color: "#647e98" }}>Memuat publikasi Instagram…</div>,
+});
+
+type AdminTab = "admin-moderation" | "admin-settings" | "admin-instagram";
 type Tab = "dashboard" | "scan" | "reports" | "map" | "history" | "achievements" | "settings" | "help" | AdminTab;
-const ADMIN_TABS: AdminTab[] = ["admin-moderation", "admin-settings"];
+const ADMIN_TABS: AdminTab[] = ["admin-moderation", "admin-settings", "admin-instagram"];
 const isAdminTab = (tab: Tab): tab is AdminTab => (ADMIN_TABS as string[]).includes(tab);
 const mainNav: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -58,6 +66,7 @@ const mainNav: { id: Tab; label: string; icon: LucideIcon }[] = [
 const adminNav: { id: AdminTab; label: string; icon: LucideIcon }[] = [
   { id: "admin-moderation", label: "Moderasi laporan", icon: ShieldCheck },
   { id: "admin-settings", label: "Pengaturan scan", icon: Sliders },
+  { id: "admin-instagram", label: "Publikasi Instagram", icon: Instagram },
 ];
 const otherNav: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "settings", label: "Pengaturan", icon: Settings },
@@ -110,8 +119,20 @@ export default function Dashboard() {
   const [toast, setToast] = useState("");
   const [sapaEnabled, setSapaEnabled] = useState(false);
   const [sapaSaving, setSapaSaving] = useState(false);
+  const [sapaActivity, setSapaActivity] = useState<SapaActivity>({ id: 0, phase: "idle" });
   const [reportWizardOpen, setReportWizardOpen] = useState(false);
   const [reportComposerRequested, setReportComposerRequested] = useState(false);
+
+  const setPetActivity = useCallback((phase: SapaActivityPhase) => {
+    setSapaActivity(current => ({ id: current.id + 1, phase }));
+  }, []);
+  useEffect(() => {
+    if (sapaActivity.phase !== "success" && sapaActivity.phase !== "error") return;
+    const timer = setTimeout(() => {
+      setSapaActivity(current => current.id === sapaActivity.id ? { ...current, phase: "idle" } : current);
+    }, 1800);
+    return () => clearTimeout(timer);
+  }, [sapaActivity.id, sapaActivity.phase]);
 
   useEffect(() => {
     const requestedView = new URLSearchParams(window.location.search).get("view") as Tab | null;
@@ -145,12 +166,14 @@ export default function Dashboard() {
   const filteredReports = reports.filter(report => `${categoryName(report.categoryId)} ${report.description} ${report.status}`.toLowerCase().includes(search.toLowerCase()));
 
   function openTab(next: Tab) {
+    if (next !== tab) setPetActivity("idle");
     setTab(next);
     setReportWizardOpen(false);
     setReportComposerRequested(false);
     const url = new URL(window.location.href);
     if (next === "dashboard") url.searchParams.delete("view");
     else url.searchParams.set("view", next);
+    if (next !== "admin-instagram") url.searchParams.delete("publication");
     window.history.replaceState(null, "", url);
     setMobileMenu(false);
     setProfileOpen(false);
@@ -164,6 +187,7 @@ export default function Dashboard() {
   }
 
   function reportSubmitted(_summary: ReportSummary) {
+    setPetActivity("success");
     void refreshData();
     setToast("Laporan berhasil dikirim dan menunggu pemeriksaan admin.");
   }
@@ -242,7 +266,7 @@ export default function Dashboard() {
           </div>}
         </div>
         <div className={styles.headerTools}>
-          <div className={styles.popoverAnchor}><button className={styles.profileButton} type="button" onClick={() => setProfileOpen(value => !value)} aria-expanded={profileOpen}><span className={styles.avatar}><UserRound size={21} /></span><span>{displayName}</span><ChevronDown size={18} /></button>{profileOpen && <div className={styles.popover}><strong>Akun SAP</strong><p>{user?.email}</p><button className={styles.popoverAction} type="button" onClick={() => openTab("settings")}>Pengaturan</button><button className={styles.popoverAction} type="button" onClick={() => void signOut()}>Keluar</button></div>}</div>
+          <div className={styles.popoverAnchor}><button className={styles.profileButton} type="button" onClick={() => setProfileOpen(value => !value)} aria-expanded={profileOpen} aria-label={`Buka menu akun ${displayName}`}><span className={styles.avatar}>{user?.avatarMediaId ? <MediaThumbnail mediaId={user.avatarMediaId} alt={`Foto profil ${displayName}`} className={styles.headerAvatarPhoto} fallback={<UserRound size={21} aria-hidden="true" />} /> : <UserRound size={21} aria-hidden="true" />}</span><span>{displayName}</span><ChevronDown size={18} /></button>{profileOpen && <div className={styles.popover}><strong>Akun SAP</strong><p>{user?.email}</p><button className={styles.popoverAction} type="button" onClick={() => openTab("settings")}>Pengaturan</button><button className={styles.popoverAction} type="button" onClick={() => void signOut()}>Keluar</button></div>}</div>
         </div>
       </header>
 
@@ -266,10 +290,10 @@ export default function Dashboard() {
           </div>
         </>}
 
-        {tab !== "dashboard" && !isAdminTab(tab) && <DashboardViews key={tab} tab={tab} scans={scans} reports={reports} stats={stats} achievements={achievements} categories={categories} email={user?.email || ""} displayName={displayName} avatarMediaId={user?.avatarMediaId ?? null} onNavigate={openTab} onScanFinished={() => void refreshData()} onOpenReport={openReportFromScan} reportComposerRequested={reportComposerRequested} onReportSubmitted={reportSubmitted} onReportsChanged={() => void refreshData()} onReportWizardChange={setReportWizardOpen} onSaveProfile={saveProfile} onAvatarChanged={avatarChanged} onSignOut={signOut} onAccountDeleted={() => { setUser(null); setStats(null); setScans([]); setReports([]); router.replace("/login"); }} sapaEnabled={sapaEnabled} sapaSaving={sapaSaving} onToggleSapa={toggleSapa} />}
+        {tab !== "dashboard" && !isAdminTab(tab) && <DashboardViews key={tab} tab={tab} scans={scans} reports={reports} stats={stats} achievements={achievements} categories={categories} email={user?.email || ""} displayName={displayName} avatarMediaId={user?.avatarMediaId ?? null} onNavigate={openTab} onScanFinished={() => void refreshData()} onScanActivity={setPetActivity} onOpenReport={openReportFromScan} reportComposerRequested={reportComposerRequested} onReportSubmitted={reportSubmitted} onReportsChanged={() => void refreshData()} onReportWizardChange={setReportWizardOpen} onSaveProfile={saveProfile} onAvatarChanged={avatarChanged} onSignOut={signOut} onAccountDeleted={() => { setUser(null); setStats(null); setScans([]); setReports([]); router.replace("/login"); }} sapaEnabled={sapaEnabled} sapaSaving={sapaSaving} onToggleSapa={toggleSapa} />}
 
         {isAdminTab(tab) && (user?.role === "admin"
-          ? <div className={`${styles.subPage} ${styles.referenceView}`}>
+          ? tab === "admin-instagram" ? <InstagramPublication categories={categories} onModeration={() => openTab("admin-moderation")} /> : <div className={`${styles.subPage} ${styles.referenceView}`}>
               <div className={styles.referenceHeading}>
                 <h1>{tab === "admin-settings" ? "Pengaturan scan" : "Moderasi laporan"}</h1>
                 <p>{tab === "admin-settings" ? "Atur strategi deteksi hybrid ML → vision LLM." : "Periksa, verifikasi, dan tindak lanjuti laporan warga."}</p>
@@ -280,7 +304,7 @@ export default function Dashboard() {
 
       </main>
     </div>
-    {sapaEnabled && !reportWizardOpen && <SapaPet tab={isAdminTab(tab) ? "dashboard" : (tab satisfies SapaDashboardTab)} backendLinked onNavigate={openTab} />}
+    {sapaEnabled && !reportWizardOpen && <SapaPet tab={isAdminTab(tab) ? "dashboard" : (tab satisfies SapaDashboardTab)} backendLinked activity={sapaActivity} onNavigate={openTab} />}
     {toast && <div className={styles.toast} role="status"><Sparkles size={18} /><span>{toast}</span><button type="button" onClick={() => setToast("")} aria-label="Tutup pesan"><X size={16} /></button></div>}
   </div>;
 }

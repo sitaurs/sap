@@ -14,7 +14,14 @@ async function proxy(request: Request) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
   }
-  headers.set("origin", incoming.origin);
+  // Next may build request.url from its listening address (e.g. 0.0.0.0).
+  // CSRF must validate the browser's actual Origin, never that internal address.
+  // Do not synthesize an allowed Origin: cross-site requests must still fail.
+  const browserOrigin = request.headers.get("origin");
+  if (browserOrigin) headers.set("origin", browserOrigin);
+  else if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+    return Response.json({ error: { code: "CSRF_INVALID", message: "Asal permintaan tidak tersedia. Muat ulang halaman lalu coba lagi." } }, { status: 403 });
+  }
 
   try {
     const upstream = await fetch(upstreamUrl, {
@@ -39,4 +46,5 @@ async function proxy(request: Request) {
 export const GET = proxy;
 export const POST = proxy;
 export const PATCH = proxy;
+export const PUT = proxy;
 export const DELETE = proxy;

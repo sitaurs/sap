@@ -934,6 +934,11 @@ export interface components {
         Scan: {
             /** Format: uuid */
             id: string;
+            /**
+             * Format: uuid
+             * @description Uploaded scan photo owned by the authenticated account. Resolve with GET /media/{mediaId}/url; older responses may omit this field.
+             */
+            mediaId?: string;
             /** @enum {string} */
             status: "queued" | "processing" | "succeeded" | "failed";
             outcome: ("classified" | "unknown" | "no_waste") | null;

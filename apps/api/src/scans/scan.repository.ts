@@ -5,6 +5,7 @@ import type { CategoryId, ScanOutcome, ScanPrediction, ScanRecord, ScanStatus, S
 
 interface ScanRow {
   id: string;
+  media_id: string;
   status: ScanStatus;
   outcome: ScanOutcome | null;
   category_id: CategoryId | null;
@@ -18,6 +19,7 @@ interface ScanRow {
 function mapScan(row: ScanRow): ScanRecord {
   return {
     id: row.id,
+    mediaId: row.media_id,
     status: row.status,
     outcome: row.outcome,
     categoryId: row.category_id,
@@ -30,7 +32,7 @@ function mapScan(row: ScanRow): ScanRecord {
 }
 
 const COLUMNS =
-  'id, status, outcome, category_id, predictions, error_code, points_awarded, created_at, finished_at';
+  'id, media_id, status, outcome, category_id, predictions, error_code, points_awarded, created_at, finished_at';
 
 @Injectable()
 export class ScanRepository {
