@@ -1,4 +1,4 @@
-import {Injectable} from '@nestjs/common';
+import {Injectable,Logger} from '@nestjs/common';
 import {getConfig} from '@sap/config';
 import {createHash,createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
 import {ExtensionStore,fail,requireAdmin,requireFeature,iso,permission,type Actor,type Executor} from '../extensions/extension.store.js';
@@ -11,6 +11,7 @@ type Row=Record<string,any>;
 @Injectable()
 export class PublicationsService{
  private readonly config=getConfig();
+ private readonly logger=new Logger(PublicationsService.name);
  constructor(private readonly store:ExtensionStore,private readonly objects:ObjectStorageService,private readonly evidence:EvidenceService){}
  private gate(actor:Actor){requireAdmin(actor);requireFeature('instagram');}
  async overview(actor:Actor){
@@ -191,13 +192,15 @@ export class PublicationsService{
  }
  async callback(actor:Actor,sessionId:string,query:Record<string,unknown>):Promise<string>{
   this.gate(actor);
-  const redirect=(connection:'connected'|'failed'|'state-invalid')=>`/dashboard?view=admin-instagram&connection=${connection}`;
+  const redirect=(connection:'connected'|'failed'|'state-invalid',reason?:string)=>{
+   const params=new URLSearchParams({view:'admin-instagram',connection});if(reason)params.set('connectionReason',reason);return `/dashboard?${params.toString()}`;
+  };
   const stateValue=query.state;
   if(typeof stateValue!=='string'||stateValue.length<20||stateValue.length>200)return redirect('state-invalid');
   const state=stateValue,stateHash=createHash('sha256').update(state).digest('hex');
   const [consumed]=await this.store.db`UPDATE instagram_oauth_states SET consumed_at=now() WHERE state_hash=${stateHash} AND session_id=${sessionId} AND user_id=${actor.id} AND consumed_at IS NULL AND expires_at>now() RETURNING state_hash`;
-  if(!consumed)return redirect('state-invalid');if(query.error)return redirect('failed');
-  if(typeof query.code!=='string'||query.code.length<1||query.code.length>4096)return redirect('failed');
+  if(!consumed)return redirect('state-invalid');if(query.error)return redirect('failed','USER_DENIED');
+  if(typeof query.code!=='string'||query.code.length<1||query.code.length>4096)return redirect('failed','META_CODE_MISSING');
   const code=query.code;
   try{
    const connection=await new MetaClient(this.config).connect(code);
@@ -208,7 +211,7 @@ export class PublicationsService{
     await tx`UPDATE instagram_accounts SET status='connected',username=${connection.username},ig_user_id=${connection.igUserId},page_id=${connection.pageId},encrypted_credentials=${encrypted},scopes=${connection.scopes}::text[],token_expires_at=${connection.expiresAt},permissions_checked_at=now(),updated_at=now() WHERE id=${account.id}`;
     await this.store.audit(tx,actor.id,'instagram.account.connected','instagram_account',account.id,{permissionsReady:true});
    });return redirect('connected');
-  }catch(error){if(error instanceof MetaApiError)return redirect('failed');throw error;}
+  }catch(error){if(error instanceof MetaApiError){this.logger.warn(`Instagram account connection failed: ${error.code}`);return redirect('failed',error.code);}throw error;}
  }
  async disconnect(actor:Actor,key:string,raw:unknown){
   this.gate(actor);const b=input.object(raw,['acknowledgePendingRetractions']),ack=input.bool(b.acknowledgePendingRetractions);

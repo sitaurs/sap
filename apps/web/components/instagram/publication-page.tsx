@@ -28,6 +28,7 @@ export default function InstagramPublication({ categories, onModeration }: { cat
   const [connecting, setConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState("");
   const [connectionResult, setConnectionResult] = useState<"connected" | "failed" | "state-invalid" | null>(null);
+  const [connectionReason, setConnectionReason] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState("");
   const id = useId();
   const available = !!overview && !unavailable;
@@ -37,8 +38,11 @@ export default function InstagramPublication({ categories, onModeration }: { cat
     const url = new URL(window.location.href);
     const result = url.searchParams.get("connection");
     if (result === "connected" || result === "failed" || result === "state-invalid") setConnectionResult(result);
+    const reason = url.searchParams.get("connectionReason");
+    if (reason) setConnectionReason(reason);
     if (result) {
       url.searchParams.delete("connection");
+      url.searchParams.delete("connectionReason");
       window.history.replaceState(window.history.state, "", url);
     }
   }, []);
@@ -78,7 +82,7 @@ export default function InstagramPublication({ categories, onModeration }: { cat
   }
   return <div className={styles.page}>
     <header className={styles.pageHeader}><div><span className={styles.eyebrow}><CircleDot size={13} />ADMIN · PUBLIKASI</span><h1>Publikasi Instagram</h1><p>Kelola publikasi dari foto laporan dan hasil scan.</p><button className={styles.connectionPill} type="button" onClick={() => { setAccount(true); setConnectionError(""); }}><Instagram size={19} /><strong>{overview?.account.username ? `@${overview.account.username}` : "Akun Instagram"}</strong><span className={styles.connectionSeparator} /><span><i data-connected={overview?.account.status === "connected"} />{loading ? "Memuat…" : overview?.account.status === "connected" ? "Terhubung" : overview?.account.status === "expired" ? "Perlu dihubungkan ulang" : "Belum terhubung"}</span></button></div><button className={styles.primary} type="button" onClick={() => setPicker(true)}><Plus size={20} />Pilih laporan</button></header>
-    {connectionResult && <Notice warning={connectionResult !== "connected"}><strong>{connectionResult === "connected" ? "Akun Instagram berhasil dihubungkan." : connectionResult === "state-invalid" ? "Permintaan login kedaluwarsa atau sudah pernah digunakan." : "Meta belum berhasil menghubungkan akun."}</strong><p>{connectionResult === "connected" ? "SAP sudah menerima akun publikasi. Muat ulang informasi akun bila status belum berubah." : connectionResult === "state-invalid" ? "Mulai lagi dari tombol Hubungkan akun. Jangan membuka ulang URL callback dari percobaan sebelumnya." : "Periksa bahwa akun Instagram profesional sudah tertaut ke Facebook Page yang dikelola, lalu coba hubungkan lagi."}</p>{connectionResult !== "connected" && <button className={styles.textButton} type="button" onClick={() => setAccount(true)}>Coba hubungkan lagi<ArrowRight size={15} /></button>}</Notice>}
+    {connectionResult && <Notice warning={connectionResult !== "connected"}><strong>{connectionResult === "connected" ? "Akun Instagram berhasil dihubungkan." : connectionResult === "state-invalid" ? "Permintaan login kedaluwarsa atau sudah pernah digunakan." : connectionFailure(connectionReason).title}</strong><p>{connectionResult === "connected" ? "SAP sudah menerima akun publikasi. Muat ulang informasi akun bila status belum berubah." : connectionResult === "state-invalid" ? "Mulai lagi dari tombol Hubungkan akun. Jangan membuka ulang URL callback dari percobaan sebelumnya." : connectionFailure(connectionReason).message}</p>{connectionResult === "failed" && connectionReason && <small>Kode untuk admin: {connectionReason}</small>}{connectionResult !== "connected" && <button className={styles.textButton} type="button" onClick={() => setAccount(true)}>Coba hubungkan lagi<ArrowRight size={15} /></button>}</Notice>}
     <div className={styles.tabs} role="tablist" aria-label="Publikasi Instagram" onKeyDown={event => {
       if (["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) {
         event.preventDefault(); const next = event.key === "Home" ? "posts" : event.key === "End" ? "settings" : section === "posts" ? "settings" : "posts";
@@ -102,3 +106,24 @@ export default function InstagramPublication({ categories, onModeration }: { cat
 }
 
 function FileTextIcon() { return <span className={styles.tabDot} aria-hidden="true" />; }
+
+function connectionFailure(reason: string | null): { title: string; message: string } {
+  const failures: Record<string, { title: string; message: string }> = {
+    USER_DENIED: { title: "Izin Meta belum disetujui.", message: "Mulai hubungkan lagi dan setujui permintaan akses akun SAP." },
+    META_PERMISSION_REQUIRED: { title: "Izin Instagram belum lengkap.", message: "Pastikan izin instagram_basic, instagram_content_publish, pages_show_list, dan pages_read_engagement diminta dan disetujui." },
+    META_PROFESSIONAL_ACCOUNT_REQUIRED: { title: "Instagram belum ditemukan pada Facebook Page.", message: "Pastikan akun Instagram bertipe Professional (Business atau Creator), sudah ditautkan ke Facebook Page, dan akun Facebook yang dipakai memiliki akses ke Page tersebut." },
+    META_ACCOUNT_AMBIGUOUS: { title: "Ada lebih dari satu akun Instagram yang tertaut.", message: "Hubungi admin SAP untuk memilih Facebook Page tujuan publikasi." },
+    META_RATE_LIMITED: { title: "Meta membatasi sementara permintaan ini.", message: "Tunggu sebentar, lalu coba hubungkan lagi." },
+    META_RESPONSE_UNCERTAIN: { title: "SAP belum menerima jawaban dari Meta.", message: "Periksa koneksi internet lalu coba lagi. Jika berulang, kirim kode admin di bawah ke pengelola SAP." },
+    META_TOKEN_EXPIRED: { title: "Token dari Meta sudah kedaluwarsa.", message: "Mulai ulang proses Hubungkan akun agar Meta memberikan token baru." },
+    META_TOKEN_INVALID: { title: "Meta tidak memberikan token yang dapat digunakan.", message: "Coba hubungkan ulang. Jika gagal lagi, kirim kode admin di bawah ke pengelola SAP." },
+    META_CODE_MISSING: { title: "Meta tidak mengirim kode izin.", message: "Mulai ulang proses Hubungkan akun." },
+    META_CONFIGURATION_REQUIRED: { title: "Konfigurasi Meta di SAP belum lengkap.", message: "Hubungi pengelola SAP dan kirim kode admin di bawah." },
+    META_VERSION_INVALID: { title: "Versi Graph API SAP tidak valid.", message: "Hubungi pengelola SAP dan kirim kode admin di bawah." },
+    META_REQUEST_FAILED: { title: "Meta menolak permintaan koneksi.", message: "Coba lagi. Jika gagal lagi, kirim kode admin di bawah agar pengelola bisa memeriksa izin dan konfigurasi Meta." },
+  };
+  return failures[reason ?? ""] ?? {
+    title: "Meta belum berhasil menghubungkan akun.",
+    message: reason ? "Kirim kode admin di bawah ke pengelola SAP agar penyebabnya bisa diperiksa." : "Coba hubungkan lagi. Jika gagal, pengelola SAP perlu memeriksa log koneksi Meta.",
+  };
+}
