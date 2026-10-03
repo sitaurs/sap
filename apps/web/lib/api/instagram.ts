@@ -28,14 +28,50 @@ function validatePost(post: InstagramPost): InstagramPost {
   return post;
 }
 export async function getInstagramOverview(signal?: AbortSignal): Promise<InstagramOverview> {
-  const value = await apiGet<InstagramOverview>(BASE, signal);
-  if (!value?.account || !["connected", "disconnected", "expired"].includes(value.account.status)
+  const value = await apiGet<{
+    account?: { username?: unknown; status?: unknown };
+    capabilities?: { canPublish?: unknown; canAutomate?: unknown; canConnect?: unknown };
+    settings?: {
+      revision?: unknown; mode?: unknown; source?: unknown; onlyVerified?: unknown; format?: unknown;
+      timezone?: unknown; captionTemplate?: unknown; hashtags?: unknown; draftGeneration?: unknown;
+    };
+    stats?: { total?: unknown; draft?: unknown; published?: unknown; byStatus?: Record<string, unknown> };
+  }>(BASE, signal);
+  const rawSettings = value?.settings;
+  const mode = rawSettings?.mode === "draft" || rawSettings?.mode === "automatic"
+    ? rawSettings.mode
+    : rawSettings?.draftGeneration === "manual" ? "draft"
+      : rawSettings?.draftGeneration === "automatic" ? "automatic" : undefined;
+  const normalizedSettings: PublicationSettings = {
+    revision: rawSettings?.revision as number,
+    mode: mode as PublicationSettings["mode"],
+    source: (rawSettings?.source === "reports" || rawSettings?.source === "scan_reports" ? "scan_reports" : undefined) as PublicationSettings["source"],
+    onlyVerified: rawSettings?.onlyVerified as true,
+    format: rawSettings?.format as "feed",
+    timezone: rawSettings?.timezone as "Asia/Jakarta",
+    captionTemplate: rawSettings?.captionTemplate as string,
+    hashtags: rawSettings?.hashtags as string,
+  };
+  const stats = value?.stats;
+  const draft = stats?.draft ?? stats?.byStatus?.draft;
+  const published = stats?.published ?? stats?.byStatus?.published;
+  const accountStatus = value?.account?.status === "needs_action" ? "expired" : value?.account?.status;
+  if (!value?.account || !["connected", "disconnected", "expired"].includes(accountStatus as string)
     || !(value.account.username === null || typeof value.account.username === "string")
     || !value.capabilities || [value.capabilities.canPublish, value.capabilities.canAutomate, value.capabilities.canConnect].some(item => typeof item !== "boolean")
-    || !value.stats || [value.stats.total, value.stats.draft, value.stats.published].some(item => !Number.isInteger(item) || item < 0)
-    || value.stats.total !== value.stats.draft + value.stats.published) invalid();
-  validateSettings(value.settings);
-  return value;
+    || !stats || ![stats.total, draft, published].every(item => Number.isInteger(item) && Number(item) >= 0)
+    || Number(draft) + Number(published) > Number(stats.total)) invalid();
+  validateSettings(normalizedSettings);
+  return {
+    account: { username: value.account.username as string | null, status: accountStatus as InstagramOverview["account"]["status"] },
+    capabilities: {
+      canPublish: value.capabilities.canPublish as boolean,
+      canAutomate: value.capabilities.canAutomate as boolean,
+      canConnect: value.capabilities.canConnect as boolean,
+    },
+    settings: normalizedSettings,
+    stats: { total: Number(stats.total), draft: Number(draft), published: Number(published) },
+  };
 }
 export async function listInstagramPosts(query: PublicationQuery, signal?: AbortSignal): Promise<PublicationPage> {
   const params = new URLSearchParams({ limit: "12", status: query.status, period: query.period });
