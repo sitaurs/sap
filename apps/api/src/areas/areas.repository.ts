@@ -33,6 +33,7 @@ export class AreasRepository {
     return this.sql`
       status IN ('verified', 'in_progress', 'resolved')
       AND duplicate_of_id IS NULL
+      AND COALESCE(to_jsonb(reports)->>'public_visibility','public')='public'
       AND occurred_at >= ${range.from} AND occurred_at < ${range.to}
       ${categoryId ? this.sql`AND category_id = ${categoryId}` : this.sql``}`;
   }
@@ -91,6 +92,7 @@ export class AreasRepository {
     limit: number,
     cursor: string | null,
   ): Promise<PublicReportRow[]> {
+    const [schema]=await this.sql<{extended:boolean}[]>`SELECT to_regclass('media_publication_approvals') IS NOT NULL AS extended`;
     const rows = await this.sql<
       {
         id: string;
@@ -105,11 +107,17 @@ export class AreasRepository {
         (SELECT m.public_derivative_key FROM report_media rm
            JOIN media m ON m.id = rm.media_id
            WHERE rm.report_id = r.id AND m.public_derivative_key IS NOT NULL
+             AND m.state='stored' AND m.deleted_at IS NULL
+             ${schema?.extended ? this.sql`AND EXISTS (SELECT 1 FROM media_publication_approvals a
+               JOIN media_consents mc ON mc.media_id=a.media_id JOIN evidence_renditions er ON er.id=a.rendition_id
+               WHERE a.report_id=r.id AND a.media_id=m.id AND a.channel='web' AND a.approved
+                 AND 'web'=ANY(mc.channels) AND er.status='ready' AND er.object_key=m.public_derivative_key)` : this.sql``}
            ORDER BY rm.sort_order ASC, rm.created_at ASC
            LIMIT 1) AS derivative_key
       FROM reports r
       WHERE r.status IN ('verified', 'in_progress', 'resolved')
         AND r.duplicate_of_id IS NULL
+        AND COALESCE(to_jsonb(r)->>'public_visibility','public')='public'
         AND r.occurred_at >= ${range.from} AND r.occurred_at < ${range.to}
         ${categoryId ? this.sql`AND r.category_id = ${categoryId}` : this.sql``}
         AND r.h3_cell = ${cellId}

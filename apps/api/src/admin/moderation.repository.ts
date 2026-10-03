@@ -1,4 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { getConfig } from '@sap/config';
+import { ReviewService } from '../community/review.service.js';
+import { ExtensionStore, type PublicationEvidence } from '../extensions/extension.store.js';
 import { DATABASE, type Database } from '../infrastructure/database.module.js';
 import { IdempotencyStore, type Tx } from '../infrastructure/idempotency.store.js';
 import { jakartaToday } from '../gamification/gamification.types.js';
@@ -33,6 +36,8 @@ export interface DecideInput {
   reason: string;
   duplicateOfId: string | null;
   resolutionMediaIds: string[];
+  resolutionEvidenceIds?: string[];
+  publicEvidenceApprovals?: PublicationEvidence[];
   publicSummary: string | null | undefined;
   publishMediaIds: string[];
 }
@@ -50,6 +55,10 @@ export type DecideResult =
   | { ok: true; view: ReportView; replayed: boolean }
   | { ok: false; reason: DecideFailure };
 
+class DecisionAbort extends Error {
+  constructor(readonly reason: DecideFailure) { super(reason); }
+}
+
 /**
  * Duplicate-candidate criteria (HOTSPOT_RULES §5): a nearby report is offered as
  * a candidate only when it is within {@link DUPLICATE_RADIUS_METERS} AND its
@@ -66,6 +75,8 @@ export class ModerationRepository {
     @Inject(DATABASE) private readonly sql: Database,
     private readonly idempotency: IdempotencyStore,
     private readonly reports: ReportRepository,
+    private readonly extensions: ExtensionStore,
+    private readonly reviews: ReviewService,
   ) {}
 
   /**
@@ -77,7 +88,8 @@ export class ModerationRepository {
    * Idempotency-Key replays the original 200 body.
    */
   async decide(input: DecideInput): Promise<DecideResult> {
-    return this.sql.begin(async (tx) => {
+    try {
+    return await this.sql.begin(async (tx) => {
       const replay = await this.idempotency.reserve(tx, {
         actorScope: input.actorScope,
         route: input.route,
@@ -86,37 +98,65 @@ export class ModerationRepository {
       });
       if (replay) return { ok: true, view: replay.body as ReportView, replayed: true } as const;
 
+      if (input.nextStatus === 'duplicate' && input.duplicateOfId) {
+        await tx`SELECT id FROM reports WHERE id=ANY(${[input.reportId,input.duplicateOfId]}::uuid[]) ORDER BY id FOR UPDATE`;
+      }
+
       const cur = await tx<
-        { reporter_id: string | null; status: ReportStatus; revision: number }[]
-      >`SELECT reporter_id, status, revision FROM reports WHERE id = ${input.reportId} FOR UPDATE`;
+        { reporter_id: string | null; status: ReportStatus; revision: number; public_summary:string|null }[]
+      >`SELECT reporter_id, status, revision, public_summary FROM reports WHERE id = ${input.reportId} FOR UPDATE`;
       const row = cur[0];
-      if (!row) return { ok: false, reason: 'not_found' } as const;
-      if (row.revision !== input.ifMatchRevision) return { ok: false, reason: 'conflict' } as const;
+      if (!row) throw new DecisionAbort('not_found');
+      if (row.revision !== input.ifMatchRevision) throw new DecisionAbort('conflict');
 
       const from = row.status;
       const to = input.nextStatus;
-      if (!isValidTransition(from, to)) return { ok: false, reason: 'invalid_transition' } as const;
+      const summaryProvided = input.publicSummary !== undefined;
+      const effectivePublicSummary = summaryProvided ? input.publicSummary ?? null : row.public_summary;
+      const claimIds = input.resolutionEvidenceIds ?? [];
+      let resolutionMediaIds = input.resolutionMediaIds;
+      let resolutionObservedAt: Date | null = null;
+      if (claimIds.length) {
+        if (!getConfig().SAP_EXTENSION_ENABLED || to !== 'resolved' || resolutionMediaIds.length) throw new DecisionAbort('resolution_media_required');
+        const claims = await tx<{media_id:string;observed_at:Date}[]>`SELECT ae.media_id,ae.observed_at FROM approved_resolution_evidence ae
+          LEFT JOIN community_updates cu ON ae.source_type='community_update' AND cu.id=ae.source_id
+          LEFT JOIN activity_results ar ON ae.source_type='activity_result' AND ar.id=ae.source_id
+          JOIN reports r ON r.id=ae.report_id
+          JOIN media m ON m.id=ae.media_id
+          WHERE ae.id = ANY(${claimIds}::uuid[]) AND ae.report_id=${input.reportId} AND ae.status='valid'
+            AND m.state='stored' AND m.deleted_at IS NULL
+            AND ae.observed_at >= COALESCE(r.last_observed_at,r.occurred_at)
+            AND ((cu.status='approved' AND cu.kind='looks_clean' AND cu.revision=ae.source_revision)
+              OR (ar.status='approved' AND ar.verified_outcome='complete' AND ar.revision=ae.source_revision)) FOR SHARE OF ae,m`;
+        if (claims.length!==claimIds.length) throw new DecisionAbort('resolution_media_required');
+        resolutionMediaIds=claims.map(c=>c.media_id);
+        resolutionObservedAt=new Date(Math.max(...claims.map(c=>new Date(c.observed_at).getTime())));
+      }
+      if (!isValidTransition(from, to) && !(from==='verified' && to==='resolved' && claimIds.length)) throw new DecisionAbort('invalid_transition');
+      const decisionObservedAt=to==='resolved'?(resolutionObservedAt??new Date()):null;
       if (requiresInitialPublicSummary(from, to) && !(input.publicSummary && input.publicSummary.trim().length > 0)) {
-        return { ok: false, reason: 'summary_required' } as const;
+        throw new DecisionAbort('summary_required');
       }
 
       let duplicateOfId: string | null = null;
       if (to === 'duplicate') {
-        if (!input.duplicateOfId) return { ok: false, reason: 'duplicate_target_invalid' } as const;
+        if (!input.duplicateOfId) throw new DecisionAbort('duplicate_target_invalid');
         const target = await tx<{ id: string; status: ReportStatus; duplicate_of_id: string | null }[]>`
           SELECT id, status, duplicate_of_id FROM reports WHERE id = ${input.duplicateOfId} FOR UPDATE`;
         const t = target[0];
         if (!t || !isValidDuplicateTarget({ id: t.id, status: t.status, duplicateOfId: t.duplicate_of_id }, input.reportId)) {
-          return { ok: false, reason: 'duplicate_target_invalid' } as const;
+          throw new DecisionAbort('duplicate_target_invalid');
         }
         duplicateOfId = t.id;
       }
 
-      if (to === 'resolved' && input.resolutionMediaIds.length === 0) {
-        return { ok: false, reason: 'resolution_media_required' } as const;
+      if (to === 'resolved' && resolutionMediaIds.length === 0) {
+        throw new DecisionAbort('resolution_media_required');
       }
 
-      const summaryProvided = input.publicSummary !== undefined;
+      if (getConfig().SAP_EXTENSION_ENABLED && (input.publicEvidenceApprovals?.length ?? 0)>0) {
+        await this.extensions.approveEvidence(tx,'report',input.reportId,input.reportId,input.actorId,input.publicEvidenceApprovals!);
+      }
       await tx`
         UPDATE reports SET
           status = ${to},
@@ -124,26 +164,31 @@ export class ModerationRepository {
           public_summary = ${summaryProvided ? (input.publicSummary ?? null) : tx`public_summary`},
           verified_at = ${to === 'verified' ? tx`COALESCE(verified_at, now())` : tx`verified_at`},
           resolved_at = ${to === 'resolved' ? tx`now()` : tx`resolved_at`},
+          ${getConfig().SAP_EXTENSION_ENABLED ? tx`public_visibility = CASE WHEN ${to} IN ('verified','in_progress','resolved') AND public_visibility <> 'withdrawn' THEN 'public' WHEN ${to} IN ('submitted','rejected','duplicate') THEN 'hidden' ELSE public_visibility END,
+            public_ever = public_ever OR ${['verified','in_progress','resolved'].includes(to)},` : tx``}
           revision = revision + 1,
           updated_at = now()
         WHERE id = ${input.reportId}`;
 
       if (to === 'resolved') {
-        for (let i = 0; i < input.resolutionMediaIds.length; i += 1) {
+        for (let i = 0; i < resolutionMediaIds.length; i += 1) {
           await tx`
             INSERT INTO report_media (report_id, media_id, sort_order, kind)
-            VALUES (${input.reportId}, ${input.resolutionMediaIds[i]!}, ${i}, 'resolution')
+            VALUES (${input.reportId}, ${resolutionMediaIds[i]!}, ${i}, 'resolution')
             ON CONFLICT (report_id, media_id) DO NOTHING`;
         }
       }
 
       if (input.publishMediaIds.length > 0) {
         const attached = await tx<{ media_id: string; object_key: string }[]>`
-          SELECT rm.media_id, m.object_key FROM report_media rm
+          SELECT rm.media_id, m.public_derivative_key AS object_key FROM report_media rm
           JOIN media m ON m.id = rm.media_id
-          WHERE rm.report_id = ${input.reportId} AND rm.media_id = ANY(${input.publishMediaIds}::uuid[])`;
+          WHERE rm.report_id = ${input.reportId} AND rm.media_id = ANY(${input.publishMediaIds}::uuid[])
+            AND m.public_derivative_key IS NOT NULL AND m.public_derivative_key <> m.object_key
+            ${getConfig().SAP_EXTENSION_ENABLED ? tx`AND EXISTS (SELECT 1 FROM media_publication_approvals a JOIN media_consents c ON c.media_id=a.media_id
+              WHERE a.report_id=${input.reportId} AND a.media_id=m.id AND a.channel='web' AND a.approved AND 'web'=ANY(c.channels))` : tx``}`;
         if (attached.length !== input.publishMediaIds.length) {
-          return { ok: false, reason: 'publish_media_invalid' } as const;
+          throw new DecisionAbort('publish_media_invalid');
         }
         for (const a of attached) {
           await tx`UPDATE media SET public_derivative_key = ${a.object_key}, updated_at = now() WHERE id = ${a.media_id}`;
@@ -153,7 +198,7 @@ export class ModerationRepository {
       await tx`
         INSERT INTO report_status_events (report_id, actor_id, from_status, to_status, reason, evidence_media_ids)
         VALUES (${input.reportId}, ${input.actorId}, ${from}, ${to}, ${input.reason},
-                ${to === 'resolved' ? input.resolutionMediaIds : []})`;
+                ${to === 'resolved' ? resolutionMediaIds : []})`;
 
       await tx`
         INSERT INTO moderation_decisions (report_id, actor_id, request_key, revision_before, decision_payload)
@@ -161,8 +206,11 @@ export class ModerationRepository {
           nextStatus: to,
           duplicateOfId,
           resolutionMediaIds: input.resolutionMediaIds,
+          resolutionEvidenceIds: input.resolutionEvidenceIds ?? [],
           publishMediaIds: input.publishMediaIds,
           hasPublicSummary: summaryProvided && Boolean(input.publicSummary),
+          publicSummary: effectivePublicSummary,
+          observedAt: decisionObservedAt?.toISOString() ?? null,
         } as never)})
         ON CONFLICT (actor_id, request_key) DO NOTHING`;
 
@@ -173,6 +221,27 @@ export class ModerationRepository {
                 ${input.requestId})`;
 
       await this.applyPoints(tx, from, to, row.reporter_id, input.reportId);
+
+      if (getConfig().SAP_EXTENSION_ENABLED) {
+        await this.reviews.supersedeReport(tx, input.reportId);
+        await tx`DELETE FROM area_snapshots`;
+        if (duplicateOfId) {
+          await tx`INSERT INTO incident_supports(report_id,user_id,supported)
+            SELECT ${duplicateOfId},user_id,supported FROM incident_supports WHERE report_id=${input.reportId}
+            ON CONFLICT(report_id,user_id) DO UPDATE SET supported=incident_supports.supported OR EXCLUDED.supported,updated_at=now()`;
+          await tx`INSERT INTO incident_follows(report_id,user_id,following)
+            SELECT ${duplicateOfId},user_id,following FROM incident_follows WHERE report_id=${input.reportId}
+            ON CONFLICT(report_id,user_id) DO UPDATE SET following=incident_follows.following OR EXCLUDED.following,updated_at=now()`;
+          await tx`DELETE FROM incident_supports WHERE report_id=${input.reportId}`;
+          await tx`DELETE FROM incident_follows WHERE report_id=${input.reportId}`;
+        }
+        if (['verified','in_progress','resolved'].includes(to)) {
+          const summary=await tx<{public_summary:string|null;occurred_at:Date|null}[]>`SELECT public_summary,occurred_at FROM reports WHERE id=${input.reportId}`;
+          if (summary[0]?.public_summary) await tx`INSERT INTO public_incident_events(report_id,kind,summary,observed_at,evidence_media_ids)
+          VALUES(${input.reportId},${to==='resolved'?'resolved':to==='in_progress'?'handling_started':'verified'},${summary[0].public_summary},${to==='resolved'?decisionObservedAt:summary[0].occurred_at},${to==='resolved'?resolutionMediaIds:input.publishMediaIds})`;
+        }
+        await this.extensions.event(tx,'publication.source.changed',input.reportId,input.ifMatchRevision+1,{reportId:input.reportId});
+      }
 
       await tx`
         INSERT INTO outbox_events (topic, aggregate_id, payload_minimal, dedup_key)
@@ -191,6 +260,10 @@ export class ModerationRepository {
       });
       return { ok: true, view, replayed: false } as const;
     });
+    } catch (error) {
+      if (error instanceof DecisionAbort) return { ok:false,reason:error.reason };
+      throw error;
+    }
   }
 
   /**

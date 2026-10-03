@@ -1,4 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { getConfig } from '@sap/config';
+import { ReviewService } from '../community/review.service.js';
+import { fail } from '../extensions/extension.store.js';
 import { DATABASE, type Database } from '../infrastructure/database.module.js';
 import { IdempotencyStore, type Tx } from '../infrastructure/idempotency.store.js';
 import type { CategoryId } from '../scans/scan.types.js';
@@ -70,6 +73,7 @@ export class ReportRepository {
   constructor(
     @Inject(DATABASE) private readonly sql: Database,
     private readonly idempotency: IdempotencyStore,
+    private readonly reviews: ReviewService,
   ) {}
 
   /**
@@ -87,6 +91,8 @@ export class ReportRepository {
         requestHash: input.requestHash,
       });
       if (replay) return { view: replay.body as ReportView, replayed: true };
+
+      await this.assertEvidence(tx, input.userId, input.mediaIds);
 
       const rows = await tx<ReportRow[]>`
         INSERT INTO reports (
@@ -120,6 +126,11 @@ export class ReportRepository {
         statusCode: 201,
         body: view,
       });
+      if (getConfig().SAP_EXTENSION_ENABLED) {
+        await this.reviews.enqueue(tx, 'report', row.id, row.revision);
+        await tx`INSERT INTO outbox_events(topic,aggregate_id,payload_minimal,dedup_key)
+          VALUES('report.created',${row.id},${tx.json({reportId:row.id,aggregateRevision:row.revision} as never)},${`report.created:${row.id}:${row.revision}`}) ON CONFLICT DO NOTHING`;
+      }
       return { view, replayed: false };
     });
   }
@@ -195,6 +206,7 @@ export class ReportRepository {
       if (!row || row.reporter_id !== userId) return { ok: false, reason: 'not_found' } as const;
       if (row.status !== 'submitted') return { ok: false, reason: 'not_editable' } as const;
       if (row.revision !== ifMatchRevision) return { ok: false, reason: 'conflict' } as const;
+      if (changes.mediaIds) await this.assertEvidence(tx, userId, changes.mediaIds);
 
       await tx`
         UPDATE reports SET
@@ -222,8 +234,20 @@ export class ReportRepository {
         this.loadMedia([reportId], tx),
         this.loadTimeline([reportId], tx),
       ]);
+      if (getConfig().SAP_EXTENSION_ENABLED) {
+        await this.reviews.supersedeReport(tx, reportId);
+        await this.reviews.enqueue(tx, 'report', reportId, rows[0]!.revision);
+        await tx`INSERT INTO outbox_events(topic,aggregate_id,payload_minimal,dedup_key)
+          VALUES('report.updated',${reportId},${tx.json({reportId,aggregateRevision:rows[0]!.revision} as never)},${`report.updated:${reportId}:${rows[0]!.revision}`}) ON CONFLICT DO NOTHING`;
+      }
       return { ok: true, record: this.assemble(rows[0]!, media, timeline) } as const;
     });
+  }
+
+  private async assertEvidence(tx: Tx, ownerId: string, mediaIds: string[]): Promise<void> {
+    const rows = await tx`SELECT id FROM media WHERE id=ANY(${mediaIds}::uuid[]) AND owner_id=${ownerId}
+      AND state='stored' AND deleted_at IS NULL ORDER BY id FOR SHARE`;
+    if (rows.length !== new Set(mediaIds).size) fail(422, 'EVIDENCE_INVALID', 'Foto laporan tidak tersedia atau bukan milik pelapor.');
   }
 
   /** Assemble a full report record (row + media + timeline) using any executor. */
@@ -316,4 +340,3 @@ function mapReportRow(
     duplicateOfId: row.duplicate_of_id,
   };
 }
-

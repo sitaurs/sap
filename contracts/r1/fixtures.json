@@ -1,0 +1,1271 @@
+{
+  "schemaVersion": "sap-r1-synthetic-fixtures-v1",
+  "synthetic": true,
+  "productionData": false,
+  "targetContractVersion": "1.2.0",
+  "runtimeVerified": false,
+  "warning": "Development/mock examples only. Never substitute these records after a real API error or show them as live reports.",
+  "dtoSamples": {
+    "PublicReportStatus": "verified",
+    "ActivityStatus": "draft",
+    "SupportInput": {
+      "supported": false
+    },
+    "FollowInput": {
+      "following": false
+    },
+    "ConsentInput": {
+      "channels": []
+    },
+    "EvidenceApprovalInput": {
+      "channel": "web",
+      "approved": false,
+      "renditionId": null,
+      "reason": "DATA CONTOH SINTETIS"
+    },
+    "Redaction": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+    },
+    "EvidenceRenditionInput": {
+      "subjectType": "report",
+      "subjectId": "7b0cefdd-2bb6-472a-a9e8-57654921b9af",
+      "redactions": []
+    },
+    "ReviewInput": {
+      "subjectType": "report",
+      "subjectId": "f1469dbd-7600-4f21-b1a1-47280daf5549",
+      "subjectRevision": 1
+    },
+    "ActivityCommandInput": {
+      "action": "publish",
+      "reason": null
+    },
+    "CoordinatorAcceptanceInput": {
+      "accepted": false,
+      "publishDisplayName": false
+    },
+    "MembershipInput": {
+      "participating": false
+    },
+    "MembershipDecisionInput": {
+      "status": "accepted",
+      "reason": "DATA CONTOH SINTETIS"
+    },
+    "AttendanceInput": {
+      "attendance": "unknown"
+    },
+    "ScheduleAcknowledgementInput": {
+      "scheduleRevision": 1,
+      "confirmed": false
+    },
+    "CoordinatorCandidate": {
+      "id": "e906e6f2-b007-4b30-92ed-200f5729a856",
+      "displayName": "DATA CONTOH SINTETIS"
+    },
+    "MeasurementInput": {
+      "physicalBatchId": null,
+      "stage": "collected",
+      "valueKg": 0,
+      "measuredAt": "2026-10-03T02:15:00.000Z",
+      "method": "scale",
+      "sourceReference": "DATA CONTOH SINTETIS",
+      "evidenceMediaIds": [
+        "2db57a18-30b6-467b-becd-358d827a2896"
+      ]
+    },
+    "MeasurementDecisionInput": {
+      "action": "verify",
+      "reason": "DATA CONTOH SINTETIS"
+    },
+    "MeasurementCorrectionInput": {
+      "valueKg": 0,
+      "reason": "DATA CONTOH SINTETIS",
+      "evidenceMediaIds": [
+        "5f7a789e-d90a-47e7-9810-7b86a7d37889"
+      ]
+    },
+    "NotificationReadInput": {
+      "read": false
+    },
+    "InstagramCreateInput": {
+      "reportId": "a9d85906-1ae7-4d4d-9002-9b091269b3cf",
+      "mediaId": "42998c09-df7d-4c9d-a793-2693c0336385",
+      "caption": "DATA CONTOH SINTETIS",
+      "altText": "DATA CONTOH SINTETIS",
+      "kind": "initial",
+      "milestoneId": null,
+      "replacesPostId": null
+    },
+    "InstagramEditInput": {
+      "caption": "DATA CONTOH SINTETIS",
+      "altText": "DATA CONTOH SINTETIS"
+    },
+    "InstagramApproveInput": {
+      "contentRevision": 1,
+      "sourceRevision": 1,
+      "renditionId": "8476a349-c520-4ad5-a442-eccf2dd9270f"
+    },
+    "ReasonInput": {
+      "reason": "DATA CONTOH SINTETIS"
+    },
+    "EmptyInput": {},
+    "ManualConfirmationInput": {
+      "evidenceMediaIds": [
+        "cc2e66dd-0298-4ecc-bfd2-dbfe76db1dc8"
+      ],
+      "explanation": "DATA CONTOH SINTETIS"
+    },
+    "PublicationSettingsInput": {
+      "source": "reports",
+      "onlyVerified": true,
+      "format": "feed",
+      "timezone": "Asia/Jakarta",
+      "draftGeneration": "automatic",
+      "publishMode": "approval_required",
+      "captionTemplate": "DATA CONTOH SINTETIS",
+      "hashtags": "DATA CONTOH SINTETIS"
+    },
+    "AuthorizationResponseData": {
+      "authorizationUrl": "https://assets.example.invalid/synthetic-preview.jpg",
+      "expiresAt": "2026-10-03T02:15:00.000Z"
+    },
+    "DisconnectInput": {
+      "acknowledgePendingRetractions": false
+    },
+    "WithdrawalInput": {
+      "scope": "all",
+      "reason": "DATA CONTOH SINTETIS"
+    },
+    "PublicIncidentResult": {
+      "kind": "incident",
+      "id": "5b4eff5c-24f8-4a78-b19a-cb0d06079f4f",
+      "sourceRevision": 1,
+      "title": "DATA CONTOH SINTETIS",
+      "summary": "DATA CONTOH SINTETIS",
+      "status": "verified",
+      "categoryId": null,
+      "area": {
+        "cellId": "8928308280fffff",
+        "label": "DATA CONTOH SINTETIS"
+      },
+      "occurredAt": "2026-10-03T02:15:00.000Z",
+      "lastObservedAt": null,
+      "updatedAt": "2026-10-03T02:15:00.000Z",
+      "evidence": [],
+      "supportCount": 0,
+      "supportClosed": false,
+      "relatedActivityIds": [],
+      "canonicalPath": "/synthetic-example"
+    },
+    "PublicActivityDetail": {
+      "kind": "activity",
+      "id": "f8347f6c-c598-4cd0-a444-687302c9eb10",
+      "reportId": "20f2f031-73da-4126-93e7-f61336d55d1d",
+      "revision": 1,
+      "title": "DATA CONTOH SINTETIS",
+      "description": "DATA CONTOH SINTETIS",
+      "status": "registration_open",
+      "area": {
+        "cellId": "8928308280fffff",
+        "label": "DATA CONTOH SINTETIS"
+      },
+      "coordinatorDisplayName": "DATA CONTOH SINTETIS",
+      "startsAt": "2026-10-03T02:15:00.000Z",
+      "endsAt": "2026-10-03T02:15:00.000Z",
+      "registrationClosesAt": "2026-10-03T02:15:00.000Z",
+      "timezone": "Asia/Jakarta",
+      "capacity": 1,
+      "acceptedCount": 0,
+      "availableSeats": 0,
+      "registrationOpen": false,
+      "equipment": [],
+      "accessibilityNotes": "DATA CONTOH SINTETIS",
+      "wasteHandoverPlan": "DATA CONTOH SINTETIS",
+      "resultOutcome": null,
+      "canonicalPath": "/synthetic-example"
+    },
+    "PublicIncidentTimelinePage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "FollowedIncidentPage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "CommunityUpdatePage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "EvidenceRenditionPage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "ReviewRunPage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "ReviewQueuePage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "PublicActivityPage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "MyActivityPage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "ManagedActivityPage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "CoordinatorCandidatePage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "ManagedMembershipPage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "PublicActivityResultPage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "ImpactMeasurementPage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "NotificationPage": {
+      "items": [],
+      "nextCursor": null
+    },
+    "ActionPermission": {
+      "allowed": false,
+      "reasonCode": "FEATURE_UNAVAILABLE"
+    },
+    "PublicEvidence": {
+      "id": "73139670-5f5a-4086-9e96-118fe88abecf",
+      "url": "https://assets.example.invalid/synthetic-preview.jpg",
+      "expiresAt": "2026-10-03T02:15:00.000Z",
+      "observedAt": null,
+      "caption": "DATA CONTOH SINTETIS"
+    },
+    "PublicIncident": {
+      "kind": "incident",
+      "id": "28ad36d4-5d78-4005-b69e-42225b3ce0ef",
+      "sourceRevision": 1,
+      "title": "DATA CONTOH: sampah perlu ditangani",
+      "summary": "Contoh laporan sintetis untuk pengembangan antarmuka.",
+      "status": "verified",
+      "categoryId": "plastic",
+      "area": {
+        "cellId": "8928308280fffff",
+        "label": "Area contoh sintetis"
+      },
+      "occurredAt": "2026-10-03T02:15:00.000Z",
+      "lastObservedAt": null,
+      "updatedAt": "2026-10-03T02:15:00.000Z",
+      "evidence": [],
+      "supportCount": 7,
+      "supportClosed": false,
+      "relatedActivityIds": [
+        "bbb8d146-0bd7-4423-a427-c53ebea0cd51"
+      ],
+      "canonicalPath": "/incidents/28ad36d4-5d78-4005-b69e-42225b3ce0ef"
+    },
+    "CanonicalRedirect": {
+      "kind": "redirect",
+      "canonicalId": "b59d7ec7-990e-474e-9774-9323abcc7d47",
+      "canonicalPath": "/synthetic-example"
+    },
+    "PublicTimelineEvent": {
+      "id": "ef63f882-61a8-4bb5-890e-1cb029e2499f",
+      "kind": "verified",
+      "occurredAt": "2026-10-03T02:15:00.000Z",
+      "observedAt": null,
+      "summary": "DATA CONTOH SINTETIS",
+      "evidence": []
+    },
+    "IncidentViewer": {
+      "incidentId": "a60571b8-fc20-4d47-9486-465670782471",
+      "supported": false,
+      "following": false,
+      "actions": {
+        "support": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "update": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "follow": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        }
+      }
+    },
+    "SupportState": {
+      "incidentId": "9a9c1d56-f421-406a-bb3f-5a7435fbe8c8",
+      "supported": false,
+      "supportCount": 0,
+      "supportClosed": false
+    },
+    "FollowState": {
+      "incidentId": "f6793847-dff7-4919-8a01-4afd8cf52ef1",
+      "following": false
+    },
+    "FollowedIncident": {
+      "incidentId": "ad13f2d3-f658-40bf-88e5-08a61e9e1894",
+      "title": null,
+      "status": null,
+      "availability": "public",
+      "canonicalPath": "/synthetic-example",
+      "lastEventAt": null
+    },
+    "MediaConsents": {
+      "mediaId": "2c87114d-d73b-4ac9-bb89-2bf50f92d824",
+      "revision": 1,
+      "channels": [],
+      "updatedAt": "2026-10-03T02:15:00.000Z"
+    },
+    "EvidenceRendition": {
+      "id": "e4ccfe8b-d9a3-4ba9-93eb-54d16cc665ba",
+      "mediaId": "7b72eedb-e18d-4154-be99-17a574c75151",
+      "revision": 1,
+      "status": "queued",
+      "url": null,
+      "expiresAt": null,
+      "redactions": []
+    },
+    "EvidencePublicationInput": {
+      "mediaId": "23c2d9c2-0d0f-41e9-8c2a-aa313ae242bc",
+      "renditionId": "0b5aa3b2-6777-4e85-9bb0-fdec431058fe",
+      "channels": [
+        "web"
+      ]
+    },
+    "ReportLifecycle": {
+      "reportId": "125fef96-1d32-4448-8811-411f7403c170",
+      "sourceRevision": 1,
+      "publicVisibility": "hidden",
+      "instagramAllowed": false,
+      "latestReview": null,
+      "approvedResolutionEvidence": [],
+      "publicationAssets": [],
+      "publicationMilestones": [],
+      "actions": {
+        "moderate": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "withdraw": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "restore": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "createInstagramDraft": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        }
+      }
+    },
+    "ApprovedResolutionEvidence": {
+      "id": "21aac994-9e03-40ab-9df6-bdd517b2e2cd",
+      "reportId": "37769c07-f1e1-436d-bee6-d5a37151969d",
+      "sourceType": "community_update",
+      "sourceId": "01a60c04-7658-4485-b62b-53fdfaf7120e",
+      "sourceRevision": 1,
+      "mediaId": "84ed6c86-990a-4e99-9f0c-77ace284f234",
+      "approvedAt": "2026-10-03T02:15:00.000Z",
+      "observedAt": "2026-10-03T02:15:00.000Z",
+      "status": "valid"
+    },
+    "CommunityUpdateInput": {
+      "kind": "still_present",
+      "observedAt": "2026-10-03T02:15:00.000Z",
+      "description": "DATA CONTOH SINTETIS",
+      "mediaIds": [],
+      "correctionField": null
+    },
+    "CommunityUpdate": {
+      "id": "292b29b8-b35a-42a7-bff0-23ce11ab5443",
+      "reportId": "28ad36d4-5d78-4005-b69e-42225b3ce0ef",
+      "revision": 1,
+      "kind": "looks_clean",
+      "observedAt": "2026-10-03T02:15:00.000Z",
+      "description": "DATA CONTOH: pengamatan sintetis tanpa foto tambahan.",
+      "mediaIds": [],
+      "correctionField": null,
+      "status": "submitted",
+      "publicSummary": null,
+      "requestedEvidence": [],
+      "decisionReason": null,
+      "approvedResolutionEvidence": [],
+      "createdAt": "2026-10-03T02:15:00.000Z",
+      "updatedAt": "2026-10-03T02:15:00.000Z"
+    },
+    "CommunityUpdateDecision": {
+      "action": "approve",
+      "reason": "DATA CONTOH SINTETIS",
+      "publicSummary": "DATA CONTOH: pembaruan kondisi sintetis telah ditinjau.",
+      "publicEvidenceApprovals": [],
+      "requestedEvidence": []
+    },
+    "AdminCommunityUpdate": {
+      "id": "ed2a54eb-3bb1-4e6c-b580-37bf125f5cab",
+      "reportId": "fc0f567a-9ec5-4f54-913c-ef3205e19c1b",
+      "revision": 1,
+      "kind": "still_present",
+      "observedAt": "2026-10-03T02:15:00.000Z",
+      "description": "DATA CONTOH SINTETIS",
+      "mediaIds": [],
+      "correctionField": null,
+      "status": "submitted",
+      "publicSummary": null,
+      "requestedEvidence": [],
+      "decisionReason": null,
+      "approvedResolutionEvidence": [],
+      "createdAt": "2026-10-03T02:15:00.000Z",
+      "updatedAt": "2026-10-03T02:15:00.000Z",
+      "latestReview": null
+    },
+    "ReviewSubjectType": "report",
+    "ReviewRun": {
+      "id": "00b766d4-9768-4e41-a8e5-522025a33b64",
+      "subjectType": "community_update",
+      "subjectId": "292b29b8-b35a-42a7-bff0-23ce11ab5443",
+      "subjectRevision": 1,
+      "reportId": "28ad36d4-5d78-4005-b69e-42225b3ce0ef",
+      "sourceReportRevision": 1,
+      "snapshotHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "status": "queued",
+      "requiresHumanReview": true,
+      "result": null,
+      "errorCode": null,
+      "modelVersion": "synthetic-not-configured",
+      "policyVersion": "sap-moderation-r1",
+      "createdAt": "2026-10-03T02:15:00.000Z",
+      "finishedAt": null
+    },
+    "EvidenceReviewResult": {
+      "schemaVersion": "sap-evidence-review-v1",
+      "subjectType": "report",
+      "subjectId": "05be787a-0729-434a-b5da-3d260397511a",
+      "subjectRevision": 1,
+      "sourceReportId": "14940d8c-8514-4db9-8393-212e2404727c",
+      "sourceReportRevision": 1,
+      "snapshotHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "recommendation": "recommend_accept",
+      "reasonCodes": [],
+      "evidence": [],
+      "duplicateCandidates": [],
+      "missingEvidence": [],
+      "publicSummaryProposal": null,
+      "publicationWarnings": []
+    },
+    "ReviewReasonCode": "LOCATION_UNCONFIRMED",
+    "ReviewQueueItem": {
+      "subjectType": "report",
+      "subjectId": "8688996b-3e63-4733-b456-6ab11a722e9f",
+      "subjectRevision": 1,
+      "reportId": "009f59a4-beed-4893-8743-472eb8e9b429",
+      "title": "DATA CONTOH SINTETIS",
+      "submittedAt": "2026-10-03T02:15:00.000Z",
+      "reviewState": "pending",
+      "latestReview": null
+    },
+    "ActivityInput": {
+      "reportId": "0d9a2ad6-7794-40b4-bbfd-46ab97d60443",
+      "title": "DATA CONTOH SINTETIS",
+      "description": "DATA CONTOH SINTETIS",
+      "coordinatorId": null,
+      "startsAt": null,
+      "endsAt": null,
+      "registrationClosesAt": null,
+      "timezone": "Asia/Jakarta",
+      "capacity": null,
+      "meetingPoint": null,
+      "equipment": [],
+      "accessibilityNotes": "DATA CONTOH SINTETIS",
+      "wasteHandoverPlan": "DATA CONTOH SINTETIS"
+    },
+    "PublicActivity": {
+      "kind": "activity",
+      "id": "bbb8d146-0bd7-4423-a427-c53ebea0cd51",
+      "reportId": "28ad36d4-5d78-4005-b69e-42225b3ce0ef",
+      "revision": 1,
+      "title": "DATA CONTOH: kegiatan warga",
+      "description": "Kegiatan sintetis untuk pengembangan tampilan.",
+      "status": "registration_open",
+      "area": {
+        "cellId": "8928308280fffff",
+        "label": "DATA CONTOH SINTETIS"
+      },
+      "coordinatorDisplayName": "Koordinator SAP",
+      "startsAt": "2026-10-03T02:15:00.000Z",
+      "endsAt": "2026-10-03T02:15:00.000Z",
+      "registrationClosesAt": "2026-10-03T02:15:00.000Z",
+      "timezone": "Asia/Jakarta",
+      "capacity": 10,
+      "acceptedCount": 3,
+      "availableSeats": 7,
+      "registrationOpen": true,
+      "equipment": [],
+      "accessibilityNotes": "DATA CONTOH SINTETIS",
+      "wasteHandoverPlan": "DATA CONTOH SINTETIS",
+      "resultOutcome": null,
+      "canonicalPath": "/activities/bbb8d146-0bd7-4423-a427-c53ebea0cd51"
+    },
+    "ActivityViewer": {
+      "activityId": "58857036-2ffd-4ada-95d2-011add87a403",
+      "membership": null,
+      "meetingPoint": null,
+      "scheduleRevision": 1,
+      "scheduleAcknowledgementRequired": false,
+      "actions": {
+        "join": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "cancelMembership": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "manage": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        }
+      }
+    },
+    "ManagedActivity": {
+      "reportId": "156908fa-d57c-4fc6-958d-84b8ee136b1b",
+      "title": "DATA CONTOH SINTETIS",
+      "description": "DATA CONTOH SINTETIS",
+      "coordinatorId": null,
+      "startsAt": null,
+      "endsAt": null,
+      "registrationClosesAt": null,
+      "timezone": "Asia/Jakarta",
+      "capacity": null,
+      "meetingPoint": null,
+      "equipment": [],
+      "accessibilityNotes": "DATA CONTOH SINTETIS",
+      "wasteHandoverPlan": "DATA CONTOH SINTETIS",
+      "id": "4290a616-7f5e-4038-bb03-27956371cb1f",
+      "revision": 1,
+      "status": "draft",
+      "coordinatorAcceptedAt": null,
+      "acceptedCount": 0,
+      "availableSeats": 0,
+      "holdReason": null,
+      "priorState": null,
+      "createdAt": "2026-10-03T02:15:00.000Z",
+      "updatedAt": "2026-10-03T02:15:00.000Z",
+      "actions": {
+        "publish": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "edit": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "cancel": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "start": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "closeRegistration": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "hold": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "resume": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "requestResult": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        }
+      }
+    },
+    "Membership": {
+      "id": "5f128398-28eb-4fb7-97f3-6a3df4aff337",
+      "activityId": "851bb9a4-8a4e-4768-bff6-ecb18a77a433",
+      "revision": 1,
+      "status": "requested",
+      "attendance": "unknown",
+      "reason": null,
+      "createdAt": "2026-10-03T02:15:00.000Z",
+      "updatedAt": "2026-10-03T02:15:00.000Z"
+    },
+    "ManagedMembership": {
+      "id": "6dc7b9d2-4810-4c5c-80be-2e7d289ff359",
+      "activityId": "3bdc88b9-968c-46f4-83f9-46a1104c5d84",
+      "revision": 1,
+      "status": "requested",
+      "attendance": "unknown",
+      "reason": null,
+      "createdAt": "2026-10-03T02:15:00.000Z",
+      "updatedAt": "2026-10-03T02:15:00.000Z",
+      "displayName": "DATA CONTOH SINTETIS"
+    },
+    "ActivityNotice": {
+      "kind": "activity_notice",
+      "id": "d88dd3f9-be13-4ba8-980b-583413928c04",
+      "status": "on_hold",
+      "message": "DATA CONTOH SINTETIS",
+      "canonicalPath": "/synthetic-example"
+    },
+    "MyActivity": {
+      "activity": {
+        "kind": "activity",
+        "id": "48251df5-2cec-4a11-a6dd-b55f2d338e0b",
+        "reportId": "f9a14619-8e32-4122-b6bf-fbab63863127",
+        "revision": 1,
+        "title": "DATA CONTOH SINTETIS",
+        "description": "DATA CONTOH SINTETIS",
+        "status": "registration_open",
+        "area": {
+          "cellId": "8928308280fffff",
+          "label": "DATA CONTOH SINTETIS"
+        },
+        "coordinatorDisplayName": "DATA CONTOH SINTETIS",
+        "startsAt": "2026-10-03T02:15:00.000Z",
+        "endsAt": "2026-10-03T02:15:00.000Z",
+        "registrationClosesAt": "2026-10-03T02:15:00.000Z",
+        "timezone": "Asia/Jakarta",
+        "capacity": 1,
+        "acceptedCount": 0,
+        "availableSeats": 0,
+        "registrationOpen": false,
+        "equipment": [],
+        "accessibilityNotes": "DATA CONTOH SINTETIS",
+        "wasteHandoverPlan": "DATA CONTOH SINTETIS",
+        "resultOutcome": null,
+        "canonicalPath": "/synthetic-example"
+      },
+      "membership": null,
+      "isCoordinator": false
+    },
+    "ActivityResultInput": {
+      "observedAt": "2026-10-03T02:15:00.000Z",
+      "description": "DATA CONTOH: hasil kegiatan sintetis dengan pengamatan sebagian.",
+      "claimedOutcome": "partial",
+      "beforeMediaIds": [
+        "7f17dbc4-f80a-4906-8d7a-43bdf14d2d5d"
+      ],
+      "beforePublicEvidenceIds": [],
+      "afterMediaIds": [
+        "cc8d9e87-80e1-4a2f-a329-1efb41df5344"
+      ],
+      "measurement": null
+    },
+    "ActivityResult": {
+      "id": "e93a23b5-01b8-455e-b714-50aecb4dabbc",
+      "activityId": "ee80bad3-40c5-45b0-aa60-f17984ec644d",
+      "reportId": "5aa7d095-cd09-4eab-90c9-42bc287aab53",
+      "revision": 1,
+      "status": "submitted",
+      "observedAt": "2026-10-03T02:15:00.000Z",
+      "description": "DATA CONTOH SINTETIS",
+      "claimedOutcome": "partial",
+      "verifiedOutcome": null,
+      "beforeMediaIds": [],
+      "beforePublicEvidenceIds": [],
+      "afterMediaIds": [],
+      "measurement": null,
+      "requestedEvidence": [],
+      "decisionReason": null,
+      "publicSummary": null,
+      "approvedResolutionEvidence": [],
+      "createdAt": "2026-10-03T02:15:00.000Z",
+      "updatedAt": "2026-10-03T02:15:00.000Z"
+    },
+    "ActivityResultDecision": {
+      "action": "approve",
+      "reason": "DATA CONTOH SINTETIS",
+      "verifiedOutcome": "partial",
+      "publicSummary": "DATA CONTOH: penanganan sebagian; kejadian tetap terbuka.",
+      "publicEvidenceApprovals": [],
+      "requestedEvidence": []
+    },
+    "AdminActivityResult": {
+      "id": "18144d5f-4ccd-427e-939a-95ecf2e5932a",
+      "activityId": "e529066e-ffad-4c68-b8a3-51d9f9125974",
+      "reportId": "ddd05013-5c79-4fc9-a6fd-8edea9a5cd97",
+      "revision": 1,
+      "status": "submitted",
+      "observedAt": "2026-10-03T02:15:00.000Z",
+      "description": "DATA CONTOH SINTETIS",
+      "claimedOutcome": "partial",
+      "verifiedOutcome": null,
+      "beforeMediaIds": [],
+      "beforePublicEvidenceIds": [],
+      "afterMediaIds": [],
+      "measurement": null,
+      "requestedEvidence": [],
+      "decisionReason": null,
+      "publicSummary": null,
+      "approvedResolutionEvidence": [],
+      "createdAt": "2026-10-03T02:15:00.000Z",
+      "updatedAt": "2026-10-03T02:15:00.000Z",
+      "latestReview": null
+    },
+    "ImpactMeasurement": {
+      "id": "4d7b99d5-d155-4c80-b060-31f37735fbf6",
+      "revision": 1,
+      "activityId": "7ee01ef0-bff9-4a5e-86a5-a86d84cec5c7",
+      "physicalBatchId": "29cd546a-6a7e-4313-84b0-fda05b66f596",
+      "stage": "collected",
+      "valueKg": 0,
+      "unit": "kg",
+      "method": "scale",
+      "sourceReference": "DATA CONTOH SINTETIS",
+      "evidenceMediaIds": [],
+      "status": "pending_review",
+      "measuredAt": "2026-10-03T02:15:00.000Z",
+      "verifiedAt": null,
+      "supersedesId": null
+    },
+    "PublicActivityResult": {
+      "id": "ee167603-91fd-419f-98b0-6aad76bc20ba",
+      "activityId": "22a6af48-aea7-414d-adeb-3e3e365a5ade",
+      "reportId": "5bde8f36-decd-4b21-b9a7-c8dfc5c386b4",
+      "summary": "DATA CONTOH SINTETIS",
+      "outcome": "partial",
+      "observedAt": "2026-10-03T02:15:00.000Z",
+      "evidence": [],
+      "verifiedMeasurement": null
+    },
+    "Notification": {
+      "id": "aea7dd2a-d8ba-407a-909c-8f3ebdacc005",
+      "type": "incident_updated",
+      "title": "DATA CONTOH SINTETIS",
+      "message": "DATA CONTOH SINTETIS",
+      "targetPath": "/synthetic-example",
+      "read": false,
+      "createdAt": "2026-10-03T02:15:00.000Z"
+    },
+    "ImpactSummary": {
+      "from": "2026-10-01T00:00:00.000Z",
+      "to": "2026-11-01T00:00:00.000Z",
+      "cellId": null,
+      "asOf": "2026-10-03T02:15:00.000Z",
+      "resolvedIncidents": 2,
+      "approvedActivities": 1,
+      "volunteerAttendances": 3,
+      "uniqueVolunteers": 3,
+      "medianResolutionHours": 20,
+      "verifiedKg": {
+        "collected": 12.5,
+        "handedOver": null,
+        "recycled": null
+      },
+      "measurementCoverage": {
+        "approvedResults": 1,
+        "resultsWithVerifiedWeight": 1
+      },
+      "scope": "approved_public_sources",
+      "methodologyVersion": "sap-local-impact-v1"
+    },
+    "PublicationStatus": "draft",
+    "PublicationSettings": {
+      "revision": 1,
+      "source": "reports",
+      "onlyVerified": true,
+      "format": "feed",
+      "timezone": "Asia/Jakarta",
+      "draftGeneration": "automatic",
+      "publishMode": "approval_required",
+      "captionTemplate": "DATA CONTOH SINTETIS",
+      "hashtags": "DATA CONTOH SINTETIS"
+    },
+    "PublicationRendition": {
+      "id": "a220ddbf-3c41-445d-bf93-9c369d2c0616",
+      "revision": 1,
+      "templateVersion": "DATA CONTOH SINTETIS",
+      "status": "queued",
+      "url": null,
+      "expiresAt": null
+    },
+    "PublicationApproval": {
+      "status": "unapproved",
+      "contentRevision": null,
+      "sourceRevision": null,
+      "renditionId": null,
+      "approvedAt": null
+    },
+    "InstagramPost": {
+      "id": "234b887d-e425-4db4-87a4-8cdaa39d6049",
+      "revision": 1,
+      "contentRevision": 1,
+      "publicationSeriesId": "5215eb4e-4188-4916-b765-30de32a33d2c",
+      "generation": 1,
+      "replacesPostId": null,
+      "kind": "initial",
+      "milestoneId": null,
+      "source": {
+        "reportId": "28ad36d4-5d78-4005-b69e-42225b3ce0ef",
+        "sourceRevision": 1,
+        "scanId": null,
+        "status": "verified",
+        "occurredAt": "2026-10-03T02:15:00.000Z",
+        "area": {
+          "cellId": "8928308280fffff",
+          "label": "DATA CONTOH SINTETIS"
+        },
+        "title": "DATA CONTOH: kejadian lingkungan",
+        "categoryName": "Plastik",
+        "mediaId": "07f590b8-b814-4144-8b6d-b737c0604633",
+        "publicSummary": "Contoh sintetis untuk preview pengembangan."
+      },
+      "status": "draft",
+      "caption": "DATA CONTOH SINTETIS — bukan laporan atau post nyata.",
+      "altText": "Contoh sintetis poster SAP.",
+      "rendition": {
+        "id": "4be3a277-cfe2-4b13-92cd-9a61baaa0333",
+        "revision": 1,
+        "templateVersion": "sap-report-feed-v1",
+        "status": "queued",
+        "url": null,
+        "expiresAt": null
+      },
+      "approval": {
+        "status": "unapproved",
+        "contentRevision": null,
+        "sourceRevision": null,
+        "renditionId": null,
+        "approvedAt": null
+      },
+      "createdAt": "2026-10-03T02:15:00.000Z",
+      "updatedAt": "2026-10-03T02:15:00.000Z",
+      "publishedAt": null,
+      "retractedAt": null,
+      "permalink": null,
+      "publishError": null,
+      "lastOperationId": null,
+      "actions": {
+        "edit": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "approve": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "publish": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "cancel": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        },
+        "retract": {
+          "allowed": false,
+          "reasonCode": "FEATURE_UNAVAILABLE"
+        }
+      }
+    },
+    "InstagramOverview": {
+      "account": {
+        "username": null,
+        "status": "disconnected"
+      },
+      "capabilities": {
+        "canCreateDraft": false,
+        "canPublish": false,
+        "canRetract": false,
+        "canConnect": false,
+        "canAutomate": false
+      },
+      "capabilityReasons": {
+        "canCreateDraft": "FEATURE_UNAVAILABLE",
+        "canPublish": "FEATURE_UNAVAILABLE",
+        "canRetract": "FEATURE_UNAVAILABLE",
+        "canConnect": "FEATURE_UNAVAILABLE",
+        "canAutomate": "FEATURE_UNAVAILABLE"
+      },
+      "settings": {
+        "revision": 1,
+        "source": "reports",
+        "onlyVerified": true,
+        "format": "feed",
+        "timezone": "Asia/Jakarta",
+        "draftGeneration": "automatic",
+        "publishMode": "approval_required",
+        "captionTemplate": "DATA CONTOH SINTETIS",
+        "hashtags": "DATA CONTOH SINTETIS"
+      },
+      "stats": {
+        "total": 0,
+        "byStatus": {
+          "draft": 0,
+          "publishing": 0,
+          "published": 0,
+          "failed": 0,
+          "cancelled": 0,
+          "retracting": 0,
+          "retracted": 0,
+          "needs_action": 0
+        }
+      }
+    },
+    "PublicationPage": {
+      "items": [],
+      "nextCursor": null,
+      "total": 0
+    },
+    "PublicationOperation": {
+      "id": "c09a7aff-7442-4fd5-857c-6e8527883f8a",
+      "postId": "234b887d-e425-4db4-87a4-8cdaa39d6049",
+      "kind": "publish",
+      "status": "queued",
+      "channels": {
+        "sap": "unaffected",
+        "instagram": "pending"
+      },
+      "errorCode": null,
+      "message": "DATA CONTOH: operasi menunggu worker.",
+      "attemptCount": 0,
+      "nextRetryAt": null,
+      "createdAt": "2026-10-03T02:15:00.000Z",
+      "updatedAt": "2026-10-03T02:15:00.000Z"
+    },
+    "PublicationPreview": {
+      "postId": "3b29eac8-59e4-40e6-a3d2-afee3a32a503",
+      "revision": 1,
+      "contentRevision": 1,
+      "sourceRevision": 1,
+      "caption": "DATA CONTOH SINTETIS",
+      "altText": "DATA CONTOH SINTETIS",
+      "rendition": {
+        "id": "ed77a3f3-34e4-4932-9e22-4b1d31034322",
+        "revision": 1,
+        "templateVersion": "DATA CONTOH SINTETIS",
+        "status": "queued",
+        "url": null,
+        "expiresAt": null
+      },
+      "approval": {
+        "status": "unapproved",
+        "contentRevision": null,
+        "sourceRevision": null,
+        "renditionId": null,
+        "approvedAt": null
+      }
+    },
+    "WithdrawalResult": {
+      "reportId": "64159a39-1512-4296-888e-efcf8839ab17",
+      "sourceRevision": 1,
+      "publicVisibility": "hidden",
+      "scope": "all",
+      "operations": []
+    }
+  },
+  "scenarios": {
+    "publicIncident": {
+      "data": {
+        "kind": "incident",
+        "id": "28ad36d4-5d78-4005-b69e-42225b3ce0ef",
+        "sourceRevision": 1,
+        "title": "DATA CONTOH: sampah perlu ditangani",
+        "summary": "Contoh laporan sintetis untuk pengembangan antarmuka.",
+        "status": "verified",
+        "categoryId": "plastic",
+        "area": {
+          "cellId": "8928308280fffff",
+          "label": "Area contoh sintetis"
+        },
+        "occurredAt": "2026-10-03T02:15:00.000Z",
+        "lastObservedAt": null,
+        "updatedAt": "2026-10-03T02:15:00.000Z",
+        "evidence": [],
+        "supportCount": 7,
+        "supportClosed": false,
+        "relatedActivityIds": [
+          "bbb8d146-0bd7-4423-a427-c53ebea0cd51"
+        ],
+        "canonicalPath": "/incidents/28ad36d4-5d78-4005-b69e-42225b3ce0ef"
+      },
+      "meta": {
+        "requestId": "1b9e3a1f-a2c9-4148-9ca6-87b8e336b7d7"
+      }
+    },
+    "communityAwaitingHumanReview": {
+      "data": {
+        "id": "292b29b8-b35a-42a7-bff0-23ce11ab5443",
+        "reportId": "28ad36d4-5d78-4005-b69e-42225b3ce0ef",
+        "revision": 1,
+        "kind": "looks_clean",
+        "observedAt": "2026-10-03T02:15:00.000Z",
+        "description": "DATA CONTOH: pengamatan sintetis tanpa foto tambahan.",
+        "mediaIds": [],
+        "correctionField": null,
+        "status": "submitted",
+        "publicSummary": null,
+        "requestedEvidence": [],
+        "decisionReason": null,
+        "approvedResolutionEvidence": [],
+        "createdAt": "2026-10-03T02:15:00.000Z",
+        "updatedAt": "2026-10-03T02:15:00.000Z"
+      },
+      "meta": {
+        "requestId": "389caa8f-b761-4fba-a62b-71fa1bad20cf"
+      }
+    },
+    "hermesQueued": {
+      "data": {
+        "id": "00b766d4-9768-4e41-a8e5-522025a33b64",
+        "subjectType": "community_update",
+        "subjectId": "292b29b8-b35a-42a7-bff0-23ce11ab5443",
+        "subjectRevision": 1,
+        "reportId": "28ad36d4-5d78-4005-b69e-42225b3ce0ef",
+        "sourceReportRevision": 1,
+        "snapshotHash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "status": "queued",
+        "requiresHumanReview": true,
+        "result": null,
+        "errorCode": null,
+        "modelVersion": "synthetic-not-configured",
+        "policyVersion": "sap-moderation-r1",
+        "createdAt": "2026-10-03T02:15:00.000Z",
+        "finishedAt": null
+      },
+      "meta": {
+        "requestId": "e536664a-bf19-49a2-a5c2-a817d50fa78a"
+      }
+    },
+    "activityRegistration": {
+      "data": {
+        "kind": "activity",
+        "id": "bbb8d146-0bd7-4423-a427-c53ebea0cd51",
+        "reportId": "28ad36d4-5d78-4005-b69e-42225b3ce0ef",
+        "revision": 1,
+        "title": "DATA CONTOH: kegiatan warga",
+        "description": "Kegiatan sintetis untuk pengembangan tampilan.",
+        "status": "registration_open",
+        "area": {
+          "cellId": "8928308280fffff",
+          "label": "DATA CONTOH SINTETIS"
+        },
+        "coordinatorDisplayName": "Koordinator SAP",
+        "startsAt": "2026-10-03T02:15:00.000Z",
+        "endsAt": "2026-10-03T02:15:00.000Z",
+        "registrationClosesAt": "2026-10-03T02:15:00.000Z",
+        "timezone": "Asia/Jakarta",
+        "capacity": 10,
+        "acceptedCount": 3,
+        "availableSeats": 7,
+        "registrationOpen": true,
+        "equipment": [],
+        "accessibilityNotes": "DATA CONTOH SINTETIS",
+        "wasteHandoverPlan": "DATA CONTOH SINTETIS",
+        "resultOutcome": null,
+        "canonicalPath": "/activities/bbb8d146-0bd7-4423-a427-c53ebea0cd51"
+      },
+      "meta": {
+        "requestId": "5a692190-5b58-45bf-9297-a7d8d46b779c"
+      }
+    },
+    "evidenceBasedImpact": {
+      "data": {
+        "from": "2026-10-01T00:00:00.000Z",
+        "to": "2026-11-01T00:00:00.000Z",
+        "cellId": null,
+        "asOf": "2026-10-03T02:15:00.000Z",
+        "resolvedIncidents": 2,
+        "approvedActivities": 1,
+        "volunteerAttendances": 3,
+        "uniqueVolunteers": 3,
+        "medianResolutionHours": 20,
+        "verifiedKg": {
+          "collected": 12.5,
+          "handedOver": null,
+          "recycled": null
+        },
+        "measurementCoverage": {
+          "approvedResults": 1,
+          "resultsWithVerifiedWeight": 1
+        },
+        "scope": "approved_public_sources",
+        "methodologyVersion": "sap-local-impact-v1"
+      },
+      "meta": {
+        "requestId": "a660e0bf-d5bf-49c7-aacd-1f0bb990c382"
+      }
+    },
+    "instagramModuleDisabled": {
+      "error": {
+        "code": "FEATURE_UNAVAILABLE",
+        "message": "Fitur belum diaktifkan."
+      },
+      "meta": {
+        "requestId": "d17841d2-e8ae-4d91-aaaf-d9010a565a0d"
+      }
+    },
+    "instagramDisconnected": {
+      "data": {
+        "account": {
+          "username": null,
+          "status": "disconnected"
+        },
+        "capabilities": {
+          "canCreateDraft": false,
+          "canPublish": false,
+          "canRetract": false,
+          "canConnect": false,
+          "canAutomate": false
+        },
+        "capabilityReasons": {
+          "canCreateDraft": "FEATURE_UNAVAILABLE",
+          "canPublish": "FEATURE_UNAVAILABLE",
+          "canRetract": "FEATURE_UNAVAILABLE",
+          "canConnect": "FEATURE_UNAVAILABLE",
+          "canAutomate": "FEATURE_UNAVAILABLE"
+        },
+        "settings": {
+          "revision": 1,
+          "source": "reports",
+          "onlyVerified": true,
+          "format": "feed",
+          "timezone": "Asia/Jakarta",
+          "draftGeneration": "automatic",
+          "publishMode": "approval_required",
+          "captionTemplate": "DATA CONTOH SINTETIS",
+          "hashtags": "DATA CONTOH SINTETIS"
+        },
+        "stats": {
+          "total": 0,
+          "byStatus": {
+            "draft": 0,
+            "publishing": 0,
+            "published": 0,
+            "failed": 0,
+            "cancelled": 0,
+            "retracting": 0,
+            "retracted": 0,
+            "needs_action": 0
+          }
+        }
+      },
+      "meta": {
+        "requestId": "bec3c2aa-51e9-435d-af13-77886d5ee051"
+      }
+    },
+    "instagramDraftAwaitingRendition": {
+      "data": {
+        "id": "234b887d-e425-4db4-87a4-8cdaa39d6049",
+        "revision": 1,
+        "contentRevision": 1,
+        "publicationSeriesId": "5215eb4e-4188-4916-b765-30de32a33d2c",
+        "generation": 1,
+        "replacesPostId": null,
+        "kind": "initial",
+        "milestoneId": null,
+        "source": {
+          "reportId": "28ad36d4-5d78-4005-b69e-42225b3ce0ef",
+          "sourceRevision": 1,
+          "scanId": null,
+          "status": "verified",
+          "occurredAt": "2026-10-03T02:15:00.000Z",
+          "area": {
+            "cellId": "8928308280fffff",
+            "label": "DATA CONTOH SINTETIS"
+          },
+          "title": "DATA CONTOH: kejadian lingkungan",
+          "categoryName": "Plastik",
+          "mediaId": "07f590b8-b814-4144-8b6d-b737c0604633",
+          "publicSummary": "Contoh sintetis untuk preview pengembangan."
+        },
+        "status": "draft",
+        "caption": "DATA CONTOH SINTETIS — bukan laporan atau post nyata.",
+        "altText": "Contoh sintetis poster SAP.",
+        "rendition": {
+          "id": "4be3a277-cfe2-4b13-92cd-9a61baaa0333",
+          "revision": 1,
+          "templateVersion": "sap-report-feed-v1",
+          "status": "queued",
+          "url": null,
+          "expiresAt": null
+        },
+        "approval": {
+          "status": "unapproved",
+          "contentRevision": null,
+          "sourceRevision": null,
+          "renditionId": null,
+          "approvedAt": null
+        },
+        "createdAt": "2026-10-03T02:15:00.000Z",
+        "updatedAt": "2026-10-03T02:15:00.000Z",
+        "publishedAt": null,
+        "retractedAt": null,
+        "permalink": null,
+        "publishError": null,
+        "lastOperationId": null,
+        "actions": {
+          "edit": {
+            "allowed": false,
+            "reasonCode": "FEATURE_UNAVAILABLE"
+          },
+          "approve": {
+            "allowed": false,
+            "reasonCode": "FEATURE_UNAVAILABLE"
+          },
+          "publish": {
+            "allowed": false,
+            "reasonCode": "FEATURE_UNAVAILABLE"
+          },
+          "cancel": {
+            "allowed": false,
+            "reasonCode": "FEATURE_UNAVAILABLE"
+          },
+          "retract": {
+            "allowed": false,
+            "reasonCode": "FEATURE_UNAVAILABLE"
+          }
+        }
+      },
+      "meta": {
+        "requestId": "1100cf46-35ad-440f-bdf1-8e73de781687"
+      }
+    },
+    "instagramOperationPending": {
+      "data": {
+        "id": "c09a7aff-7442-4fd5-857c-6e8527883f8a",
+        "postId": "234b887d-e425-4db4-87a4-8cdaa39d6049",
+        "kind": "publish",
+        "status": "queued",
+        "channels": {
+          "sap": "unaffected",
+          "instagram": "pending"
+        },
+        "errorCode": null,
+        "message": "DATA CONTOH: operasi menunggu worker.",
+        "attemptCount": 0,
+        "nextRetryAt": null,
+        "createdAt": "2026-10-03T02:15:00.000Z",
+        "updatedAt": "2026-10-03T02:15:00.000Z"
+      },
+      "meta": {
+        "requestId": "e336e9be-e2d4-41e9-96b6-cbbf91b51919"
+      }
+    }
+  }
+}

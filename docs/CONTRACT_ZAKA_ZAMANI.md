@@ -253,6 +253,7 @@ Upload existing tetap multipart `file` + `purpose`; JPEG/PNG/WebP, maksimum **10
 | GET `/admin/reports/{reportId}/media/{mediaId}/url` | A, relasi report/media | — | 200 `{ url, expiresAt }` untuk review privat |
 | GET `/admin/community-updates/{id}/media/{mediaId}/url` | A, relasi update/media | — | 200 `{ url, expiresAt }` |
 | GET `/activities/{id}/results/{resultId}/media/{mediaId}/url` | C, relasi result/media | — | 200 `{ url, expiresAt }` |
+| GET `/activities/{id}/measurements/{measurementId}/media/{mediaId}/url` | C, relasi measurement/media | — | 200 `{ url, expiresAt }` bukti timbang privat |
 | POST `/admin/media/{mediaId}/renditions` | A, IM subjek, IK | `{ subjectType, subjectId, redactions }` | 202 `EvidenceRendition` queued |
 | GET `/admin/media/{mediaId}/renditions` | A, relasi subjek/media | subjectType, subjectId, limit/cursor | 200 `Page<EvidenceRendition>` |
 
@@ -589,6 +590,8 @@ Notifikasi hanya untuk pengguna yang berhak atau mengikuti kejadian. Payload tid
 ## 14. Instagram: DTO dan API pengendalian
 
 ### 14.1 Sumber, approval, dan status
+
+Acuan renderer: [INSTAGRAM_POST_DESIGN.md](INSTAGRAM_POST_DESIGN.md). Poster semirip mungkin dengan referensi, memakai foto bukti nyata dan peta geografis nyata sesuai lokasi publik yang diizinkan; tidak mengatur layout dashboard Zaka.
 
 Sumber wajib canonical, status verified/in_progress/resolved, visibility public, publicSummary terisi, dan media terlampir dengan consent serta approval channel Instagram. scanId nullable. Jika bahan/izin belum lengkap, tampilkan alasan **draf belum tersedia** pada lifecycle; jangan membuat post yang mengaku siap atau mengambil media privat sebagai fallback.
 

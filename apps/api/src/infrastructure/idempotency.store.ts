@@ -41,6 +41,8 @@ export class IdempotencyStore {
     input: { actorScope: string; route: string; key: string; requestHash: string; ttlMs?: number },
   ): Promise<IdempotencyReplay | null> {
     const expiresAt = new Date(Date.now() + (input.ttlMs ?? IDEMPOTENCY_TTL_MS));
+    await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`${input.actorScope}:${input.route}:${input.key}`},0))`;
+    await tx`DELETE FROM idempotency_keys WHERE actor_scope=${input.actorScope} AND route=${input.route} AND key=${input.key} AND expires_at<now()`;
     const inserted = await tx<{ key: string }[]>`
       INSERT INTO idempotency_keys (actor_scope, route, key, request_hash, expires_at)
       VALUES (${input.actorScope}, ${input.route}, ${input.key}, ${input.requestHash}, ${expiresAt})

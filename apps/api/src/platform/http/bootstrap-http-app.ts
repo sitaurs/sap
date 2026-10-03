@@ -13,6 +13,14 @@ export function bootstrapHttpApp(app: INestApplication, config: AppConfig = load
   const requestId = new RequestIdMiddleware();
   const sessions = app.get(SessionService);
   app.use(requestId.use.bind(requestId));
+  app.use((request: { originalUrl?: string; url?: string }, response: { setHeader(name:string,value:string):void }, next:()=>void) => {
+    const path=(request.originalUrl??request.url??'').split('?')[0]??'';
+    if (/^\/api\/v1\/(?:admin(?:\/|$)|public\/incidents(?:\/|$)|activities(?:\/|$)|impact(?:\/|$)|publication-assets(?:\/|$)|community-updates(?:\/|$)|users\/me\/(?:followed-incidents|community-updates|activities|coordinator-assignments|notifications)(?:\/|$)|media\/[^/]+\/consents(?:\/|$))/.test(path)) {
+      response.setHeader('Cache-Control','private, no-store');
+      response.setHeader('Pragma','no-cache');
+    }
+    next();
+  });
   app.use(sessions.attach.bind(sessions));
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }));
   app.useGlobalInterceptors(new EnvelopeInterceptor());

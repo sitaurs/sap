@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { DATABASE, type Database } from '../infrastructure/database.module.js';
 import type { DeletionRecord, DeletionStatus } from './auth.types.js';
 
@@ -37,13 +37,22 @@ export class DeletionRepository {
     receiptHash: string;
     receiptExpiresAt: Date;
   }): Promise<DeletionRecord> {
-    const rows = await this.sql<DeletionRow[]>`
+    return this.sql.begin(async tx => {
+    const owner=await tx`SELECT id FROM users WHERE id=${input.userId} FOR UPDATE`;
+    if(!owner.length) throw new NotFoundException({code:'NOT_FOUND',message:'Akun tidak ditemukan.'});
+    const rows = await tx<DeletionRow[]>`
       INSERT INTO deletion_requests (user_id, subject_hash, receipt_hash, receipt_expires_at)
       VALUES (${input.userId}, ${input.subjectHash}, ${input.receiptHash}, ${input.receiptExpiresAt})
       ON CONFLICT (user_id) WHERE status IN ('queued', 'running')
       DO UPDATE SET receipt_hash = ${input.receiptHash}, receipt_expires_at = ${input.receiptExpiresAt}
-      RETURNING ${this.sql.unsafe(COLUMNS)}`;
+      RETURNING ${tx.unsafe(COLUMNS)}`;
+    await tx`UPDATE users SET deleted_at=COALESCE(deleted_at,now()),updated_at=now() WHERE id=${input.userId}`;
+    await tx`DELETE FROM sessions WHERE user_id=${input.userId}`;
+    await tx`INSERT INTO outbox_events(topic,aggregate_id,dedup_key,payload_minimal)
+      VALUES('account.deletion.requested',${rows[0]!.id},${`account.deletion.requested:${rows[0]!.id}`},${tx.json({subjectHash:input.subjectHash})})
+      ON CONFLICT(dedup_key) DO NOTHING`;
     return map(rows[0]!);
+    }) as Promise<DeletionRecord>;
   }
 
   /** Resolve a deletion request from its receipt digest (deletion cookie flow). */

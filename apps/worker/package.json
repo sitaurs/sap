@@ -15,8 +15,10 @@
     "@gradio/client": "^2.7.0",
     "@sap/config": "0.1.0",
     "bullmq": "^6.3.8",
+    "h3-js": "^4.5.0",
     "ioredis": "^5.8.1",
-    "postgres": "^3.4.9"
+    "postgres": "^3.4.9",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "tsx": "^4.20.6"

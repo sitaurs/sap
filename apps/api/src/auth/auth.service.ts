@@ -272,13 +272,6 @@ export class AuthService {
       receiptHash: receipt.hash,
       receiptExpiresAt,
     });
-    await this.sessions.deleteAllForUser(input.userId);
-    await this.outbox.enqueue({
-      topic: 'account.deletion.requested',
-      aggregateId: deletion.id,
-      dedupKey: `account.deletion.requested:${deletion.id}`,
-      payload: { subjectHash },
-    });
     return { deletion: this.toDeletionResult(deletion), receiptToken: receipt.token };
   }
 

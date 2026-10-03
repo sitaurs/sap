@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type { AppConfig } from '@sap/config';
 
 /** Reads normalized media bytes back from R2 for inference (worker side). */
@@ -7,10 +7,16 @@ export class ObjectStore {
 
   constructor(private readonly config: AppConfig) {}
 
+  async putObject(input: { key: string; body: Buffer; contentType: string; sha256: string }): Promise<void> {
+    await this.getClient().send(new PutObjectCommand({ Bucket:this.config.S3_BUCKET,Key:input.key,
+      Body:input.body,ContentType:input.contentType,ChecksumSHA256:Buffer.from(input.sha256,'hex').toString('base64') }), {abortSignal:AbortSignal.timeout(60000)});
+  }
+
   async getObject(key: string): Promise<Buffer> {
     const client = this.getClient();
     const response = await client.send(
       new GetObjectCommand({ Bucket: this.config.S3_BUCKET, Key: key }),
+      {abortSignal:AbortSignal.timeout(60000)},
     );
     const body = response.Body;
     if (!body) throw new Error('empty object body');
@@ -28,7 +34,7 @@ export class ObjectStore {
    */
   async deleteObject(key: string): Promise<void> {
     const client = this.getClient();
-    await client.send(new DeleteObjectCommand({ Bucket: this.config.S3_BUCKET, Key: key }));
+    await client.send(new DeleteObjectCommand({ Bucket: this.config.S3_BUCKET, Key: key }), {abortSignal:AbortSignal.timeout(60000)});
   }
 
   private getClient(): S3Client {

@@ -369,7 +369,7 @@ Sasaran produk awal: peta cepat menyembunyikan laporan yang dicabut; penarikan I
 
 ## 7. Poster otomatis memakai desain kiriman
 
-Referensi asli disimpan tanpa perubahan sebagai [gambar desain](assets/sap-instagram-post-reference.png). Gambar kiriman adalah simulasi: ada label data contoh, foto ilustrasi, dan peta ilustratif. Itu bukan bukti kejadian nyata.
+Referensi asli disimpan tanpa perubahan sebagai [gambar desain](assets/sap-instagram-post-reference.png). Gambar kiriman adalah simulasi: ada label data contoh, foto ilustrasi, dan peta ilustratif. Itu bukan bukti kejadian nyata. Instruksi visual terbaru mengacu [spesifikasi poster](../INSTAGRAM_POST_DESIGN.md): tampilan semirip mungkin, foto bukti nyata, dan peta geografis nyata. Implementasi renderer kini dilanjutkan atas instruksi Zamani; visual akhir dan integrasi provider belum dinyatakan terverifikasi.
 
 Elemen yang dapat dipertahankan: warna hijau/kuning, latar krem, identitas SAP, judul besar, foto kejadian, panel waktu/kategori/ID, area map inset, dan CTA perkembangan.
 

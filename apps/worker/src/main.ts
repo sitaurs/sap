@@ -3,6 +3,7 @@ import { Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { setDefaultResultOrder } from 'node:dns';
+import { setDefaultAutoSelectFamily } from 'node:net';
 import { DeletionProcessor } from './deletion-processor.js';
 import { MaintenanceRepository } from './maintenance-repository.js';
 import { drainOneDeletion, runSweep } from './maintenance-runner.js';
@@ -13,6 +14,7 @@ import { ScanProcessor } from './scan-processor.js';
 import { ScanRepository } from './scan-repository.js';
 import { ScanSettingsRepository } from './scan-settings-repository.js';
 import { VisionClient } from './vision-client.js';
+import { ExtensionJobs } from './extension-jobs.js';
 
 const SCAN_JOB = 'scan.process';
 /** How often to poll the outbox for pending deletion events. */
@@ -21,6 +23,10 @@ const DELETION_POLL_MS = 5_000;
 const SWEEP_INTERVAL_MS = 60 * 60 * 1_000;
 
 setDefaultResultOrder('ipv4first');
+// Neon publishes IPv4+IPv6; this machine resolves IPv6 but cannot route it.
+// Disable happy-eyeballs so the socket doesn't race an unreachable IPv6 address
+// (empty-message AggregateError otherwise). Mirrors apps/api explicit-IPv4 socket.
+setDefaultAutoSelectFamily(false);
 const config = loadConfig();
 const connection = new Redis(config.REDIS_URL, {
   maxRetriesPerRequest: null,
@@ -39,6 +45,8 @@ const processor = new ScanProcessor(
 
 const maintenanceRepo = new MaintenanceRepository(sql);
 const deletionProcessor = new DeletionProcessor(maintenanceRepo, store);
+const extensionJobs = new ExtensionJobs(sql, config, store, connection);
+extensionJobs.start();
 
 const worker = new Worker(
   'sap-jobs',
@@ -99,6 +107,7 @@ async function shutdown(signal: string) {
   stopping = true;
   if (deletionTimer) clearTimeout(deletionTimer);
   if (sweepTimer) clearTimeout(sweepTimer);
+  await extensionJobs?.close();
   await worker.close();
   await connection.quit();
   await sql.end({ timeout: 5 });

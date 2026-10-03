@@ -14,6 +14,7 @@ import {
   Max,
   Min,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import { HYBRID_MODES } from './scan-settings.types.js';
 
@@ -41,6 +42,20 @@ export class DecisionInputDto {
   resolutionMediaIds?: string[];
 
   @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(3)
+  @ArrayUnique()
+  @IsUUID(undefined, { each: true })
+  resolutionEvidenceIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => EvidencePublicationDto)
+  publicEvidenceApprovals?: EvidencePublicationDto[];
+
+  @IsOptional()
   @ValidateIf((o) => o.publicSummary !== null)
   @IsString()
   @Length(0, 500)
@@ -52,6 +67,13 @@ export class DecisionInputDto {
   @ArrayUnique()
   @IsUUID(undefined, { each: true })
   publishMediaIds?: string[];
+}
+
+export class EvidencePublicationDto {
+  @IsUUID() mediaId!: string;
+  @IsUUID() renditionId!: string;
+  @IsArray() @ArrayMaxSize(2) @ArrayUnique() @IsIn(['web','instagram'], {each:true})
+  channels!: ('web'|'instagram')[];
 }
 
 /** Query for listAdminReports. */

@@ -46,6 +46,41 @@ const EXPECTED_TABLES = [
   'mfa_recovery_codes',
   'mfa_preauth_challenges',
   'mfa_login_limits',
+  // 0011 public projection + evidence
+  'media_consents',
+  'evidence_links',
+  'evidence_renditions',
+  'media_publication_approvals',
+  'approved_resolution_evidence',
+  'public_incident_events',
+  // 0012 community + assisted review
+  'incident_supports',
+  'incident_follows',
+  'community_updates',
+  'review_runs',
+  'review_daily_budgets',
+  // 0013 activities + impact
+  'activities',
+  'activity_memberships',
+  'physical_batches',
+  'impact_measurements',
+  'measurement_media',
+  'activity_results',
+  'notifications',
+  // 0014 Instagram lifecycle
+  'instagram_accounts',
+  'instagram_settings',
+  'instagram_publication_series',
+  'instagram_posts',
+  'instagram_operations',
+  'instagram_publication_attempts',
+  'instagram_oauth_states',
+  'instagram_manual_confirmations',
+  'instagram_rendition_objects',
+  // 0015 map snapshots + cleanup
+  'publication_map_snapshots',
+  'publication_map_budgets',
+  'media_cleanup_tasks',
 ].sort();
 
 test('there are at least five migration files', async () => {

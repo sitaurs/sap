@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CommunityModule } from '../community/community.module.js';
 import { DatabaseModule } from '../infrastructure/database.module.js';
 import { IdempotencyStore } from '../infrastructure/idempotency.store.js';
 import { MediaRepository } from '../media/media.repository.js';
@@ -12,9 +13,10 @@ import { AuditRepository } from './audit.repository.js';
 import { ModerationRepository } from './moderation.repository.js';
 import { ScanSettingsRepository } from './scan-settings.repository.js';
 import { ScanSettingsService } from './scan-settings.service.js';
+import { ExtensionStore } from '../extensions/extension.store.js';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, CommunityModule],
   controllers: [AdminController],
   providers: [
     AdminService,
@@ -24,6 +26,7 @@ import { ScanSettingsService } from './scan-settings.service.js';
     AuditRepository,
     ReportRepository,
     IdempotencyStore,
+    ExtensionStore,
     MediaRepository,
     SessionRepository,
     SessionAuthGuard,

@@ -18,14 +18,16 @@ export async function drainOneDeletion(
   const event = await repo.claimDeletionEvent();
   if (!event) return false;
   try {
-    await processor.process(event.deletionId, event.subjectHash);
-    await repo.markOutboxDelivered(event.outboxId);
+    if (event.leaseOwner) await processor.process(event.deletionId, event.subjectHash, {outboxId:event.outboxId,leaseOwner:event.leaseOwner});
+    else await processor.process(event.deletionId, event.subjectHash);
+    await repo.markOutboxDelivered(event.outboxId, event.leaseOwner);
   } catch (error) {
+    if (error instanceof Error && error.message === 'DELETION_LEASE_LOST') return true;
     await repo.markDeletionFailed(event.deletionId, 'DELETION_FAILED');
-    await repo.markOutboxRetry(event.outboxId, RETRY_BACKOFF_MS);
+    await repo.markOutboxRetry(event.outboxId, RETRY_BACKOFF_MS, event.leaseOwner);
     console.error('deletion_failed', {
       deletionId: event.deletionId,
-      message: error instanceof Error ? error.message : 'unknown',
+      code: 'DELETION_FAILED',
     });
   }
   return true;
@@ -41,6 +43,8 @@ export async function runSweep(repo: MaintenanceRepository, store: ObjectStore):
   const orphans = await repo.listOrphanMediaKeys();
   for (const orphan of orphans) {
     await store.deleteObject(orphan.objectKey);
+    await repo.completeCleanupObject(orphan.objectKey, orphan.revision);
   }
-  return repo.sweepExpired();
+  const result=await repo.sweepExpired();
+  return {...result,orphanMedia:Math.max(result.orphanMedia,new Set(orphans.map(orphan=>orphan.id)).size)};
 }

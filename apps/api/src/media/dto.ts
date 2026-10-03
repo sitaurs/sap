@@ -3,6 +3,6 @@ import type { MediaPurpose } from './media.repository.js';
 
 /** Multipart text field alongside the binary `file` part (OpenAPI uploadMedia). */
 export class UploadMediaDto {
-  @IsIn(['scan', 'report', 'resolution', 'avatar'])
+  @IsIn(['scan', 'report', 'resolution', 'avatar', 'community', 'activity_evidence'])
   purpose!: MediaPurpose;
 }

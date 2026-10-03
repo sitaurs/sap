@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { getConfig } from '@sap/config';
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 /** Baseline lifetime for a signed read URL (TECH_SPEC §5: "signed read URL pendek, ~5 menit"). */
@@ -27,6 +27,7 @@ export class ObjectStorageService {
         ContentType: input.contentType,
         ChecksumSHA256: Buffer.from(input.sha256, 'hex').toString('base64'),
       }),
+      {abortSignal:AbortSignal.timeout(60000)},
     );
   }
 
@@ -36,6 +37,10 @@ export class ObjectStorageService {
       expiresIn: ttlSeconds,
     });
     return { url, expiresAt: new Date(Date.now() + ttlSeconds * 1_000) };
+  }
+
+  async deleteObject(key:string):Promise<void> {
+    await this.getClient().send(new DeleteObjectCommand({Bucket:this.config.S3_BUCKET,Key:key}),{abortSignal:AbortSignal.timeout(60000)});
   }
 
   private getClient(): S3Client {

@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DATABASE, type Database } from '../infrastructure/database.module.js';
+import { fail } from '../extensions/extension.store.js';
 
-export type MediaPurpose = 'scan' | 'report' | 'resolution' | 'avatar';
+export type MediaPurpose = 'scan' | 'report' | 'resolution' | 'avatar' | 'community' | 'activity_evidence';
 export type MediaMime = 'image/jpeg' | 'image/png' | 'image/webp';
 
 /** Domain view of a stored media object (matches the OpenAPI `Media` schema). */
@@ -54,15 +55,36 @@ export class MediaRepository {
     width: number;
     height: number;
     expiresAt: Date;
-  }): Promise<MediaRecord> {
-    const rows = await this.sql<MediaRow[]>`
+  }, state: 'pending'|'stored' = 'stored'): Promise<MediaRecord> {
+    return this.sql.begin(async tx=>{
+    const owner=await tx`SELECT id FROM users WHERE id=${input.ownerId} AND deleted_at IS NULL FOR SHARE`;
+    if(!owner.length) fail(403,'ACCOUNT_INACTIVE','Akun tidak aktif.');
+    const rows = await tx<MediaRow[]>`
       INSERT INTO media (owner_id, purpose, object_key, mime, size_bytes, sha256, width, height, state, expires_at)
       VALUES (
         ${input.ownerId}, ${input.purpose}, ${input.objectKey}, ${input.mime}, ${input.sizeBytes},
-        ${input.sha256}, ${input.width}, ${input.height}, 'stored', ${input.expiresAt}
+        ${input.sha256}, ${input.width}, ${input.height}, ${state}, ${input.expiresAt}
       )
-      RETURNING ${this.sql.unsafe(COLUMNS)}`;
+      RETURNING ${tx.unsafe(COLUMNS)}`;
     return mapMedia(rows[0]!);
+    }) as Promise<MediaRecord>;
+  }
+
+  async markStored(id:string,ownerId:string):Promise<MediaRecord|null> {
+    return this.sql.begin(async tx=>{
+      const owner=await tx`SELECT id FROM users WHERE id=${ownerId} AND deleted_at IS NULL FOR SHARE`;
+      if(!owner.length)return null;
+      const rows=await tx<MediaRow[]>`UPDATE media SET state='stored',updated_at=now()
+        WHERE id=${id} AND owner_id=${ownerId} AND state='pending' AND deleted_at IS NULL RETURNING ${tx.unsafe(COLUMNS)}`;
+      return rows[0]?mapMedia(rows[0]):null;
+    }) as Promise<MediaRecord|null>;
+  }
+
+  async scheduleObjectCleanup(objectKey:string,mediaId:string):Promise<void> {
+    const [schema]=await this.sql<{ready:boolean}[]>`SELECT to_regclass('media_cleanup_tasks') IS NOT NULL AS ready`;
+    if(schema?.ready)await this.sql`INSERT INTO media_cleanup_tasks(object_key,media_id) VALUES(${objectKey},${mediaId})
+      ON CONFLICT(object_key) DO UPDATE SET status='pending',revision=media_cleanup_tasks.revision+1,completed_at=NULL`;
+    else await this.sql`UPDATE media SET expires_at=now(),updated_at=now() WHERE id=${mediaId}`;
   }
 
   /** Fetch a stored object owned by `ownerId`; returns null so callers can 404 non-owners. */

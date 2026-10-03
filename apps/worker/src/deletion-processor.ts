@@ -1,4 +1,4 @@
-import type { MaintenanceRepository } from './maintenance-repository.js';
+import type { DeletionClaim, MaintenanceRepository } from './maintenance-repository.js';
 import type { ObjectStore } from './object-store.js';
 
 /**
@@ -16,23 +16,28 @@ export class DeletionProcessor {
     private readonly store: ObjectStore,
   ) {}
 
-  async process(deletionId: string, subjectHash: string): Promise<void> {
+  async process(deletionId: string, subjectHash: string, claim?: DeletionClaim): Promise<void> {
     const job = await this.repo.loadDeletionJob(deletionId);
     if (!job) return;
     // Idempotent: a finished request keeps its tombstone; do not reopen it.
     if (job.status === 'completed') return;
 
+    if (claim) await this.repo.heartbeatDeletion(claim);
     await this.repo.markDeletionRunning(deletionId);
+    await this.repo.prepareDeletion(deletionId, job.userId, claim);
 
     // Delete R2 objects first; if any object cannot be removed we must not
     // pseudonymise the row yet (would orphan the bytes). Fail and retry later.
     if (job.userId) {
       const keys = await this.repo.listUserObjectKeys(job.userId);
       for (const key of keys) {
+        if (claim) await this.repo.heartbeatDeletion(claim);
+        const revision = await this.repo.cleanupObjectRevision(key);
         await this.store.deleteObject(key);
+        await this.repo.completeCleanupObject(key, revision);
       }
     }
 
-    await this.repo.finalizeDeletion(deletionId, job.userId, subjectHash || job.subjectHash);
+    await this.repo.finalizeDeletion(deletionId, job.userId, subjectHash || job.subjectHash, claim);
   }
 }

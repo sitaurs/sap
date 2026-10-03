@@ -69,9 +69,12 @@ test('runSweep deletes orphan R2 objects before sweeping rows', async () => {
   const sweepResult: SweepResult = { orphanMedia: 1, idempotencyKeys: 2, areaSnapshots: 0, tombstones: 1 };
   const repo = {
     listOrphanMediaKeys: async () => [
-      { id: 'm1', objectKey: 'scan/orphan-1.jpg' },
-      { id: 'm2', objectKey: 'scan/orphan-2.jpg' },
+      { id: 'm1', objectKey: 'scan/orphan-1.jpg', revision: 1 },
+      { id: 'm2', objectKey: 'scan/orphan-2.jpg', revision: 2 },
     ],
+    completeCleanupObject: async (key: string) => {
+      order.push(`complete:${key}`);
+    },
     sweepExpired: async () => {
       order.push('sweep');
       return sweepResult;
@@ -83,6 +86,9 @@ test('runSweep deletes orphan R2 objects before sweeping rows', async () => {
     },
   } as unknown as ObjectStore;
   const result = await runSweep(repo, store);
-  assert.deepEqual(order, ['delete:scan/orphan-1.jpg', 'delete:scan/orphan-2.jpg', 'sweep']);
-  assert.deepEqual(result, sweepResult);
+  assert.deepEqual(order, [
+    'delete:scan/orphan-1.jpg', 'complete:scan/orphan-1.jpg',
+    'delete:scan/orphan-2.jpg', 'complete:scan/orphan-2.jpg', 'sweep',
+  ]);
+  assert.deepEqual(result, { ...sweepResult, orphanMedia: 2 });
 });

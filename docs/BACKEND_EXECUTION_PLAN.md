@@ -4,6 +4,8 @@ Tanggal **3 Oktober 2026**. Versi **1.0.0**. Pemilik **Zamani**. Frontend/UI/UX 
 
 **Status: rencana implementasi, bukan pekerjaan backend yang sudah selesai.** Endpoint, migration, service Hermes, integrasi Meta, dan skenario pemeriksaan tambahan di bawah belum dibuat/dijalankan oleh pekerjaan dokumentasi ini. Baseline diperiksa pada commit `977abeb`; OpenAPI published 1.1.0, target extension 1.2.0.
 
+**Pembaruan implementasi:** kode backend kini dikerjakan mengikuti rencana ini; lihat [status implementasi](BACKEND_IMPLEMENTATION_STATUS.md). Pernyataan di atas menjelaskan baseline saat dokumen dibuat. Checklist berikut tetap gate acceptance/rilis, belum dinyatakan lolos hanya karena kode tersedia atau kompilasi berhasil.
+
 ## 1. Hasil akhir yang harus tercapai
 
 1. Laporan ditinjau dengan bantuan Hermes, diputuskan manusia pada R1, dan muncul melalui proyeksi publik yang aman.
@@ -255,7 +257,7 @@ Readiness eksternal dapat dikerjakan bersama fondasi; credential yang belum ada 
 
 - [ ] Grant owner dan approval reviewer per channel/revision; withdrawing channel menghasilkan cleanup intents.
 - [ ] Rendition publik/preview benar-benar hasil pemrosesan yang disetujui; original key tidak otomatis dipublikasikan.
-- [ ] Renderer template versioned mengikuti referensi poster: title/area/time/category/report reference/photo/map/CTA dari sumber approved.
+- [ ] Renderer template versioned mengikuti [spesifikasi poster](INSTAGRAM_POST_DESIGN.md): semirip mungkin dengan referensi, foto bukti nyata, peta geografis nyata; seluruh data dari sumber approved. Implementasi dilanjutkan atas instruksi Zamani; pemeriksaan visual/provider tetap merupakan gate sebelum rilis.
 - [ ] Draf eligible dari manual maupun scan report; missing consent/asset menghasilkan alasan belum ada draf, bukan mengambil foto privat.
 - [ ] Caption/altText dari approved context; fallback template deterministik bila caption AI unavailable.
 - [ ] Publication series/active generation dedup dan lineage replacement; edit menaikkan contentRevision, menginvalidasi approval.
@@ -409,6 +411,8 @@ Metrics minimum:
 - Publish/retract latency dan retry, unknown provider outcome, token expiry/scope health.
 - Slot conflict/full, pending coordinator acceptance, result tanpa bukti, reviewer queue age.
 - Measurement duplicate/correction, coverage missing, public projection lag dan notification dedup.
+
+**Catatan implementasi:** worker R1 menulis log terstruktur `sap_extension_metrics` per 60 detik dari antrean durable SQL, termasuk umur backlog moderator, status Hermes/rendition/Instagram/cleanup, latency dan usage Hermes tervalidasi, serta hasil publish yang tidak pasti. Log ini tidak memuat identitas atau isi laporan. Operator tetap perlu mengirimkannya ke log store, menentukan ambang dan membuat alert; konfigurasi flag/provider bukan bukti provider sehat. Estimasi biaya dari Hermes bukan tagihan aktual.
 
 Readiness publik tidak boleh mengekspos secret atau detail credential provider. Feature availability berasal kondisi server; credential terisi saja bukan canPublish/canRetract. Operator dapat pause review/render/publish tanpa menghentikan retract/cleanup.
 

@@ -2,9 +2,8 @@
 //
 // Boots the Nest AppModule with a dummy in-memory environment (no live DB/Redis
 // required) purely to register the Express route table, then compares the routes
-// the API actually exposes against the paths declared in contracts/openapi.json.
-// This catches drift a schema check cannot: a controller route that was never
-// documented, or a documented path the API stopped serving.
+// the API actually exposes against the R1 draft. The published 1.1.0 contract
+// must remain a subset until schema/header promotion is coordinated.
 //
 // Runs against the built output (apps/api/dist), so `npm run build` must run first
 // — the root `check` script sequences it that way.
@@ -37,24 +36,30 @@ Object.assign(process.env, {
   SAPA_FEATURE_ENABLED: 'false',
 });
 
-const openapi = JSON.parse(await readFile(new URL('../contracts/openapi.json', import.meta.url)));
+const published = JSON.parse(await readFile(new URL('../contracts/openapi.json', import.meta.url)));
+const draft = JSON.parse(await readFile(new URL('../contracts/r1/openapi.json', import.meta.url)));
 
 // Contract side: METHOD + path for every documented operation.
-const contractRoutes = new Set();
-for (const [path, item] of Object.entries(openapi.paths ?? {})) {
-  for (const method of Object.keys(item)) {
-    if (['get', 'post', 'patch', 'delete', 'put'].includes(method)) {
-      contractRoutes.add(`${method.toUpperCase()} ${path}`);
+function routeSet(spec) {
+  const result = new Set();
+  for (const [path, item] of Object.entries(spec.paths ?? {})) {
+    for (const method of Object.keys(item)) {
+      if (['get', 'post', 'patch', 'delete', 'put'].includes(method)) {
+        result.add(`${method.toUpperCase()} ${path}`);
+      }
     }
   }
+  return result;
 }
+const publishedRoutes = routeSet(published);
+const draftRoutes = routeSet(draft);
 
 // Boot Nest just far enough to register routes. No app.listen(), no global prefix,
 // so Express paths line up with the contract's unprefixed paths.
 const { NestFactory } = await import('@nestjs/core');
 const { AppModule } = await import('../apps/api/dist/app.module.js');
 
-const app = await NestFactory.create(AppModule, { logger: false });
+const app = await NestFactory.create(AppModule, { logger: ['error', 'warn'] });
 await app.init();
 
 // Express 5 exposes the router as `instance.router`; older builds used `_router`.
@@ -82,15 +87,16 @@ walk(router?.stack);
 
 await app.close();
 
-const missingInContract = [...apiRoutes].filter((route) => !contractRoutes.has(route)).sort();
-const missingInApi = [...contractRoutes].filter((route) => !apiRoutes.has(route)).sort();
+const missingInDraft = [...apiRoutes].filter((route) => !draftRoutes.has(route)).sort();
+const missingInApi = [...draftRoutes].filter((route) => !apiRoutes.has(route)).sort();
+const missingPublishedFromDraft = [...publishedRoutes].filter((route) => !draftRoutes.has(route)).sort();
 
-if (missingInContract.length || missingInApi.length) {
+if (missingInDraft.length || missingInApi.length || missingPublishedFromDraft.length) {
   console.error('Route/contract drift detected:');
-  for (const route of missingInContract) console.error(`  - API serves "${route}" but the contract does not document it`);
-  for (const route of missingInApi) console.error(`  - Contract documents "${route}" but the API does not serve it`);
-  process.exit(1);
+  for (const route of missingInDraft) console.error(`  - API serves "${route}" but the R1 draft does not document it`);
+  for (const route of missingInApi) console.error(`  - Draft documents "${route}" but the API does not serve it`);
+  for (const route of missingPublishedFromDraft) console.error(`  - Published operation "${route}" is absent from the R1 draft`);
+  process.exitCode = 1;
+} else {
+  console.log(`Routes OK: ${apiRoutes.size} API routes match ${draftRoutes.size} R1 draft operations; published contract remains ${published.info.version} (${publishedRoutes.size} operations).`);
 }
-
-console.log(`Routes OK: ${apiRoutes.size} API routes match ${contractRoutes.size} documented operations`);
-process.exit(0);

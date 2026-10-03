@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { ImageProcessorService } from './image-processor.service.js';
 import { MediaRepository, type MediaPurpose, type MediaRecord } from './media.repository.js';
 import { ObjectStorageService } from './object-storage.service.js';
+import { fail, requireFeature } from '../extensions/extension.store.js';
 
 /** Orphan retention for freshly uploaded media (TECH_SPEC §5: "24 jam"). */
 export const ORPHAN_TTL_MS = 24 * 60 * 60 * 1_000;
@@ -36,6 +37,8 @@ export class MediaService {
   ) {}
 
   async upload(ownerId: string, purpose: MediaPurpose, file: UploadedFile | undefined): Promise<MediaView> {
+    if (purpose === 'community') requireFeature('community');
+    if (purpose === 'activity_evidence') requireFeature('activities');
     if (!file || !file.buffer || file.buffer.length === 0) {
       throw new BadRequestException({ code: 'VALIDATION_ERROR', message: 'Berkas wajib diunggah.' });
     }
@@ -43,14 +46,8 @@ export class MediaService {
     const processed = await this.processor.process(file.buffer);
     const objectKey = `${purpose}/${ownerId}/${randomUUID()}.${processed.extension}`;
 
-    await this.storage.putObject({
-      key: objectKey,
-      body: processed.buffer,
-      contentType: processed.mime,
-      sha256: processed.sha256,
-    });
-
-    const record = await this.repository.createStored({
+    // Reserve the object key durably before uploading. Cleanup can recover an interrupted upload.
+    const reservation = await this.repository.createStored({
       ownerId,
       purpose,
       objectKey,
@@ -60,9 +57,17 @@ export class MediaService {
       width: processed.width,
       height: processed.height,
       expiresAt: new Date(Date.now() + ORPHAN_TTL_MS),
-    });
-
-    return this.toView(record);
+    }, 'pending');
+    try {
+      await this.storage.putObject({key:objectKey,body:processed.buffer,contentType:processed.mime,sha256:processed.sha256});
+      const record=await this.repository.markStored(reservation.id,ownerId);
+      if(!record)fail(403,'ACCOUNT_INACTIVE','Akun atau unggahan tidak lagi aktif.');
+      return this.toView(record);
+    } catch(error) {
+      await this.repository.scheduleObjectCleanup(objectKey,reservation.id).catch(()=>undefined);
+      await this.storage.deleteObject(objectKey).catch(()=>undefined);
+      throw error;
+    }
   }
 
   async createReadUrl(ownerId: string, mediaId: string): Promise<MediaUrlView> {

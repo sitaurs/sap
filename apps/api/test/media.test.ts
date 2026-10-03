@@ -101,6 +101,8 @@ function makeService(record: MediaRecord | null) {
   };
   const repository = {
     createStored: async () => record!,
+    markStored: async () => record,
+    scheduleObjectCleanup: async () => undefined,
     findStoredForOwner: async (_mediaId: string, ownerId: string) =>
       record && record.ownerId === ownerId ? record : null,
   };
@@ -148,4 +150,3 @@ test('MediaService.createReadUrl returns NOT_FOUND for a non-owner', async () =>
   const { service } = makeService(storedRecord);
   await assert.rejects(service.createReadUrl('someone-else', 'media-1'), (e) => errorCode(e) === 'NOT_FOUND');
 });
-

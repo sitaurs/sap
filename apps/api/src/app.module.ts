@@ -11,9 +11,16 @@ import { DatabaseModule } from './infrastructure/database.module.js';
 import { MediaModule } from './media/media.module.js';
 import { ReportsModule } from './reports/reports.module.js';
 import { ScansModule } from './scans/scans.module.js';
+import { ExtensionsModule } from './extensions/extensions.module.js';
+import { CommunityModule } from './community/community.module.js';
+import { ActivitiesModule } from './activities/activities.module.js';
+import { EvidenceModule } from './evidence/evidence.module.js';
+import { PublicationsModule } from './publications/publications.module.js';
 
 @Module({
-  imports: [DatabaseModule, AuthModule, MediaModule, ScansModule, GamificationModule, ReportsModule, AdminModule, AreasModule, AssistantModule],
+  imports: [DatabaseModule, AuthModule, ExtensionsModule, CommunityModule, ActivitiesModule,
+    EvidenceModule, PublicationsModule, MediaModule, ScansModule, GamificationModule,
+    ReportsModule, AdminModule, AreasModule, AssistantModule],
   controllers: [HealthController, CategoriesController],
   providers: [HealthService],
 })

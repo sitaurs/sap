@@ -35,6 +35,38 @@ const schema = z.object({
   APP_ORIGIN: z.string().url(),
   API_INTERNAL_URL: z.string().url(),
   CONTRACT_VERSION: z.literal('1.1.0'),
+  SAP_EXTENSION_ENABLED: booleanFromEnv.default(false),
+  SAP_COMMUNITY_ENABLED: booleanFromEnv.default(false),
+  SAP_ACTIVITIES_ENABLED: booleanFromEnv.default(false),
+  SAP_INSTAGRAM_ENABLED: booleanFromEnv.default(false),
+  SAP_INSTAGRAM_PUBLISH_ENABLED: booleanFromEnv.default(false),
+  SAP_INSTAGRAM_RENDER_ENABLED: booleanFromEnv.default(false),
+  POSTER_OVERPASS_URL: z.preprocess(emptyToUndefined, urlWithProtocols(['https:']).optional()),
+  POSTER_MAP_CACHE_HOURS: z.coerce.number().int().min(1).max(720).default(168),
+  POSTER_MAP_DAILY_LIMIT: z.coerce.number().int().min(1).max(1000).default(100),
+  SAP_HERMES_ENABLED: booleanFromEnv.default(false),
+  HERMES_REVIEW_URL: z.preprocess(emptyToUndefined, urlWithProtocols(['http:', 'https:']).optional()),
+  HERMES_REVIEW_SECRET: z.preprocess(emptyToUndefined, nonPlaceholder.min(32).optional()),
+  HERMES_MODEL_VERSION: z.string().default('unconfigured'),
+  HERMES_POLICY_VERSION: z.string().default('sap-moderation-r1'),
+  HERMES_TIMEOUT_MS: z.coerce.number().int().min(1000).max(180000).default(90000),
+  HERMES_MAX_ITERATIONS: z.coerce.number().int().min(1).max(6).default(6),
+  HERMES_MAX_INPUT_TOKENS: z.coerce.number().int().min(1000).max(32000).default(16000),
+  HERMES_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(128).max(4096).default(2048),
+  HERMES_RUN_BUDGET_USD: z.coerce.number().positive().max(100).default(0.25),
+  HERMES_DAILY_BUDGET_USD: z.coerce.number().nonnegative().max(10000).default(5),
+  META_APP_ID: z.preprocess(emptyToUndefined, z.string().regex(/^\d+$/).optional()),
+  META_APP_SECRET: z.preprocess(emptyToUndefined, nonPlaceholder.optional()),
+  META_LOGIN_CONFIG_ID: z.preprocess(emptyToUndefined, z.string().regex(/^\d+$/).optional()),
+  META_PAGE_ID: z.preprocess(emptyToUndefined, z.string().regex(/^\d+$/).optional()),
+  META_GRAPH_VERSION: z.preprocess(emptyToUndefined, z.string().regex(/^v\d+\.\d+$/).optional()),
+  META_REDIRECT_URI: z.preprocess(emptyToUndefined, urlWithProtocols(['https:']).optional()),
+  META_MEDIA_DELIVERY_ORIGIN: z.preprocess(emptyToUndefined, urlWithProtocols(['https:']).optional()),
+  META_CREDENTIAL_KEY: z.preprocess(emptyToUndefined, nonPlaceholder.regex(/^[a-fA-F0-9]{64}$/).optional()),
+  META_DELETE_ENABLED: booleanFromEnv.default(false),
+  EXTENSION_JOB_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(2),
+  EXTENSION_JOB_LEASE_MS: z.coerce.number().int().min(30000).max(600000).default(180000),
+  EXTENSION_JOB_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(5),
   DATABASE_URL: urlWithProtocols(['postgres:', 'postgresql:']),
   DATABASE_DIRECT_URL: z.preprocess(emptyToUndefined, urlWithProtocols(['postgres:', 'postgresql:']).optional()),
   REDIS_URL: urlWithProtocols(['redis:', 'rediss:']),
@@ -104,6 +136,18 @@ const schema = z.object({
   SCAN_LLM_VISION_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
   NEXT_PUBLIC_MAP_STYLE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
 }).superRefine((value, context) => {
+  if (value.SAP_HERMES_ENABLED) {
+    for (const field of ['HERMES_REVIEW_URL', 'HERMES_REVIEW_SECRET'] as const) {
+      if (!value[field]) context.addIssue({ code:'custom',path:[field],message:'required when SAP_HERMES_ENABLED is true' });
+    }
+    if (value.HERMES_MODEL_VERSION === 'unconfigured') context.addIssue({code:'custom',path:['HERMES_MODEL_VERSION'],message:'a pinned model is required'});
+  }
+  if (value.SAP_INSTAGRAM_PUBLISH_ENABLED) {
+    for (const field of ['META_APP_ID','META_APP_SECRET','META_LOGIN_CONFIG_ID','META_GRAPH_VERSION','META_REDIRECT_URI','META_MEDIA_DELIVERY_ORIGIN','META_CREDENTIAL_KEY'] as const) {
+      if (!value[field]) context.addIssue({code:'custom',path:[field],message:'required when Instagram publishing is enabled'});
+    }
+    if (!value.SAP_EXTENSION_ENABLED || !value.SAP_INSTAGRAM_ENABLED) context.addIssue({code:'custom',path:['SAP_INSTAGRAM_PUBLISH_ENABLED'],message:'requires extension and Instagram modules'});
+  }
   if (value.SESSION_SECRET === value.CSRF_SECRET) {
     context.addIssue({ code: 'custom', path: ['CSRF_SECRET'], message: 'must differ from SESSION_SECRET' });
   }

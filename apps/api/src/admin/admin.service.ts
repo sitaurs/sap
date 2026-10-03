@@ -45,6 +45,7 @@ export class AdminService {
     const nextStatus = dto.nextStatus as ReportStatus;
     const duplicateOfId = dto.duplicateOfId ?? null;
     const resolutionMediaIds = dto.resolutionMediaIds ?? [];
+    const resolutionEvidenceIds = dto.resolutionEvidenceIds ?? [];
     const publishMediaIds = dto.publishMediaIds ?? [];
 
     if (nextStatus === 'duplicate' && !duplicateOfId) {
@@ -53,7 +54,10 @@ export class AdminService {
         message: 'Keputusan duplicate memerlukan duplicateOfId.',
       });
     }
-    if (nextStatus === 'resolved' && (resolutionMediaIds.length < 1 || resolutionMediaIds.length > 3)) {
+    if (resolutionMediaIds.length && resolutionEvidenceIds.length) {
+      throw new UnprocessableEntityException({code:'EVIDENCE_INVALID',message:'Pilih satu jalur bukti resolusi.'});
+    }
+    if (nextStatus === 'resolved' && (resolutionMediaIds.length + resolutionEvidenceIds.length < 1 || resolutionMediaIds.length + resolutionEvidenceIds.length > 3)) {
       throw new UnprocessableEntityException({
         code: 'REPORT_INVALID',
         message: 'Keputusan resolved memerlukan 1–3 resolutionMediaIds.',
@@ -62,10 +66,14 @@ export class AdminService {
     if (resolutionMediaIds.length > 0) await this.assertOwnedResolutionMedia(actorId, resolutionMediaIds);
 
     const requestHash = canonicalHash({
+      reportId,
+      ifMatchRevision,
       nextStatus,
       reason: dto.reason,
       duplicateOfId,
       resolutionMediaIds,
+      resolutionEvidenceIds,
+      publicEvidenceApprovals: dto.publicEvidenceApprovals ?? [],
       publicSummary: dto.publicSummary ?? null,
       publishMediaIds,
     });
@@ -83,6 +91,8 @@ export class AdminService {
       reason: dto.reason,
       duplicateOfId,
       resolutionMediaIds,
+      resolutionEvidenceIds,
+      publicEvidenceApprovals: dto.publicEvidenceApprovals ?? [],
       publicSummary: dto.publicSummary,
       publishMediaIds,
     });
