@@ -23,16 +23,22 @@ async function proxy(request: Request) {
     return Response.json({ error: { code: "CSRF_INVALID", message: "Asal permintaan tidak tersedia. Muat ulang halaman lalu coba lagi." } }, { status: 403 });
   }
 
+  // The OAuth callback responds with a same-origin dashboard redirect. If the
+  // server-side fetch follows that relative Location itself, it resolves against
+  // the API origin and requests /dashboard from Nest instead of the web app.
+  const oauthCallback = incoming.pathname === "/api/v1/admin/instagram/account/callback";
+
   try {
     const upstream = await fetch(upstreamUrl, {
       method: request.method,
       headers,
       body: request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer(),
       cache: "no-store",
+      redirect: oauthCallback ? "manual" : "follow",
       signal: AbortSignal.timeout(120000),
     });
     const responseHeaders = new Headers({ "cache-control": "no-store" });
-    for (const name of ["content-type", "x-contract-version", "retry-after", "etag"]) {
+    for (const name of ["content-type", "x-contract-version", "retry-after", "etag", ...(oauthCallback ? ["location"] : [])]) {
       const value = upstream.headers.get(name);
       if (value) responseHeaders.set(name, value);
     }
