@@ -2,6 +2,7 @@
 
 **Status:** Planning baseline; not an implementation specification approved for release.
 **Prepared:** 29 September 2026
+**Later extension:** Community/volunteers/Hermes/Instagram R1 is specified by [CONTRACT_ZAKA_ZAMANI](CONTRACT_ZAKA_ZAMANI.md) and [BACKEND_EXECUTION_PLAN](BACKEND_EXECUTION_PLAN.md). This document remains the historical plan for the four improvements below; its layout suggestions do not bind the new extension. Hermes evidence review does not replace the existing SAPA provider/runtime.
 **Scope:** Product requirements, design direction, architecture, API/database/contract impact, data sourcing, sequencing, and acceptance gates for four requested improvements.
 **Implementation rule:** This document is the working source for future implementation planning. Before coding each feature, reconcile this plan with current source, OpenAPI, fixtures, migrations, and product decisions; update this document and contracts first when decisions change. OpenAPI remains authoritative for API shapes.
 

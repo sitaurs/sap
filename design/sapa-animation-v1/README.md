@@ -61,4 +61,4 @@ Prompt lengkap ada di prompts.json. Referensi sumber adalah dua gambar SAPA yang
 
 Chat langsung terbuka sambil SAPA melambaikan tangan. Hover/fokus memainkan pose penasaran dengan cooldown 5 detik. Request chat/scan yang berjalan memicu pose tablet; hanya hasil nyata yang memicu pose berhasil atau gagal. Scan berstatus queued/processing setelah batas polling tidak dianggap sukses. Preferensi akun dan endpoint backend tetap digunakan.
 
-Status pemeriksaan implementasi dan catatan backend dicatat pada `contract.md`. Implementasi ini belum di-commit atau di-push.
+Implementasi frontend ini masuk commit `78c2dfb` pada 2 Oktober 2026. Catatan patch lama dapat dibaca melalui histori Git; acuan integrasi bersama sekarang adalah [kontrak Zaka–Zamani](../../docs/CONTRACT_ZAKA_ZAMANI.md). Keberadaan commit tersebut tidak membuktikan endpoint extension baru sudah tersedia.

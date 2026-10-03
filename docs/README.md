@@ -2,6 +2,8 @@
 
 Paket spesifikasi v1.0 · 24 September 2026 · Bahasa produk: Indonesia
 
+**Pembaruan 3 Oktober 2026:** paket di bawah adalah baseline produk. Untuk extension komunitas, relawan, Hermes, dan Instagram R1, mulai dari [kontrak Zaka–Zamani](CONTRACT_ZAKA_ZAMANI.md) dan [rencana backend](BACKEND_EXECUTION_PLAN.md), lalu kedua [riset](research/2026-10-03-community-volunteers-hermes-ux.md). Baseline sudah mempunyai implementasi di repository; endpoint extension baru masih berupa rencana. Zaka bebas menentukan desain/layout extension, sementara fungsi dan perilaku mengikuti kontrak bersama.
+
 ## Kesepakatan proyek
 
 SAP adalah **rebuild dari awal** web EcoLens dengan identitas dan UI baru, mempertahankan kemampuan pengenalan sampah dari model EcoLens, serta menambah pelaporan penumpukan, peta area rawan berdasarkan kejadian terverifikasi, dan dashboard admin. Runtime inferensi produksi yang dipilih adalah layanan Gradio self-hosted; source Hugging Face/EcoLens tetap menjadi provenance model, bukan provider produksi. Semua kebutuhan wajib dalam paket ini masuk satu rilis lengkap; fase roadmap adalah urutan pengerjaan.
@@ -30,6 +32,8 @@ Pilihan ini adalah keputusan rancangan tim untuk pemisahan frontend/backend yang
 
 | File | Isi |
 | --- | --- |
+| [CONTRACT_ZAKA_ZAMANI.md](CONTRACT_ZAKA_ZAMANI.md) | Kontrak fungsi frontend/backend extension R1, DTO, endpoint, state, izin dan pembagian kerja |
+| [BACKEND_EXECUTION_PLAN.md](BACKEND_EXECUTION_PLAN.md) | Requirement backend, paket pekerjaan BE-00–14, dependensi, acceptance, operasi dan rollout |
 | [PRD.md](PRD.md) | Sasaran, pengguna, cakupan rilis dan metrik |
 | [REQUIREMENTS.md](REQUIREMENTS.md) | Kebutuhan dan acceptance criteria |
 | [PLAN.md](PLAN.md) | Pendekatan kerja dua orang dan tanggung jawab |
@@ -50,12 +54,12 @@ Pilihan ini adalah keputusan rancangan tim untuk pemisahan frontend/backend yang
 | [SOURCE_AUDIT.md](SOURCE_AUDIT.md) | Fitur asli yang ditemukan dan pengembangan SAP |
 | [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md) | Status verifikasi layanan eksternal dan konfigurasi environment tanpa rahasia |
 | [SAPA_ASSISTANT.md](SAPA_ASSISTANT.md) | **Addendum v1.1** — pet chatbot SAPA (usulan Zaka): brief UX + handoff backend, di luar kontrak v1.0 |
-| [contracts/openapi.json](contracts/openapi.json) | Sumber utama endpoint, enum dan schema v1 |
-| [contracts/fixtures.json](contracts/fixtures.json) | Contoh request/response sintetis untuk mock dan tes |
+| [contracts/openapi.json](../contracts/openapi.json) | Kontrak mesin endpoint existing 1.1.0; extension dipromosikan setelah schema/handler siap |
+| [contracts/fixtures.json](../contracts/fixtures.json) | Contoh request/response sintetis untuk mock dan tes |
 
 ## Aturan prioritas dan perubahan
 
-OpenAPI adalah acuan nama field, endpoint, enum dan status HTTP. REQUIREMENTS mengatur penerimaan; HOTSPOT_RULES mengatur perhitungan; DATABASE memetakan penyimpanan; PRD mengatur cakupan. Bila berbeda, perbaiki dokumen/implementasi dalam PR kontrak sebelum merge. Frontend tidak membuat nama field/status sendiri; backend tidak mengubah respons tanpa pembaruan kontrak dan fixture.
+Untuk endpoint existing, OpenAPI 1.1.0 adalah acuan nama field, enum, dan HTTP status. Untuk extension yang belum tersedia, CONTRACT_ZAKA_ZAMANI menetapkan bentuk yang akan diimplementasikan dan BACKEND_EXECUTION_PLAN menetapkan requirement/gate. Pada BE-00 buat schema draft terpisah untuk mock/codegen; jangan memasukkan route yang belum tersedia ke published OpenAPI. Promosi target 1.2.0 dilakukan bersama handler, fixture dan generated client setelah gate siap. Setelah promosi, kontrak mesin wajib sama dengan Markdown. REQUIREMENTS/PRD/DATABASE tetap menjadi baseline fitur lama; HOTSPOT_RULES tetap mengatur risiko H3, tanpa pengaruh vote. Perubahan kontrak direview bersama sebelum push ke main.
 
 ## Kebijakan source dan target repository
 

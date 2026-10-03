@@ -1,7 +1,7 @@
 import { ApiError, apiGet, apiMutate } from "./client";
 import type { InstagramOverview, InstagramPost, PublicationPage, PublicationQuery, PublicationSettings } from "../../components/instagram/types";
 
-// These routes are proposed in docs/instagram-publication-contract.md.
+// R1 routes are proposed in docs/CONTRACT_ZAKA_ZAMANI.md; this adapter still uses the legacy DTOs.
 // A missing module is handled explicitly by the UI; there is no mock-data fallback.
 const BASE = "/admin/instagram";
 const iso = (value: unknown): value is string => typeof value === "string" && Number.isFinite(Date.parse(value));

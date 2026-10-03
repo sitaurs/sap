@@ -2,6 +2,8 @@
 
 v1.0 · Dua jalur kerja paralel: Zaka = UI/UX dan frontend; Zamani = backend. Rilis memuat seluruh kebutuhan wajib.
 
+**Scope baseline:** untuk penambahan komunitas/relawan/Hermes/Instagram R1 gunakan [kontrak bersama](CONTRACT_ZAKA_ZAMANI.md) dan [rencana eksekusi backend](BACKEND_EXECUTION_PLAN.md). Tahap BE-00–14 dan handoff frontend di sana menjadi acuan extension; dokumen ini tetap mencatat rencana fitur awal.
+
 ## 1. Pembagian pekerjaan
 
 | Area | Zaka | Zamani | Titik temu |
@@ -23,7 +25,7 @@ v1.0 · Dua jalur kerja paralel: Zaka = UI/UX dan frontend; Zamani = backend. Ri
 
 ## 3. Cara kerja mencegah mismatch
 
-Target implementasi adalah `https://github.com/sitaurs/sap`: `apps/web` milik Zaka, `apps/api` dan `apps/worker` milik Zamani, `packages/api-client` hasil generate, `contracts` milik bersama, serta `db` dan `docs`. Checkout `ecoLens` dan `ecoLens_ML` hanya referensi read-only dan tidak boleh disalin, dijadikan submodule/subtree, atau di-commit. Folder tanggung jawab membantu koordinasi; tidak menghalangi perubahan lintas folder saat disepakati. PR perubahan kontrak wajib menyertakan schema, fixture, mapping UI dan tes. Hindari membangun frontend berdasarkan bentuk respons internal provider/MongoDB lama.
+Target implementasi adalah `https://github.com/sitaurs/sap`: `apps/web` milik Zaka, `apps/api` dan `apps/worker` milik Zamani, `contracts` milik bersama, serta `db` dan `docs`. Generated schema frontend existing berada di apps/web/lib/api/schema.d.ts. Checkout `ecoLens` dan `ecoLens_ML` hanya referensi read-only dan tidak boleh disalin atau di-commit. Folder tanggung jawab membantu koordinasi. Perubahan kontrak menyertakan schema, fixture, mapping UI dan bukti pemeriksaan pada tahap implementasi, direview bersama sebelum push ke main. Hindari membangun frontend berdasarkan bentuk respons internal provider/MongoDB lama.
 
 Demo bersama dua kali seminggu, review kontrak sebelum mulai fitur, triase integrasi setiap hari saat fase penggabungan. Definisi selesai: berfungsi dengan fixture dan API nyata, error states lengkap, acceptance lulus, tidak ada pending perubahan schema.
 

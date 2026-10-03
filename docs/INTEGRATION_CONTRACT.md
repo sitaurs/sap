@@ -2,6 +2,8 @@
 
 v1.0 · Wajib dibaca kedua orang sebelum coding. Tujuannya mendeteksi perbedaan lebih awal; dokumen saja tidak menjamin implementasi bebas bug.
 
+**Scope:** aturan ini mendokumentasikan baseline API existing 1.1.0. Extension komunitas/relawan/Hermes/Instagram memakai [kontrak Zaka–Zamani](CONTRACT_ZAKA_ZAMANI.md) dan [rencana backend](BACKEND_EXECUTION_PLAN.md), termasuk pagination max50, header IK/IM per operasi, enum, DTO, serta gate promosi schema. Kontrak mesin existing tetap disimpan; extension belum otomatis tersedia karena tercantum di Markdown.
+
 ## 1. Satu kontrak bersama
 
 `contracts/openapi.json` menjadi sumber endpoint, tipe, enum, required/null dan HTTP status. `contracts/fixtures.json` menggunakan schema itu. Backend mengimplementasikan kontrak; frontend menghasilkan tipe/client darinya. Jangan menyalin tipe manual ke dua repo. Gunakan commit kontrak yang sama. Kontrak mesin v1.1.0 saat ini mendeklarasikan `X-Contract-Version: 1.1.0` pada respons sukses; perlu PR kontrak terkoordinasi sebelum header itu diwajibkan juga pada semua error.
@@ -23,8 +25,8 @@ Gap yang wajib ditutup sebelum coding auth: dokumentasikan efek response `Set-Co
 | Koordinat | Request `{latitude,longitude}`; GeoJSON `[longitude,latitude]` |
 | Skor ML | Number 0..1; persentase hanya format tampilan dan bukan jaminan ketepatan |
 | Missing vs null | Field required selalu ada; null artinya diketahui kosong; optional artinya dapat dihilangkan menurut schema |
-| Pagination | limit default20, max100; opaque cursor; sort stabil server |
-| Retry idempoten | Idempotency-Key UUID wajib hanya untuk createScan, createReport, decideReport dan deleteMe; tidak untuk auth mutation/upload. Same key+canonical payload mereplay hasil selama24 jam; beda payload409 |
+| Pagination | Baseline: limit default20, max100 sesuai operasi; extension: default20/max50. Opaque cursor dan sort stabil server |
+| Retry idempoten | Baseline: IK wajib createScan/createReport/decideReport/deleteMe; auth/upload sesuai schema existing. Extension: wajib pada operasi bertanda IK dalam kontrak baru. Same key+canonical payload mereplay hasil; beda payload409. Intent publisher bertahan sepanjang operasi, melampaui TTL request umum24 jam |
 | Update concurrency | Report/edit dan keputusan admin memakai If-Match integer revision; stale→409, frontend minta muat ulang/perbandingan |
 
 ## 3. Status dan taxonomy
@@ -37,15 +39,17 @@ Category IDs tetap: battery, biological, cardboard, clothes, glass, metal, paper
 
 ## 4. Workflow perubahan
 
-1. Buat PR perubahan OpenAPI + alasan + fixture dan contoh UI yang terdampak.
+1. Siapkan perubahan kontrak + alasan + fixture dan mapping UI yang terdampak. Untuk extension buat schema draft BE-00; published OpenAPI diperbarui bersama handler saat gate siap.
 2. Keduanya review perubahan required/null, enum, auth dan semantik. Menambah nilai enum juga perlu koordinasi exhaustive switch.
 3. Generate api-client; gunakan MSW dengan fixture baru; backend menambah DTO validation dan handler.
-4. CI validate OpenAPI, validate fixtures, generate+diff, contract tests respons dan build frontend.
+4. Pada tahap implementasi, lengkapi gate validasi schema/fixture, generate+diff, contract tests respons dan build frontend sesuai rencana backend. Hasil pemeriksaan dicatat pada perubahan terkait.
 5. Deploy staging API kompatibel dahulu, lalu frontend; tes alur nyata. Breaking change memakai versi API baru atau transisi kompatibel, bukan mengganti v1 diam-diam.
+
+Review bersama berlaku sebelum push ke main sesuai arahan pengguna. PR dapat digunakan sebagai sarana review bila diperlukan; bukan keharusan membuat branch publikasi baru.
 
 ## 5. Gate otomatis yang harus dibuat
 
-`contracts:lint` validasi OpenAPI; `contracts:types` generate; `contracts:fixtures` schema validation; `contracts:check` pastikan generated files bersih; `test:contract` menguji handler terhadap schema termasuk error; `test:e2e` alur inti. Script ini merupakan pekerjaan pada TASKS, belum tersedia sebagai repo aplikasi dalam ZIP. TypeScript tidak memvalidasi JSON runtime: parse server output/provider dengan validator dan contract tests.
+Script existing: root `contracts:lint` menjalankan scripts/check-contracts.mjs, `contracts:check` saat ini alias lint, dan `contracts:routes` memeriksa route. Generate frontend tersedia melalui `npm run contracts:types -w @sap/web`; generated output berada di apps/web/lib/api/schema.d.ts. `contracts:check` belum berarti generated diff atau semua respons handler telah diperiksa. Gate extension untuk fixture tambahan, generated diff, contract tests handler dan alur integrasi direncanakan pada BE-00/13/14. TypeScript tidak memvalidasi JSON runtime: parse server output/provider dengan validator. Dokumen ini tidak menyatakan gate tersebut sudah dijalankan.
 
 ## 6. Mock dan integrasi
 
@@ -59,4 +63,4 @@ Fixture berlabel sintetis; tidak pernah ditampilkan sebagai laporan/hasil AI pro
 - [ ] Tombol submit dikunci sementara tetapi backend tetap idempoten.
 - [ ] UI tidak menghitung poin/status/hotspot sendiri.
 - [ ] Tidak ada format mentah Gradio/provider ML yang bocor ke frontend.
-- [ ] Bukti tes fixture dan live API tersimpan di PR.
+- [ ] Bukti pemeriksaan fixture/live API tersimpan pada catatan integrasi/perubahan; PR bila digunakan.
