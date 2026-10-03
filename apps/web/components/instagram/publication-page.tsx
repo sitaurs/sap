@@ -27,12 +27,20 @@ export default function InstagramPublication({ categories, onModeration }: { cat
   const [account, setAccount] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState("");
+  const [connectionResult, setConnectionResult] = useState<"connected" | "failed" | "state-invalid" | null>(null);
   const [savedMessage, setSavedMessage] = useState("");
   const id = useId();
   const available = !!overview && !unavailable;
   const refresh = useCallback(() => setReloadKey(value => value + 1), []);
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("publication") === "settings") setSection("settings");
+    const url = new URL(window.location.href);
+    const result = url.searchParams.get("connection");
+    if (result === "connected" || result === "failed" || result === "state-invalid") setConnectionResult(result);
+    if (result) {
+      url.searchParams.delete("connection");
+      window.history.replaceState(window.history.state, "", url);
+    }
   }, []);
   useEffect(() => {
     const controller = new AbortController(); setLoading(true); setError("");
@@ -70,6 +78,7 @@ export default function InstagramPublication({ categories, onModeration }: { cat
   }
   return <div className={styles.page}>
     <header className={styles.pageHeader}><div><span className={styles.eyebrow}><CircleDot size={13} />ADMIN · PUBLIKASI</span><h1>Publikasi Instagram</h1><p>Kelola publikasi dari foto laporan dan hasil scan.</p><button className={styles.connectionPill} type="button" onClick={() => { setAccount(true); setConnectionError(""); }}><Instagram size={19} /><strong>{overview?.account.username ? `@${overview.account.username}` : "Akun Instagram"}</strong><span className={styles.connectionSeparator} /><span><i data-connected={overview?.account.status === "connected"} />{loading ? "Memuat…" : overview?.account.status === "connected" ? "Terhubung" : overview?.account.status === "expired" ? "Perlu dihubungkan ulang" : "Belum terhubung"}</span></button></div><button className={styles.primary} type="button" onClick={() => setPicker(true)}><Plus size={20} />Pilih laporan</button></header>
+    {connectionResult && <Notice warning={connectionResult !== "connected"}><strong>{connectionResult === "connected" ? "Akun Instagram berhasil dihubungkan." : connectionResult === "state-invalid" ? "Permintaan login kedaluwarsa atau sudah pernah digunakan." : "Meta belum berhasil menghubungkan akun."}</strong><p>{connectionResult === "connected" ? "SAP sudah menerima akun publikasi. Muat ulang informasi akun bila status belum berubah." : connectionResult === "state-invalid" ? "Mulai lagi dari tombol Hubungkan akun. Jangan membuka ulang URL callback dari percobaan sebelumnya." : "Periksa bahwa akun Instagram profesional sudah tertaut ke Facebook Page yang dikelola, lalu coba hubungkan lagi."}</p>{connectionResult !== "connected" && <button className={styles.textButton} type="button" onClick={() => setAccount(true)}>Coba hubungkan lagi<ArrowRight size={15} /></button>}</Notice>}
     <div className={styles.tabs} role="tablist" aria-label="Publikasi Instagram" onKeyDown={event => {
       if (["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) {
         event.preventDefault(); const next = event.key === "Home" ? "posts" : event.key === "End" ? "settings" : section === "posts" ? "settings" : "posts";

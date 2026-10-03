@@ -190,10 +190,15 @@ export class PublicationsService{
   const url=new URL(`https://www.facebook.com/${this.config.META_GRAPH_VERSION}/dialog/oauth`);url.search=new URLSearchParams({client_id:this.config.META_APP_ID!,redirect_uri:this.config.META_REDIRECT_URI!,config_id:this.config.META_LOGIN_CONFIG_ID!,state,response_type:'code',override_default_response_type:'true'}).toString();return {authorizationUrl:url.toString(),expiresAt:expiresAt.toISOString()};
  }
  async callback(actor:Actor,sessionId:string,query:Record<string,unknown>):Promise<string>{
-  this.gate(actor);const state=input.text(query.state,20,200),stateHash=createHash('sha256').update(state).digest('hex');
+  this.gate(actor);
+  const redirect=(connection:'connected'|'failed'|'state-invalid')=>`/dashboard?view=admin-instagram&connection=${connection}`;
+  const stateValue=query.state;
+  if(typeof stateValue!=='string'||stateValue.length<20||stateValue.length>200)return redirect('state-invalid');
+  const state=stateValue,stateHash=createHash('sha256').update(state).digest('hex');
   const [consumed]=await this.store.db`UPDATE instagram_oauth_states SET consumed_at=now() WHERE state_hash=${stateHash} AND session_id=${sessionId} AND user_id=${actor.id} AND consumed_at IS NULL AND expires_at>now() RETURNING state_hash`;
-  if(!consumed)fail(400,'OAUTH_STATE_INVALID');if(query.error)return '/dashboard/instagram?connection=failed';
-  const code=input.text(query.code,1,4096);
+  if(!consumed)return redirect('state-invalid');if(query.error)return redirect('failed');
+  if(typeof query.code!=='string'||query.code.length<1||query.code.length>4096)return redirect('failed');
+  const code=query.code;
   try{
    const connection=await new MetaClient(this.config).connect(code);
    if(!REQUIRED_SCOPES.every(s=>connection.scopes.includes(s)))throw new MetaApiError('META_PERMISSION_REQUIRED');
@@ -202,8 +207,8 @@ export class PublicationsService{
     if(account.ig_user_id&&account.ig_user_id!==connection.igUserId){const [post]=await tx`SELECT id FROM instagram_posts WHERE account_id=${account.id} AND status NOT IN ('cancelled','retracted')`;if(post)fail(409,'PENDING_RETRACTIONS','Selesaikan publikasi akun lama sebelum mengganti identitas akun.');}
     await tx`UPDATE instagram_accounts SET status='connected',username=${connection.username},ig_user_id=${connection.igUserId},page_id=${connection.pageId},encrypted_credentials=${encrypted},scopes=${connection.scopes}::text[],token_expires_at=${connection.expiresAt},permissions_checked_at=now(),updated_at=now() WHERE id=${account.id}`;
     await this.store.audit(tx,actor.id,'instagram.account.connected','instagram_account',account.id,{permissionsReady:true});
-   });return '/dashboard/instagram?connection=connected';
-  }catch(error){if(error instanceof MetaApiError)return '/dashboard/instagram?connection=failed';throw error;}
+   });return redirect('connected');
+  }catch(error){if(error instanceof MetaApiError)return redirect('failed');throw error;}
  }
  async disconnect(actor:Actor,key:string,raw:unknown){
   this.gate(actor);const b=input.object(raw,['acknowledgePendingRetractions']),ack=input.bool(b.acknowledgePendingRetractions);
