@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
-import { ArrowRight, Brain, FilePlus2, Map, Recycle, Search, Send, Sparkles, X } from "lucide-react";
+import { ArrowRight, Brain, ChevronRight, FilePlus2, Map, Recycle, Search, Send, Sparkles, X } from "lucide-react";
 import { sendSapaMessage, type SapaCitation, type SapaPageContext, type SapaSuggestedAction } from "./sapa-client";
 import SapaSprite from "./sapa-sprite";
 import type { SapaActivity, SapaMotion } from "./sapa-motion-data";
@@ -36,17 +36,27 @@ type ChatMessage = { id: string; role: "user" | "assistant"; content: string; ci
 type Position = { x: number; y: number };
 
 const edgeGap = 12;
-const launcherSize = (width: number) => width <= 600 ? { width: 90, height: 106 } : { width: 112, height: 130 };
-const clampPosition = (position: Position, width: number, height: number): Position => ({
-  x: Math.min(Math.max(position.x, edgeGap), Math.max(edgeGap, width - launcherSize(width).width - edgeGap)),
-  y: Math.min(Math.max(position.y, edgeGap), Math.max(edgeGap, height - launcherSize(width).height - edgeGap)),
-});
+const launcherSize = (width: number, mobileDock = false) => width <= (mobileDock ? 760 : 600) ? { width: 90, height: 106 } : { width: 112, height: 130 };
+const positionKey = (width: number, mobileDock: boolean) => mobileDock && width <= 760 ? "sap-pet-position-mobile" : "sap-pet-position";
+function clampPosition(position: Position, width: number, height: number, mobileDock = false): Position {
+  const size = launcherSize(width, mobileDock);
+  const mobile = mobileDock && width <= 760;
+  const dock = mobile ? document.querySelector<HTMLElement>("[data-sap-mobile-dock]") : null;
+  const bottomInset = mobile ? (dock ? Math.max(0, height - dock.getBoundingClientRect().top) + 14 : 140) : edgeGap;
+  const maxY = Math.max(edgeGap, height - size.height - bottomInset);
+  const minY = mobile ? Math.min(84, maxY) : edgeGap;
+  return {
+    x: Math.min(Math.max(position.x, edgeGap), Math.max(edgeGap, width - size.width - edgeGap)),
+    y: Math.min(Math.max(position.y, minY), maxY),
+  };
+}
 
-export default function SapaPet({ tab, backendLinked, activity, onNavigate }: {
+export default function SapaPet({ tab, backendLinked, activity, onNavigate, mobileDock = false }: {
   tab: SapaDashboardTab;
   backendLinked: boolean;
   activity: SapaActivity;
   onNavigate: (tab: SapaDashboardTab) => void;
+  mobileDock?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [reaction, setReaction] = useState<{ motion: SapaMotion; id: number } | null>(null);
@@ -61,6 +71,10 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate }: {
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [dragging, setDragging] = useState(false);
   const launchRef = useRef<HTMLButtonElement>(null);
+  const dockLaunchRef = useRef<HTMLButtonElement>(null);
+  const lastLauncher = useRef<"pet" | "dock">("pet");
+  const restoreFocus = useRef(false);
+  const positionMode = useRef<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const reactionSequence = useRef(0);
@@ -70,6 +84,7 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate }: {
   const dragStart = useRef<{ pointerId: number; pointerX: number; pointerY: number; x: number; y: number; moved: boolean } | null>(null);
   const latestPosition = useRef<Position | null>(null);
   const suppressClick = useRef(false);
+  const docked = mobileDock && viewport.width > 0 && viewport.width <= 760;
   const dragCleanup = useRef<(() => void) | null>(null);
 
   const react = useCallback((motion: SapaMotion) => {
@@ -89,25 +104,36 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate }: {
       const width = window.innerWidth;
       const height = window.innerHeight;
       setViewport({ width, height });
-      setPosition(current => current ? clampPosition(current, width, height) : null);
+      const key = positionKey(width, mobileDock);
+      if (positionMode.current !== key) {
+        positionMode.current = key;
+        let saved: Position | null = null;
+        try {
+          const value = JSON.parse(window.localStorage.getItem(key) || "null") as Position | null;
+          if (value && Number.isFinite(value.x) && Number.isFinite(value.y)) saved = clampPosition(value, width, height, mobileDock);
+        } catch { /* Default corner is used when storage is unavailable. */ }
+        setPosition(saved);
+      } else {
+        setPosition(current => current ? clampPosition(current, width, height, mobileDock) : null);
+      }
     };
     updateViewport();
-    try {
-      const saved = JSON.parse(window.localStorage.getItem("sap-pet-position") || "null") as Position | null;
-      if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
-        setPosition(clampPosition(saved, window.innerWidth, window.innerHeight));
-      }
-    } catch { /* Default corner is used when storage is unavailable. */ }
     window.addEventListener("resize", updateViewport);
     return () => window.removeEventListener("resize", updateViewport);
-  }, []);
+  }, [mobileDock]);
 
   useEffect(() => () => {
     if (suppressTimer.current) clearTimeout(suppressTimer.current);
     dragCleanup.current?.();
     chatController.current?.abort();
   }, []);
-  useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+    else if (restoreFocus.current) {
+      restoreFocus.current = false;
+      (lastLauncher.current === "dock" ? dockLaunchRef : launchRef).current?.focus();
+    }
+  }, [open]);
   useEffect(() => { if (open) logRef.current?.scrollTo({ top: logRef.current.scrollHeight }); }, [messages, open, sending, phase]);
   // Advance the progress labels forward while a reply is in flight, then hold on
   // the last one. Estimated timing only — the request itself is a single call.
@@ -126,13 +152,14 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate }: {
   }, [open]);
 
   function closePanel() {
+    restoreFocus.current = true;
     setOpen(false);
-    launchRef.current?.focus();
   }
 
-  function activate() {
+  function activate(source: "pet" | "dock" = "pet") {
     if (suppressClick.current) { suppressClick.current = false; return; }
     if (open) { closePanel(); return; }
+    lastLauncher.current = source;
     setOpen(true);
     react("wave");
   }
@@ -167,7 +194,7 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate }: {
       if (!start.moved && Math.hypot(dx, dy) < 5) return;
       start.moved = true;
       setDragging(true);
-      const next = clampPosition({ x: start.x + dx, y: start.y + dy }, window.innerWidth, window.innerHeight);
+      const next = clampPosition({ x: start.x + dx, y: start.y + dy }, window.innerWidth, window.innerHeight, mobileDock);
       latestPosition.current = next;
       setPosition(next);
     };
@@ -183,7 +210,7 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate }: {
       if (e.type === "pointercancel") suppressClick.current = true;
       if (start.moved && latestPosition.current) {
         suppressClick.current = true;
-        try { window.localStorage.setItem("sap-pet-position", JSON.stringify(latestPosition.current)); } catch { /* Drag still works for this visit. */ }
+        try { window.localStorage.setItem(positionKey(window.innerWidth, mobileDock), JSON.stringify(latestPosition.current)); } catch { /* Drag still works for this visit. */ }
         suppressTimer.current = setTimeout(() => { suppressClick.current = false; }, 120);
       }
     };
@@ -236,7 +263,7 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate }: {
     void sendMessage(draft);
   }
 
-  const size = launcherSize(viewport.width || 1200);
+  const size = launcherSize(viewport.width || 1200, mobileDock);
   const petX = position?.x ?? viewport.width - size.width - (viewport.width <= 600 ? 13 : 24);
   const petY = position?.y ?? viewport.height - size.height - (viewport.width <= 600 ? 13 : 24);
   const panelWidth = Math.min(viewport.width <= 600 ? 354 : 366, Math.max(0, viewport.width - (viewport.width <= 600 ? 26 : 30)));
@@ -248,8 +275,8 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate }: {
   const working = sending || activity.phase === "thinking";
   const motion = dragging ? "idle" : working ? "thinking" : reaction?.motion ?? "idle";
 
-  return <div className={styles.root} style={position ? { left: position.x, top: position.y, right: "auto", bottom: "auto" } : undefined}>
-    {open && <section className={`${styles.panel} ${panelBelow ? styles.panelBelow : ""}`} style={{ left: panelLeft - petX, right: "auto", maxHeight: panelMaxHeight }} id="sapa-chat-panel" role="dialog" aria-modal="false" aria-labelledby="sapa-chat-title">
+  return <><div className={`${styles.root} ${mobileDock ? styles.mobilePetRoot : ""}`} data-sap-mobile-chat={mobileDock || undefined} style={position ? { left: position.x, top: position.y, right: "auto", bottom: "auto" } : undefined}>
+    {open && <section className={`${styles.panel} ${!docked && panelBelow ? styles.panelBelow : ""}`} style={docked ? undefined : { left: panelLeft - petX, right: "auto", maxHeight: panelMaxHeight }} id="sapa-chat-panel" role="dialog" aria-modal="false" aria-labelledby="sapa-chat-title">
       <header className={styles.header}>
         <span className={styles.headerAvatar}><Image src="/images/sapa/SAPA_Chat_Avatar.png" alt="" width={42} height={42} /></span>
         <span className={styles.heading}><strong id="sapa-chat-title">SAPA</strong><small>Asisten SAP</small></span>
@@ -309,9 +336,15 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate }: {
       </div>
     </section>}
 
-    <button ref={launchRef} className={`${styles.launcher} ${dragging ? styles.dragging : ""}`} type="button" onPointerDown={onPointerDown} onPointerEnter={event => { if (event.pointerType === "mouse") attention(); }} onFocus={attention} onClick={activate} onDragStart={event => event.preventDefault()} aria-label={open ? "Tutup chat SAPA" : "Buka chat SAPA"} aria-expanded={open} aria-controls="sapa-chat-panel" title={`${open ? "Tutup" : "Buka"} chat SAPA · Seret untuk memindahkan`}>
+    <button ref={launchRef} className={`${styles.launcher} ${dragging ? styles.dragging : ""}`} type="button" onPointerDown={onPointerDown} onPointerEnter={event => { if (event.pointerType === "mouse") attention(); }} onFocus={attention} onClick={() => activate()} onDragStart={event => event.preventDefault()} aria-label={open ? "Tutup chat SAPA" : "Buka chat SAPA"} aria-expanded={open} aria-controls="sapa-chat-panel" title={`${open ? "Tutup" : "Buka"} chat SAPA · Seret untuk memindahkan`}>
       <span className={styles.character}><SapaSprite motion={motion} playId={reaction?.id ?? 0} paused={dragging} calm={open} onComplete={finishReaction} /></span>
       <span className={`${styles.petLabel} ${working ? styles.workingLabel : ""}`} aria-hidden="true">{working ? "AI bekerja" : "SAPA"}</span>
     </button>
-  </div>;
+  </div>
+    {mobileDock && <button ref={dockLaunchRef} type="button" className={styles.mobileDockLauncher} onClick={() => activate("dock")} aria-label={open ? "Tutup chat SAPA dari navbar" : "Buka chat SAPA dari navbar"} aria-expanded={open} aria-controls="sapa-chat-panel">
+      <Sparkles size={19} aria-hidden="true" />
+      <span>{working ? "SAPA sedang memproses…" : "SAPA siap membantu"}</span>
+      <ChevronRight size={18} aria-hidden="true" />
+    </button>}
+  </>;
 }

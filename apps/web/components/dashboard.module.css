@@ -178,3 +178,19 @@
 .privacyCard>img{clip-path:inset(0 0 0 31%)}
 @media(max-width:760px){.historyFilters{align-items:stretch;flex-direction:column}.filterPills{flex-wrap:nowrap}.historyFilters .selectWrap{width:100%}.mapLayers{right:0;width:62px;border-radius:9px 0 0 9px}.helpCardCopy{max-width:44%;position:relative;z-index:1}.helpCard>img{width:49%}}
 @media(max-width:490px){.helpCardCopy{max-width:45%}.helpCard>img{width:48%}}
+
+/* Mobile navigation is a separate surface; desktop declarations above stay intact. */
+@media(max-width:760px){
+  .shell{--sap-mobile-dock-bottom:calc(10px + env(safe-area-inset-bottom,0px));background:#f6fbf8;min-width:0}
+  .sidebar,.mobileShade,.menuButton,.headerTools{display:none}
+  .topbar{display:block;min-height:72px;padding:8px max(18px,env(safe-area-inset-right,0px)) 8px max(18px,env(safe-area-inset-left,0px));background:#fff;border-bottom:1px solid #eaf2ed;backdrop-filter:none}
+  .searchBox{display:none;width:100%;height:46px;margin:10px 0 3px;padding:0 12px}
+  .searchBox.mobileSearchVisible{display:flex}.searchBox input{font-size:16px}.searchBox>svg{width:21px;height:21px}.searchResults{top:52px;max-height:min(420px,60dvh);overflow-y:auto}
+  .content{padding:22px max(18px,env(safe-area-inset-right,0px)) calc(155px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));scroll-margin-bottom:150px}
+  .content button,.content a,.content input,.content select{scroll-margin-bottom:150px}
+  .toast{right:12px;bottom:calc(142px + env(safe-area-inset-bottom,0px));font-size:12px}
+}
+@media(max-width:360px){.content{padding-left:14px;padding-right:14px}.topbar{padding-inline:14px}}
+@media(max-height:500px) and (max-width:760px){
+  .shell:has([data-sap-mobile-chat] input:focus) [data-sap-mobile-dock] nav{display:none}
+}

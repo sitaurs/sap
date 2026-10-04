@@ -1,0 +1,78 @@
+/* Derived from the approved mobile menu layout. Desktop shell uses its own styles. */
+.mobileHeader,.dock{display:none}
+.menuPage{width:100%;max-width:560px;margin:0 auto;color:#142c49;font-family:var(--font-body),Arial,sans-serif;animation:menuEnter .2s ease-out}
+.menuPage button{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.menuPage button:focus-visible,.dock button:focus-visible,.mobileHeader button:focus-visible{outline:3px solid #078967;outline-offset:3px}
+.pageHeading{margin-bottom:18px}
+.pageHeading h1{margin:0;color:#10223f;font:750 clamp(25px,7vw,30px)/1.25 var(--font-display),Arial,sans-serif;letter-spacing:-.035em}
+.pageHeading p{margin:6px 0 0;color:#556b85;font-size:14px;line-height:1.55}
+.profileCard{display:flex;align-items:center;gap:12px;width:100%;min-height:90px;padding:15px;border:1px solid #e7f0eb;border-radius:18px;background:#fff;box-shadow:0 5px 18px #264f4106;text-align:left}
+.profileAvatar{display:grid;place-items:center;flex:none;width:56px;height:56px;overflow:hidden;border-radius:50%;background:#d4f4e7;color:#0d765b;font-size:20px;font-weight:700}
+.avatarPhoto{width:100%;height:100%;border-radius:50%}
+.profileCopy{display:flex;align-items:flex-start;flex-direction:column;gap:6px;min-width:0;flex:1}
+.profileCopy strong{max-width:100%;color:#182d48;font-size:15px;line-height:1.35;font-weight:700;overflow-wrap:anywhere}
+.profileCopy small{padding:4px 9px;border-radius:20px;background:#e0f8ed;color:#0b775b;font-size:11px;font-weight:650;line-height:1.25}
+.profileAction{display:flex;align-items:center;gap:3px;flex:none;color:#385678;font-size:11px;line-height:1.4}
+.accountMenu .pageHeading{margin-bottom:14px}
+.accountMenu .pageHeading h1{font-size:28px}
+.accountMenu .profileCard{min-height:78px;padding:12px}
+.accountMenu .profileAvatar{width:50px;height:50px;font-size:18px}
+.accountMenu .menuSection{margin-top:18px}
+.accountMenu .menuSection h2{margin-bottom:8px}
+.accountMenu .menuRow{min-height:50px;padding-block:8px}
+.accountMenu .menuRow .rowIcon{width:34px;height:34px;border-radius:11px}
+.accountMenu .adminEntry{margin-top:14px;padding-block:12px}
+.accountMenu .signOut{min-height:45px;margin-top:14px}
+.menuSection{margin-top:22px}
+.menuSection h2{margin:0 0 10px 5px;color:#6c8298;font-size:10px;font-weight:750;line-height:1.5;letter-spacing:.115em;text-transform:uppercase}
+.rowGroup{overflow:hidden;border:1px solid #e7f0eb;border-radius:17px;background:#fff;box-shadow:0 5px 18px #264f4105}
+.menuRow{display:flex;align-items:center;gap:13px;width:100%;min-height:57px;padding:10px 14px;border:0;background:#fff;color:#183553;text-align:left;transition:background .15s}
+.menuRow+.menuRow{border-top:1px solid #eef3f1}
+.menuRow:hover,.profileCard:hover{background:#f7fcf9}
+.rowIcon{display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:12px;background:#e4f9f0;color:#08795c}
+.rowCopy{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}
+.rowCopy strong{font-size:15px;line-height:1.4;font-weight:500;overflow-wrap:anywhere}
+.rowCopy small{color:#5b7288;font-size:13px;line-height:1.45}
+.chevron{flex:none;margin-left:auto;color:#6f859b}
+.adminEntry{display:flex;align-items:center;gap:13px;width:100%;margin-top:16px;padding:15px 14px;border:1px solid #d4eee1;border-radius:17px;background:linear-gradient(110deg,#e8f9f1,#e2f6ed);color:#10745a;text-align:left}
+.adminEntry .rowCopy strong{color:#15405b;font-weight:700}
+.adminEntry .rowCopy small{font-size:12px}
+.adminEntry>.rowIcon{width:42px;height:42px;background:#d2f0e3}
+.adminEntry>svg{flex:none}
+.signOut{display:flex;align-items:center;gap:13px;width:100%;min-height:49px;margin-top:16px;padding:11px 15px;border:1px solid #eeeae9;border-radius:14px;background:#fff;color:#c4413d;text-align:left;font-size:14px}
+.signOut>span{flex:1}.signOut:hover{background:#fff7f6}.signOut:disabled{opacity:.65;cursor:wait}
+.adminHeading>div{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.adminHeading h1{font-size:25px;flex:1}
+.backButton{display:grid;place-items:center;flex:none;width:44px;height:44px;padding:0;border:0;border-radius:10px;background:transparent;color:#183b57}
+.backButton:hover{background:#e5f4ed}
+.roleBadge{display:inline-flex;align-items:center;gap:5px;flex:none;padding:7px 9px;border-radius:20px;background:#e1f7ed;color:#08775a;font-size:10px;line-height:1.3;font-weight:650}
+.adminCards{display:grid;gap:12px}
+.adminCards .menuRow{min-height:79px;padding:14px;border:1px solid #e5eee9;border-radius:17px;box-shadow:0 4px 18px #2a604c05}
+.adminCards .rowIcon{width:45px;height:45px;border-radius:13px}
+.adminCards .rowCopy strong{font-weight:700}
+.accessNote{display:flex;align-items:center;gap:12px;margin:15px 0 0;padding:17px 16px;border:1px solid #dcf0e5;border-radius:15px;background:#e8f8f0;color:#36604f;font-size:12px;line-height:1.55}
+.accessNote>svg{flex:none;color:#078465}
+@keyframes menuEnter{from{opacity:.5;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:760px){
+  .mobileHeader{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:56px;width:100%}
+  .headerBrand{display:block;flex:none;min-height:44px;padding:0;border:0;background:transparent}
+  .headerActions{display:flex;align-items:center;gap:8px}
+  .headerIcon,.headerAccount{display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:transparent;color:#284b63;touch-action:manipulation}
+  .headerIcon:hover{background:#edf8f2}.headerAccount{overflow:hidden;background:#ddf3e9;color:#08775c}.headerPhoto{width:100%;height:100%;border-radius:50%}
+  .dock{position:fixed;bottom:var(--sap-mobile-dock-bottom,calc(10px + env(safe-area-inset-bottom,0px)));left:50%;z-index:40;display:block;width:calc(100% - 24px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px));max-width:480px;transform:translateX(-50%);border-radius:27px;background:linear-gradient(110deg,#06866b,#27b88b);box-shadow:0 8px 30px #087d6325}
+  .bottomNav{position:relative;z-index:1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;min-height:74px;padding:6px;border:1px solid #bde9d9;border-radius:27px;background:#fffffffa;box-shadow:0 -3px 18px #2a8a6d09}
+  .navButton{position:relative;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;min-width:0;min-height:60px;padding:3px 0;border:0;border-radius:21px;background:transparent;color:#526a85;font:450 11px/1.3 var(--font-body),Arial,sans-serif;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  .navIcon{display:grid;place-items:center;width:39px;height:34px;border-radius:50%;color:#274561}
+  .navButton[aria-current="page"]{background:#e3f9ef;color:#06795b;font-weight:700}.navButton[aria-current="page"] .navIcon{color:#09815c}
+  .navLabel{display:block;padding:0 2px;text-align:center;white-space:nowrap}
+  .scanButton{padding-top:38px;color:#0b6151;font-weight:650}.scanButton[aria-current="page"]{background:transparent;color:#075b4b}
+  .scanCircle{position:absolute;top:-19px;left:50%;display:grid;place-items:center;width:63px;height:63px;border:5px solid #fff;border-radius:50%;background:linear-gradient(145deg,#35c891,#00846b);box-shadow:0 0 0 1px #cbefdd,0 6px 16px #0d977540;color:#fff;transform:translateX(-50%)}
+  .scanCircle>svg:first-child{width:36px;height:36px}.scanCamera{position:absolute;width:22px;height:22px}
+  .supportSlot{min-height:42px}
+  .helpFallback{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:6px 22px;border:0;border-radius:0 0 27px 27px;background:transparent;color:#fff;font:550 12px/1.4 var(--font-body),Arial,sans-serif;touch-action:manipulation}.helpFallback>span{flex:1;text-align:left}
+}
+@media(max-width:360px){.profileCard{gap:10px;padding:13px 12px}.profileAvatar{width:48px;height:48px;font-size:18px}.profileCopy strong{font-size:14px}.profileAction{font-size:10px;max-width:51px}.menuRow{gap:10px;padding-inline:12px}.adminCards .menuRow{padding:13px 12px}.adminCards .rowIcon{width:40px;height:40px}.adminHeading h1{font-size:23px}.roleBadge{font-size:9px;padding:6px 7px}.navButton{font-size:10px}.scanCircle{width:59px;height:59px;top:-17px}}
+@media(max-width:340px){.adminHeading>div{display:grid;grid-template-columns:44px minmax(0,1fr);gap:6px 8px}.adminHeading h1{white-space:nowrap}.adminHeading .roleBadge{grid-column:2;justify-self:start}}
+@media(max-height:850px) and (max-width:760px){.adminCards{gap:10px}.adminCards .menuRow{min-height:75px;padding-block:12px}.adminCards .rowIcon{width:42px;height:42px}.accessNote{margin-top:12px;padding-block:14px}.adminHeading{margin-bottom:16px}}
+@media(max-height:500px) and (max-width:760px){.bottomNav{min-height:66px;padding-block:3px}.navButton{min-height:56px}.supportSlot,.helpFallback{min-height:36px}.scanCircle{width:57px;height:57px;top:-14px}}
+@media(prefers-reduced-motion:reduce){.menuPage{animation:none}.menuRow{transition:none}}

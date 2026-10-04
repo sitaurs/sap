@@ -1,5 +1,5 @@
 /** SAPA adapter for the authenticated SAP v1 assistant endpoint. */
-import { apiMutate, getMe, updateSapaPreference } from "../lib/api/client";
+import { ApiError, apiMutate, getMe, updateSapaPreference } from "../lib/api/client";
 
 export type SapaPageContext =
   | "dashboard" | "scan" | "my_reports" | "areas"
@@ -19,7 +19,15 @@ export async function saveSapaAccountPreference(enabled: boolean): Promise<void>
 }
 
 export async function sendSapaMessage(message: string, pageContext: SapaPageContext, conversationId: string | null, signal?: AbortSignal): Promise<SapaChatResult> {
-  const result = await apiMutate<SapaChatResult>("POST", "/assistant/chat", { body: { message, pageContext, conversationId }, signal });
+  let result: SapaChatResult;
+  try {
+    result = await apiMutate<SapaChatResult>("POST", "/assistant/chat", { body: { message, pageContext, conversationId }, signal });
+  } catch (error) {
+    if (error instanceof ApiError && error.status >= 500) {
+      throw new ApiError(error.status, error.code, "Chat SAPA sementara tidak tersedia. Coba lagi nanti atau buka Bantuan.", error.fields, error.retryAfter);
+    }
+    throw error;
+  }
   if (!result.reply?.trim() || !result.conversationId || !Array.isArray(result.suggestedActions) || !Array.isArray(result.citations)) throw new Error("Respons SAPA tidak sesuai kontrak.");
   return result;
 }

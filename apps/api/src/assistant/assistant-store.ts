@@ -1,9 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { getConfig, type AppConfig } from '@sap/config';
 import { randomUUID } from 'node:crypto';
 import { Redis } from 'ioredis';
 import { evaluateRateLimit, SAPA_CHAT_RATE_LIMIT } from '../platform/http/rate-limit.js';
 import { CONVERSATION_TTL_SECONDS, HISTORY_MAX_MESSAGES, type ChatMessage } from './assistant.types.js';
+
+const REDIS_TIMEOUT_MS = 5_000;
+const STORE_RETRY_DELAY_MS = 30_000;
 
 /**
  * Redis-backed conversation memory + per-account rate limiter for SAPA. This is
@@ -20,6 +23,7 @@ export class AssistantStore {
   private readonly logger = new Logger(AssistantStore.name);
   private readonly config: AppConfig = getConfig();
   private client: Redis | null = null;
+  private unavailableUntil = 0;
 
   private conversationKey(userId: string, conversationId: string): string {
     return `sapa:conv:${userId}:${conversationId}`;
@@ -48,37 +52,37 @@ export class AssistantStore {
     // Preserve socket-free unit tests; production always has a Redis client.
     if (!redis) return `test:${randomUUID()}`;
     const token = randomUUID();
-    const acquired = await tryAcquireConversationLock(
+    const acquired = await this.runCommand(() => tryAcquireConversationLock(
       redis,
       this.conversationLockKey(userId, conversationId),
       token,
       CONVERSATION_LOCK_TTL_MS,
-    );
+    ));
     return acquired ? token : null;
   }
 
   async releaseConversation(userId: string, conversationId: string, token: string): Promise<void> {
     const redis = this.getClient();
     if (!redis) return;
-    await releaseConversationLock(redis, this.conversationLockKey(userId, conversationId), token);
+    await this.runCommand(() => releaseConversationLock(redis, this.conversationLockKey(userId, conversationId), token));
   }
 
   async renewConversation(userId: string, conversationId: string, token: string): Promise<boolean> {
     const redis = this.getClient();
     if (!redis) return true;
-    return renewConversationLock(
+    return this.runCommand(() => renewConversationLock(
       redis,
       this.conversationLockKey(userId, conversationId),
       token,
       CONVERSATION_LOCK_TTL_MS,
-    );
+    ));
   }
 
   /** Fetch stored turns for a conversation, or null when it does not exist. */
   async getConversation(userId: string, conversationId: string): Promise<ChatMessage[] | null> {
     const redis = this.getClient();
     if (!redis) return null;
-    const raw = await redis.get(this.conversationKey(userId, conversationId));
+    const raw = await this.runCommand(() => redis.get(this.conversationKey(userId, conversationId)));
     if (raw === null) return null;
     try {
       const parsed = JSON.parse(raw);
@@ -103,7 +107,7 @@ export class AssistantStore {
   ): Promise<'appended' | 'lock_lost' | 'conversation_missing'> {
     const redis = this.getClient();
     if (!redis) return 'appended';
-    const result = await appendConversationTurn(
+    const result = await this.runCommand(() => appendConversationTurn(
       redis,
       this.conversationKey(userId, conversationId),
       this.conversationLockKey(userId, conversationId),
@@ -113,7 +117,7 @@ export class AssistantStore {
       HISTORY_MAX_MESSAGES,
       CONVERSATION_TTL_SECONDS,
       allowCreate,
-    );
+    ));
     if (result === 1) return 'appended';
     if (result === -2) return 'conversation_missing';
     return 'lock_lost';
@@ -127,12 +131,12 @@ export class AssistantStore {
   ): Promise<'deleted' | 'not_found' | 'lock_lost'> {
     const redis = this.getClient();
     if (!redis) return 'not_found';
-    const result = await deleteConversationWithLock(
+    const result = await this.runCommand(() => deleteConversationWithLock(
       redis,
       this.conversationKey(userId, conversationId),
       this.conversationLockKey(userId, conversationId),
       lockToken,
-    );
+    ));
     if (result === 1) return 'deleted';
     if (result === -1) return 'lock_lost';
     return 'not_found';
@@ -148,20 +152,63 @@ export class AssistantStore {
     const now = Date.now();
     const windowStart = Math.floor(now / SAPA_CHAT_RATE_LIMIT.windowMs) * SAPA_CHAT_RATE_LIMIT.windowMs;
     const key = this.rateKey(userId, windowStart);
-    const count = await incrementRateLimitCounter(redis, key, SAPA_CHAT_RATE_LIMIT.windowMs);
+    const count = await this.runCommand(() => incrementRateLimitCounter(redis, key, SAPA_CHAT_RATE_LIMIT.windowMs));
     // Evaluate against the count *before* this request to mirror sliding helpers.
     return evaluateRateLimit({ count: count - 1, oldestAt: new Date(windowStart) }, SAPA_CHAT_RATE_LIMIT, now);
   }
 
   private getClient(): Redis | null {
     if (this.config.NODE_ENV === 'test') return null;
-    if (this.client) return this.client;
-    this.client = new Redis(this.config.REDIS_URL, { maxRetriesPerRequest: null });
+    if (Date.now() < this.unavailableUntil) throw this.unavailable();
+    if (this.client && this.client.status !== 'end') return this.client;
+    this.client = new Redis(this.config.REDIS_URL, {
+      connectTimeout: REDIS_TIMEOUT_MS,
+      commandTimeout: REDIS_TIMEOUT_MS,
+      maxRetriesPerRequest: 1,
+      // A lost reply must not cause a Redis write to be sent twice.
+      autoResendUnfulfilledCommands: false,
+      retryStrategy: (attempt) => attempt <= 2 ? attempt * 1_000 : null,
+    });
+    this.client.on('error', (error: Error) => this.markUnavailable(error));
     return this.client;
   }
 
-  async onModuleDestroy(): Promise<void> {
-    if (this.client) await this.client.quit();
+  /** Storage outages must not bypass the account quota or reach the paid LLM. */
+  private async runCommand<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      this.markUnavailable(error);
+      throw this.unavailable();
+    }
+  }
+
+  private markUnavailable(error: unknown): void {
+    const message = error instanceof Error ? error.message : '';
+    const reason = /max requests limit exceeded/i.test(message)
+      ? 'quota_exceeded'
+      : /timeout|timed out/i.test(message) ? 'timeout' : 'connection_unavailable';
+    const now = Date.now();
+    if (now >= this.unavailableUntil) {
+      this.unavailableUntil = now + STORE_RETRY_DELAY_MS;
+      // Log only the category: connection strings and chat contents are private.
+      this.logger.warn(JSON.stringify({ event: 'sapa_store_unavailable', reason }));
+    }
+    // Reconnecting cannot restore a provider quota; wait for the next chat after
+    // the cooldown instead of repeatedly reconnecting in the background.
+    if (reason === 'quota_exceeded') this.client?.disconnect();
+  }
+
+  private unavailable(): ServiceUnavailableException {
+    return new ServiceUnavailableException({
+      code: 'ASSISTANT_UNAVAILABLE',
+      message: 'Chat SAPA sementara tidak tersedia. Coba lagi nanti atau buka Bantuan.',
+    });
+  }
+
+  onModuleDestroy(): void {
+    this.client?.disconnect();
+    this.client = null;
   }
 }
 

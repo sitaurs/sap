@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -8,29 +8,18 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Camera,
-  Check,
   ChevronDown,
-  CircleHelp,
-  Clock3,
   FilePlus2,
   FileText,
   Flame,
   Info,
-  Instagram,
   LayoutDashboard,
   LogOut,
   Map,
-  MapPin,
-  Menu,
   ScanLine,
   Search,
-  Settings,
-  ShieldCheck,
-  Sliders,
   Sparkles,
   Star,
-  Trophy,
-  UploadCloud,
   UserRound,
   X,
   type LucideIcon,
@@ -43,6 +32,11 @@ import LoadingScreen from "./loading-screen";
 import MediaThumbnail from "./media-thumbnail";
 import SapaPet, { type SapaDashboardTab } from "./sapa-pet";
 import type { SapaActivity, SapaActivityPhase } from "./sapa-motion-data";
+import MobileAccountMenu, { MobileAdminMenu } from "./mobile/mobile-account-menu";
+import MobileBottomNav from "./mobile/mobile-bottom-nav";
+import MobileHeader from "./mobile/mobile-header";
+import { adminNav, mainNav, otherNav, isAdminTab, isMobileMenuTab, requestedDashboardTab, type DashboardTab } from "./mobile/navigation-data";
+import { useMobileNavigation } from "./mobile/use-mobile-navigation";
 import type { ReportSummary } from "./report-wizard";
 import { saveSapaAccountPreference } from "./sapa-client";
 import { ApiError, getAchievements, getMe, getStats, listCategories, listReports, listScans, logout, updateProfile, type SapAchievement, type SapCategory, type SapReport, type SapScan, type SapStats, type SapUser } from "../lib/api/client";
@@ -50,29 +44,14 @@ import { ApiError, getAchievements, getMe, getStats, listCategories, listReports
 const InstagramPublication = dynamic(() => import("./instagram/publication-page"), {
   loading: () => <div role="status" style={{ padding: 32, color: "#647e98" }}>Memuat publikasi Instagram…</div>,
 });
+const ActivitiesPage = dynamic(() => import("./activities/activities-page"), {
+  loading: () => <div role="status" style={{ padding: 32, color: "#647e98" }}>Memuat kegiatan relawan…</div>,
+});
+const ImpactPage = dynamic(() => import("./impact/impact-page"), {
+  loading: () => <div role="status" style={{ padding: 32, color: "#647e98" }}>Memuat dampak…</div>,
+});
 
-type AdminTab = "admin-moderation" | "admin-settings" | "admin-instagram";
-type Tab = "dashboard" | "scan" | "reports" | "map" | "history" | "achievements" | "settings" | "help" | AdminTab;
-const ADMIN_TABS: AdminTab[] = ["admin-moderation", "admin-settings", "admin-instagram"];
-const isAdminTab = (tab: Tab): tab is AdminTab => (ADMIN_TABS as string[]).includes(tab);
-const mainNav: { id: Tab; label: string; icon: LucideIcon }[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "scan", label: "Scan", icon: Camera },
-  { id: "reports", label: "Laporan saya", icon: FileText },
-  { id: "map", label: "Peta area", icon: Map },
-  { id: "history", label: "Riwayat scan", icon: Clock3 },
-  { id: "achievements", label: "Pencapaian", icon: Trophy },
-];
-const adminNav: { id: AdminTab; label: string; icon: LucideIcon }[] = [
-  { id: "admin-moderation", label: "Moderasi laporan", icon: ShieldCheck },
-  { id: "admin-settings", label: "Pengaturan scan", icon: Sliders },
-  { id: "admin-instagram", label: "Publikasi Instagram", icon: Instagram },
-];
-const otherNav: { id: Tab; label: string; icon: LucideIcon }[] = [
-  { id: "settings", label: "Pengaturan", icon: Settings },
-  { id: "help", label: "Bantuan", icon: CircleHelp },
-];
-const allTabs = new Set<Tab>([...mainNav, ...adminNav, ...otherNav].map(item => item.id));
+type Tab = DashboardTab;
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
@@ -104,8 +83,11 @@ function StatCard({ label, value, icon: Icon, tone, onClick }: { label: string; 
 
 export default function Dashboard() {
   const router = useRouter();
+  const mobile = useMobileNavigation();
   const [tab, setTab] = useState<Tab>("dashboard");
-  const [mobileMenu, setMobileMenu] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [signingOut, setSigningOut] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [user, setUser] = useState<SapUser | null>(null);
   const [stats, setStats] = useState<SapStats | null>(null);
@@ -135,12 +117,24 @@ export default function Dashboard() {
   }, [sapaActivity.id, sapaActivity.phase]);
 
   useEffect(() => {
-    const requestedView = new URLSearchParams(window.location.search).get("view") as Tab | null;
-    if (requestedView && allTabs.has(requestedView)) setTab(requestedView);
+    setTab(requestedDashboardTab(window.location.search));
     const controller = new AbortController();
     void refreshData(controller.signal);
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const restoreView = () => {
+      setTab(requestedDashboardTab(window.location.search));
+      setProfileOpen(false);
+      setMobileSearchOpen(false);
+      setReportWizardOpen(false);
+      setReportComposerRequested(false);
+    };
+    window.addEventListener("popstate", restoreView);
+    return () => window.removeEventListener("popstate", restoreView);
+  }, []);
+  useEffect(() => { if (mobileSearchOpen) searchInputRef.current?.focus(); }, [mobileSearchOpen]);
 
   async function refreshData(signal?: AbortSignal) {
     setLoadError("");
@@ -162,6 +156,8 @@ export default function Dashboard() {
   const categoryName = (id: string | null) => categories.find(item => item.id === id)?.name || id || "Belum dikenali";
   const counts = useMemo(() => (stats?.categoryCounts || []).filter(item => item.count > 0).map(item => ({ name: categories.find(category => category.id === item.categoryId)?.name || item.categoryId, count: item.count })), [stats, categories]);
   const displayName = user?.displayName || "Pengguna";
+  // Resizing back to desktop restores its existing settings/moderation screens.
+  const activeTab = !mobile && tab === "account" ? "settings" : !mobile && tab === "admin-menu" ? "admin-moderation" : tab;
   const filteredScans = scans.filter(scan => `${categoryName(scan.categoryId)} ${scan.status}`.toLowerCase().includes(search.toLowerCase()));
   const filteredReports = reports.filter(report => `${categoryName(report.categoryId)} ${report.description} ${report.status}`.toLowerCase().includes(search.toLowerCase()));
 
@@ -174,10 +170,16 @@ export default function Dashboard() {
     if (next === "dashboard") url.searchParams.delete("view");
     else url.searchParams.set("view", next);
     if (next !== "admin-instagram") url.searchParams.delete("publication");
-    window.history.replaceState(null, "", url);
-    setMobileMenu(false);
+    if (next !== "admin-activities") {
+      url.searchParams.delete("activity");
+      url.searchParams.delete("activityScreen");
+      url.searchParams.delete("result");
+    }
+    if (mobile && next !== tab) window.history.pushState(null, "", url);
+    else window.history.replaceState(null, "", url);
+    setMobileSearchOpen(false);
     setProfileOpen(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
   }
 
   function openReportFromScan() {
@@ -193,10 +195,14 @@ export default function Dashboard() {
   }
 
   async function signOut() {
-    try { await logout(); }
-    catch (cause) { setToast(cause instanceof Error ? cause.message : "Belum berhasil keluar."); return; }
-    setUser(null); setStats(null); setScans([]); setReports([]); setAchievements([]);
-    router.replace("/login");
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await logout();
+      setUser(null); setStats(null); setScans([]); setReports([]); setAchievements([]);
+      router.replace("/login");
+    } catch (cause) { setToast(cause instanceof Error ? cause.message : "Belum berhasil keluar."); }
+    finally { setSigningOut(false); }
   }
 
   async function saveProfile(name: string) {
@@ -230,24 +236,23 @@ export default function Dashboard() {
   if (loadError) return <div className={styles.loadingScreen} role="alert"><BrandLogo width={165} /><strong>Ruang kerja belum dapat dimuat</strong><span>{loadError}</span><button className={styles.primaryButton} type="button" onClick={() => { setLoading(true); void refreshData(); }}>Coba lagi</button></div>;
 
   return <div className={styles.shell}>
-    {mobileMenu && <button className={styles.mobileShade} type="button" onClick={() => setMobileMenu(false)} aria-label="Tutup navigasi" />}
-    <aside className={`${styles.sidebar} ${mobileMenu ? styles.sidebarOpen : ""}`}>
+    <aside className={styles.sidebar}>
       <Link className={styles.brand} href="/" aria-label="SAP, kembali ke beranda"><BrandLogo width={165} /></Link>
       <div className={styles.sideLabel}>MENU</div>
       <nav className={styles.sideNav} aria-label="Navigasi dashboard">
-        {mainNav.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={`${styles.navItem} ${tab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={tab === id ? "page" : undefined}><Icon size={23} /><span>{label}</span></button>)}
+        {mainNav.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={`${styles.navItem} ${activeTab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={activeTab === id ? "page" : undefined}><Icon size={23} /><span>{label}</span></button>)}
       </nav>
       {user?.role === "admin" && <>
         <div className={styles.sideDivider} />
         <div className={styles.sideLabel}>ADMIN</div>
         <nav className={styles.sideNav} aria-label="Admin">
-          {adminNav.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={`${styles.navItem} ${tab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={tab === id ? "page" : undefined}><Icon size={23} /><span>{label}</span></button>)}
+          {adminNav.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={`${styles.navItem} ${activeTab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={activeTab === id ? "page" : undefined}><Icon size={23} /><span>{label}</span></button>)}
         </nav>
       </>}
       <div className={styles.sideDivider} />
       <div className={styles.sideLabel}>LAINNYA</div>
       <nav className={styles.sideNav} aria-label="Lainnya">
-        {otherNav.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={`${styles.navItem} ${tab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={tab === id ? "page" : undefined}><Icon size={23} /><span>{label}</span></button>)}
+        {otherNav.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={`${styles.navItem} ${activeTab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={activeTab === id ? "page" : undefined}><Icon size={23} /><span>{label}</span></button>)}
         <button className={styles.navItem} type="button" onClick={signOut}><LogOut size={23} /><span>Keluar</span></button>
       </nav>
       <div className={styles.sideGarden} aria-hidden="true" />
@@ -255,8 +260,8 @@ export default function Dashboard() {
 
     <div className={styles.mainColumn}>
       <header className={styles.topbar}>
-        <button className={styles.menuButton} type="button" onClick={() => setMobileMenu(true)} aria-label="Buka menu"><Menu size={24} /></button>
-        <div className={styles.searchBox}><Search size={22} /><input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Cari laporan atau area" aria-label="Cari laporan atau area" />{search && <button type="button" onClick={() => setSearch("")} aria-label="Hapus pencarian"><X size={18} /></button>}
+        <MobileHeader displayName={displayName} avatarMediaId={user?.avatarMediaId ?? null} searchOpen={mobileSearchOpen} onSearch={() => setMobileSearchOpen(value => !value)} onHome={() => openTab("dashboard")} onAccount={() => openTab("account")} />
+        <div id="dashboard-search" className={`${styles.searchBox} ${mobileSearchOpen ? styles.mobileSearchVisible : ""}`}><Search size={22} /><input ref={searchInputRef} type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Cari laporan atau area" aria-label="Cari laporan atau area" />{search && <button type="button" onClick={() => setSearch("")} aria-label="Hapus pencarian"><X size={18} /></button>}
           {search && <div className={styles.searchResults}>
             <strong>Hasil pencarian lokal</strong>
             {filteredScans.length === 0 && filteredReports.length === 0 ? <p>Belum ada hasil yang cocok di aktivitas Anda.</p> : <>
@@ -271,7 +276,9 @@ export default function Dashboard() {
       </header>
 
       <main className={styles.content}>
-        {tab === "dashboard" && <>
+        {mobile && tab === "account" && user && <MobileAccountMenu user={user} onNavigate={openTab} onSignOut={() => void signOut()} signingOut={signingOut} />}
+        {mobile && tab === "admin-menu" && <MobileAdminMenu isAdmin={user?.role === "admin"} onNavigate={openTab} />}
+        {activeTab === "dashboard" && <>
           <div className={styles.pageHeading}><div><p className={styles.kicker}><span /> RUANG KERJA ANDA</p><h1>Dashboard</h1><p>Pantau aktivitas scan dan laporan Anda.</p></div><div className={styles.quickActions}><button className={styles.primaryButton} type="button" onClick={() => openTab("scan")}><Camera size={22} strokeWidth={2.2} />Scan sampah</button><button className={styles.outlineButton} type="button" onClick={openReportFromScan}><FilePlus2 size={22} />Buat laporan</button></div></div>
           <div className={styles.statGrid}>
             <StatCard label="Total scan" value={String(stats?.totalScans ?? 0)} icon={ScanLine} tone="green" onClick={() => openTab("history")} />
@@ -290,21 +297,22 @@ export default function Dashboard() {
           </div>
         </>}
 
-        {tab !== "dashboard" && !isAdminTab(tab) && <DashboardViews key={tab} tab={tab} scans={scans} reports={reports} stats={stats} achievements={achievements} categories={categories} email={user?.email || ""} displayName={displayName} avatarMediaId={user?.avatarMediaId ?? null} onNavigate={openTab} onScanFinished={() => void refreshData()} onScanActivity={setPetActivity} onOpenReport={openReportFromScan} reportComposerRequested={reportComposerRequested} onReportSubmitted={reportSubmitted} onReportsChanged={() => void refreshData()} onReportWizardChange={setReportWizardOpen} onSaveProfile={saveProfile} onAvatarChanged={avatarChanged} onSignOut={signOut} onAccountDeleted={() => { setUser(null); setStats(null); setScans([]); setReports([]); router.replace("/login"); }} sapaEnabled={sapaEnabled} sapaSaving={sapaSaving} onToggleSapa={toggleSapa} />}
+        {activeTab !== "dashboard" && activeTab !== "account" && activeTab !== "admin-menu" && !isAdminTab(activeTab) && <DashboardViews key={activeTab} tab={activeTab} scans={scans} reports={reports} stats={stats} achievements={achievements} categories={categories} email={user?.email || ""} displayName={displayName} avatarMediaId={user?.avatarMediaId ?? null} onNavigate={openTab} onScanFinished={() => void refreshData()} onScanActivity={setPetActivity} onOpenReport={openReportFromScan} reportComposerRequested={reportComposerRequested} onReportSubmitted={reportSubmitted} onReportsChanged={() => void refreshData()} onReportWizardChange={setReportWizardOpen} onSaveProfile={saveProfile} onAvatarChanged={avatarChanged} onSignOut={signOut} onAccountDeleted={() => { setUser(null); setStats(null); setScans([]); setReports([]); router.replace("/login"); }} sapaEnabled={sapaEnabled} sapaSaving={sapaSaving} onToggleSapa={toggleSapa} />}
 
-        {isAdminTab(tab) && (user?.role === "admin"
-          ? tab === "admin-instagram" ? <InstagramPublication categories={categories} onModeration={() => openTab("admin-moderation")} /> : <div className={`${styles.subPage} ${styles.referenceView}`}>
+        {isAdminTab(activeTab) && (user?.role === "admin"
+          ? activeTab === "admin-instagram" ? <InstagramPublication categories={categories} onModeration={() => openTab("admin-moderation")} /> : activeTab === "admin-activities" ? <ActivitiesPage categories={categories} /> : activeTab === "admin-impact" ? <ImpactPage /> : <div className={`${styles.subPage} ${styles.referenceView}`}>
               <div className={styles.referenceHeading}>
-                <h1>{tab === "admin-settings" ? "Pengaturan scan" : "Moderasi laporan"}</h1>
-                <p>{tab === "admin-settings" ? "Atur strategi deteksi hybrid ML → vision LLM." : "Periksa, verifikasi, dan tindak lanjuti laporan warga."}</p>
+                <h1>{activeTab === "admin-settings" ? "Pengaturan scan" : "Moderasi laporan"}</h1>
+                <p>{activeTab === "admin-settings" ? "Atur strategi deteksi hybrid ML → vision LLM." : "Periksa, verifikasi, dan tindak lanjuti laporan warga."}</p>
               </div>
-              <AdminPanel section={tab === "admin-settings" ? "settings" : "moderation"} categories={categories} />
+              <AdminPanel section={activeTab === "admin-settings" ? "settings" : "moderation"} categories={categories} />
             </div>
           : <div className={`${styles.subPage} ${styles.referenceView}`}><div className={styles.referenceHeading}><h1>Akses ditolak</h1><p>Halaman ini hanya untuk admin.</p></div></div>)}
 
       </main>
     </div>
-    {sapaEnabled && !reportWizardOpen && <SapaPet tab={isAdminTab(tab) ? "dashboard" : (tab satisfies SapaDashboardTab)} backendLinked activity={sapaActivity} onNavigate={openTab} />}
+    {!reportWizardOpen && <MobileBottomNav tab={tab} sapaEnabled={sapaEnabled} onNavigate={openTab} />}
+    {sapaEnabled && !reportWizardOpen && <SapaPet tab={isAdminTab(activeTab) || isMobileMenuTab(activeTab) ? "dashboard" : (activeTab satisfies SapaDashboardTab)} backendLinked activity={sapaActivity} onNavigate={openTab} mobileDock />}
     {toast && <div className={styles.toast} role="status"><Sparkles size={18} /><span>{toast}</span><button type="button" onClick={() => setToast("")} aria-label="Tutup pesan"><X size={16} /></button></div>}
   </div>;
 }

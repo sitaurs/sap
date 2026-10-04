@@ -36,3 +36,19 @@
 @media(max-width:600px){.root{right:13px;bottom:max(13px,env(safe-area-inset-bottom));width:90px;height:106px}.character{width:90px;height:90px}.petLabel{max-width:90px;min-height:18px;font-size:9px;padding:3px 8px}.panel{width:min(354px,calc(100vw - 26px));max-height:min(460px,calc(100dvh - 144px))}.body{padding:13px}.quickActions{margin-top:11px}.close{width:40px;height:40px}.composer input{font-size:16px}.composer button{width:40px;height:40px;flex-basis:40px}}
 @media(max-height:550px){.panel{max-height:calc(100dvh - 91px)}.welcome{min-height:75px}.welcome img{width:70px;height:70px;flex-basis:70px}}
 @media(prefers-reduced-motion:reduce){.panel{animation:none!important}.character,.petLabel,.quickActions button{transition:none!important}.dragging .character{transform:none}}
+.mobileDockLauncher{display:none}
+@media(max-width:760px){
+  .mobilePetRoot{right:max(14px,env(safe-area-inset-right,0px));bottom:calc(var(--sap-mobile-dock-bottom,10px) + 130px);width:90px;height:106px}
+  .mobilePetRoot .character{width:90px;height:90px}
+  .mobilePetRoot .petLabel{max-width:90px;min-height:18px;font-size:9px;padding:3px 8px}
+  .mobilePetRoot:has(.panel)>.launcher{visibility:hidden;pointer-events:none}
+  .mobileDockLauncher{position:fixed;left:50%;bottom:var(--sap-mobile-dock-bottom,calc(10px + env(safe-area-inset-bottom,0px)));z-index:45;transform:translateX(-50%);display:flex;align-items:center;gap:12px;width:calc(100% - 24px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px));max-width:480px;min-height:42px;padding:0 22px;border:0;border-radius:0 0 27px 27px;background:transparent;color:#fff;font:550 12px/1.4 var(--font-body),Arial,sans-serif;text-align:left;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  .mobileDockLauncher>span{min-width:0;flex:1}.mobileDockLauncher>svg{flex:none}
+  .mobileDockLauncher:focus-visible{outline:3px solid #71edbd;outline-offset:2px}
+  .mobilePetRoot>.panel{position:fixed;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));top:auto;bottom:calc(var(--sap-mobile-dock-bottom,10px) + 130px);width:auto;max-width:480px;max-height:min(560px,calc(100dvh - 220px - env(safe-area-inset-bottom,0px)));margin:0 auto;border-radius:20px}
+  .mobilePetRoot .composer input{font-size:16px}
+}
+@media(max-height:500px) and (max-width:760px){.mobilePetRoot{bottom:calc(var(--sap-mobile-dock-bottom,10px) + 116px)}.mobileDockLauncher{min-height:36px}.mobilePetRoot>.panel{bottom:calc(var(--sap-mobile-dock-bottom,10px) + 116px);max-height:calc(100dvh - 200px)}}
+@media(max-height:500px) and (max-width:760px){
+  .mobilePetRoot:has(.composer input:focus)>.panel{bottom:calc(var(--sap-mobile-dock-bottom,10px) + 50px);max-height:calc(100dvh - 90px - env(safe-area-inset-bottom,0px))}
+}
