@@ -10,7 +10,7 @@ export type ActivityInput = {
 };
 export type ActivityRow = {
  id:string;report_id:string;coordinator_id:string|null;coordinator_accepted_at:Date|null;publish_display_name:boolean;revision:number;schedule_revision:number;
- status:ActivityState;prior_state:ActivityState|null;hold_reason:string|null;public_ever:boolean;data:ActivityInput;result_outcome:'partial'|'complete'|null;
+ status:ActivityState;prior_state:ActivityState|null;hold_reason:string|null;public_cancel_reason:string|null;public_ever:boolean;data:ActivityInput;result_outcome:'partial'|'complete'|null;
  created_at:Date;updated_at:Date;report_status:string;public_visibility:string;duplicate_of_id:string|null;h3_cell:string;
  report_occurred_at:Date;report_last_observed_at:Date|null;coordinator_name:string|null;
 };

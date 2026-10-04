@@ -8005,6 +8005,21 @@
               }
             }
           },
+          "409": {
+            "description": "Conversation has another turn in progress (CONVERSATION_BUSY); retry shortly. This request is rejected before provider invocation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
           "422": {
             "description": "Pesan kosong/terlalu panjang atau pageContext tidak dikenal (ASSISTANT_MESSAGE_INVALID)",
             "content": {
@@ -8158,6 +8173,21 @@
           },
           "404": {
             "description": "Conversation not found atau bukan milik pengguna (CONVERSATION_NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "409": {
+            "description": "Conversation has an in-flight chat turn or the delete lost its lease (CONVERSATION_BUSY); retry shortly.",
             "content": {
               "application/json": {
                 "schema": {

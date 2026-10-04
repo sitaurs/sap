@@ -29,24 +29,62 @@ function map(row: ChallengeRow): ChallengeRecord {
 }
 
 const COLUMNS = 'id, user_id, email_hash, purpose, code_hash, attempts, resend_after, expires_at, consumed_at';
+export const MAX_CHALLENGE_ATTEMPTS = 5;
+
+export interface IssuedChallenge {
+  challenge: ChallengeRecord;
+  created: boolean;
+}
 
 @Injectable()
 export class ChallengeRepository {
   constructor(@Inject(DATABASE) private readonly sql: Database) {}
 
-  async create(input: {
+  /**
+   * Reuse the active challenge during its cooldown or create one new challenge.
+   * A transaction advisory lock serializes requests across API processes for a
+   * given (email, purpose), while the row lock coordinates with consumers.
+   */
+  async createOrReuse(input: {
     userId: string | null;
     emailHash: string;
     purpose: ChallengePurpose;
     codeHash: string;
-    expiresAt: Date;
-    resendAfter: Date;
-  }): Promise<ChallengeRecord> {
-    const rows = await this.sql<ChallengeRow[]>`
-      INSERT INTO auth_challenges (user_id, email_hash, purpose, code_hash, expires_at, resend_after)
-      VALUES (${input.userId}, ${input.emailHash}, ${input.purpose}, ${input.codeHash}, ${input.expiresAt}, ${input.resendAfter})
-      RETURNING ${this.sql.unsafe(COLUMNS)}`;
-    return map(rows[0]!);
+    ttlMs: number;
+    resendCooldownMs: number;
+  }): Promise<IssuedChallenge> {
+    return this.sql.begin(async (tx) => {
+      await tx`
+        SELECT pg_advisory_xact_lock(hashtextextended(${input.emailHash} || ':' || ${input.purpose}, 0))`;
+
+      const latestRows = await tx<ChallengeRow[]>`
+        SELECT ${tx.unsafe(COLUMNS)} FROM auth_challenges
+        WHERE email_hash = ${input.emailHash} AND purpose = ${input.purpose}
+        ORDER BY created_at DESC LIMIT 1 FOR UPDATE`;
+      const latest = latestRows[0] ? map(latestRows[0]) : null;
+      const clockRows = await tx<{ now: Date }[]>`SELECT clock_timestamp() AS now`;
+      const now = clockRows[0]!.now;
+      if (
+        latest && !latest.consumedAt && latest.resendAfter &&
+        latest.resendAfter.getTime() > now.getTime() && latest.expiresAt.getTime() > now.getTime()
+      ) {
+        return { challenge: latest, created: false };
+      }
+
+      // A resend replaces the previous code. Invalidate any still-unconsumed
+      // challenge so an older code cannot remain usable alongside the new one.
+      await tx`
+        UPDATE auth_challenges SET consumed_at = clock_timestamp()
+        WHERE email_hash = ${input.emailHash} AND purpose = ${input.purpose} AND consumed_at IS NULL`;
+
+      const expiresAt = new Date(now.getTime() + input.ttlMs);
+      const resendAfter = new Date(now.getTime() + input.resendCooldownMs);
+      const rows = await tx<ChallengeRow[]>`
+        INSERT INTO auth_challenges (user_id, email_hash, purpose, code_hash, expires_at, resend_after, created_at)
+        VALUES (${input.userId}, ${input.emailHash}, ${input.purpose}, ${input.codeHash}, ${expiresAt}, ${resendAfter}, clock_timestamp())
+        RETURNING ${tx.unsafe(COLUMNS)}`;
+      return { challenge: map(rows[0]!), created: true };
+    });
   }
 
   async findById(id: string): Promise<ChallengeRecord | null> {
@@ -55,25 +93,46 @@ export class ChallengeRepository {
     return rows[0] ? map(rows[0]) : null;
   }
 
-  /** Most recent challenge for an email + purpose, used to enforce the resend cooldown. */
-  async findLatestByEmail(emailHash: string, purpose: ChallengePurpose): Promise<ChallengeRecord | null> {
-    const rows = await this.sql<ChallengeRow[]>`
-      SELECT ${this.sql.unsafe(COLUMNS)} FROM auth_challenges
-      WHERE email_hash = ${emailHash} AND purpose = ${purpose}
-      ORDER BY created_at DESC LIMIT 1`;
-    return rows[0] ? map(rows[0]) : null;
-  }
-
   async incrementAttempts(id: string): Promise<void> {
-    await this.sql`UPDATE auth_challenges SET attempts = attempts + 1 WHERE id = ${id}`;
+    // The condition is enforced by PostgreSQL so concurrent wrong-code requests
+    // cannot move the challenge past the five-attempt cap.
+    await this.sql`
+      UPDATE auth_challenges SET attempts = attempts + 1
+      WHERE id = ${id} AND consumed_at IS NULL AND expires_at > clock_timestamp() AND attempts < ${MAX_CHALLENGE_ATTEMPTS}`;
   }
 
   /** Atomically mark single-use. Returns true only for the caller that consumed it. */
   async consume(id: string): Promise<boolean> {
     const rows = await this.sql<{ id: string }[]>`
-      UPDATE auth_challenges SET consumed_at = now()
-      WHERE id = ${id} AND consumed_at IS NULL
+      UPDATE auth_challenges SET consumed_at = clock_timestamp()
+      WHERE id = ${id} AND consumed_at IS NULL AND expires_at > clock_timestamp() AND attempts < ${MAX_CHALLENGE_ATTEMPTS}
       RETURNING id`;
     return rows.length === 1;
+  }
+
+  /** Atomically consume a validated reset challenge, change password and revoke all sessions. */
+  async completePasswordReset(input: { challengeId: string; userId: string; passwordHash: string }): Promise<boolean> {
+    return this.sql.begin(async (tx) => {
+      const challenges = await tx<{ id: string; user_id: string | null }[]>`
+        SELECT id, user_id FROM auth_challenges
+        WHERE id = ${input.challengeId} AND purpose = 'reset_password'
+          AND consumed_at IS NULL AND expires_at > clock_timestamp() AND attempts < ${MAX_CHALLENGE_ATTEMPTS}
+        FOR UPDATE`;
+      if (!challenges[0] || challenges[0].user_id !== input.userId) return false;
+
+      const users = await tx<{ id: string }[]>`
+        UPDATE users SET password_hash = ${input.passwordHash}, updated_at = now()
+        WHERE id = ${input.userId} AND deleted_at IS NULL
+        RETURNING id`;
+      if (users.length !== 1) return false;
+
+      await tx`DELETE FROM sessions WHERE user_id = ${input.userId}`;
+      const consumed = await tx<{ id: string }[]>`
+        UPDATE auth_challenges SET consumed_at = clock_timestamp()
+        WHERE id = ${input.challengeId} AND consumed_at IS NULL AND expires_at > clock_timestamp() AND attempts < ${MAX_CHALLENGE_ATTEMPTS}
+        RETURNING id`;
+      if (consumed.length !== 1) throw new Error('Reset challenge changed while locked');
+      return true;
+    });
   }
 }

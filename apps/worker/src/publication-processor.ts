@@ -6,6 +6,9 @@ import type {ObjectStore} from './object-store.js';
 type Row=Record<string,any>;
 type Event={topic:string;aggregate_id:string;payload_minimal:Record<string,unknown>};
 type Executor=Sql|TransactionSql;
+export function selectPublicationAsset(assets:Row[],sources:Row[]):Row|undefined{
+ return assets.find(asset=>sources.some(source=>(source.media_id===undefined||source.media_id===asset.media_id)&&source.subject_type===asset.subject_type&&source.subject_id===asset.subject_id));
+}
 class LeaseLost extends Error {}
 const INVALID={status:'invalidated',contentRevision:null,sourceRevision:null,renditionId:null,approvedAt:null};
 class ProviderError extends Error{constructor(readonly code:string,readonly uncertain=false){super(code);}}
@@ -317,7 +320,7 @@ export class PublicationProcessor{
    const assets=await tx`SELECT a.media_id,a.rendition_id,a.subject_type,a.subject_id FROM media_publication_approvals a JOIN evidence_renditions er ON er.id=a.rendition_id AND er.media_id=a.media_id AND er.subject_type=a.subject_type AND er.subject_id=a.subject_id JOIN media_consents mc ON mc.media_id=a.media_id JOIN media m ON m.id=a.media_id WHERE a.report_id=${reportId} AND a.channel='instagram' AND a.approved AND er.status='ready' AND 'instagram'=ANY(mc.channels) AND m.state='stored' AND m.deleted_at IS NULL ORDER BY a.updated_at,a.id`;
    for(const post of posts){
     const milestone=post.milestone_id?await this.milestone(tx,reportId,post.milestone_id):null;
-    const asset=assets.find(a=>a.media_id===post.media_id&&this.evidenceSources(reportId,post.media_id,post.kind,milestone).some(s=>s.subject_type===a.subject_type&&s.subject_id===a.subject_id));
+    const asset=selectPublicationAsset(assets,this.evidenceSources(reportId,post.media_id,post.kind,milestone));
     const invalid=!publicEligible||!asset||(post.kind==='resolution'&&!milestone)||(asset.rendition_id!==post.evidence_rendition_id&&!!post.published_at);
     if(invalid||!asset){await this.requestRetraction(tx,post,report.public_visibility==='public'?'unaffected':'hidden');continue;}
     if(post.source_revision===report.revision&&asset.rendition_id===post.evidence_rendition_id)continue;
@@ -336,7 +339,7 @@ export class PublicationProcessor{
    const candidates:Row[]=[{kind:'initial',id:null,outcome:null,summary:report.public_summary,observed_at:report.occurred_at??report.created_at},...milestones.map(m=>({...m,kind:'resolution'}))];
    for(const milestone of candidates){
     const sources=milestone.kind==='initial'?[{subject_type:'report',subject_id:reportId}]:milestone.allowedSources;
-    const asset=assets.find(a=>sources.some((s:Row)=>s.media_id===undefined||s.media_id===a.media_id&&s.subject_type===a.subject_type&&s.subject_id===a.subject_id));if(!asset)continue;
+    const asset=selectPublicationAsset(assets,sources);if(!asset)continue;
     const summary=String(milestone.summary),url=new URL(`/incidents/${reportId}`,this.config.APP_ORIGIN).toString(),template=String(settings.payload.captionTemplate||'{summary}\nPantau perkembangan di SAP: {url}');
     let caption=template.replace(/\{summary\}/g,summary).replace(/\{url\}/g,url).replace(/\{reportId\}/g,reportId);
     if(milestone.outcome==='partial')caption='Penanganan sebagian. '+caption;

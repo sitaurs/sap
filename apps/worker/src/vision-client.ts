@@ -49,47 +49,72 @@ export class VisionClient {
     const dataUrl = `data:${mime};base64,${image.toString('base64')}`;
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.config.SCAN_LLM_VISION_TIMEOUT_MS);
-    let response: Response;
-    try {
-      response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model,
-          temperature: 0,
-          max_tokens: 200,
-          stream: false,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: USER_TEXT },
-                { type: 'image_url', image_url: { url: dataUrl } },
-              ],
-            },
-          ],
-        }),
-        signal: controller.signal,
-      });
-    } catch (error) {
-      throw new Error((error as Error).name === 'AbortError' ? 'ML_TIMEOUT' : 'ML_UNAVAILABLE: network error');
-    } finally {
-      clearTimeout(timer);
-    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        controller.abort();
+        reject(new Error('ML_TIMEOUT'));
+      }, this.config.SCAN_LLM_VISION_TIMEOUT_MS);
+    });
 
-    if (!response.ok) throw new Error(`ML_UNAVAILABLE: upstream status ${response.status}`);
-    return this.parse(await this.extractContent(response));
+    const request = async (): Promise<MlPrediction> => {
+      let response: Response;
+      try {
+        response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model,
+            temperature: 0,
+            max_tokens: 200,
+            stream: false,
+            response_format: { type: 'json_object' },
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              {
+                role: 'user',
+                content: [
+                  { type: 'text', text: USER_TEXT },
+                  { type: 'image_url', image_url: { url: dataUrl } },
+                ],
+              },
+            ],
+          }),
+          signal: controller.signal,
+        });
+      } catch (error) {
+        if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
+          throw new Error('ML_TIMEOUT');
+        }
+        throw new Error('ML_UNAVAILABLE: network error');
+      }
+
+      if (!response.ok) throw new Error(`ML_UNAVAILABLE: upstream status ${response.status}`);
+      const content = await this.extractContent(response, controller.signal);
+      if (controller.signal.aborted) throw new Error('ML_TIMEOUT');
+      return this.parse(content);
+    };
+
+    try {
+      return await Promise.race([request(), deadline]);
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('ML_')) throw error;
+      if (controller.signal.aborted || (error instanceof Error && error.name === 'AbortError')) {
+        throw new Error('ML_TIMEOUT');
+      }
+      throw new Error('ML_UNAVAILABLE: network error');
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
 
   /** Pull the assistant message text out of the OpenAI-compatible envelope. */
-  private async extractContent(response: Response): Promise<string> {
+  private async extractContent(response: Response, signal: AbortSignal): Promise<string> {
     let body: unknown;
     try {
       body = await response.json();
     } catch {
+      if (signal.aborted) throw new Error('ML_TIMEOUT');
       throw new Error('ML_INVALID_RESPONSE: non-JSON upstream body');
     }
     const content = (body as { choices?: Array<{ message?: { content?: unknown } }> })?.choices?.[0]?.message?.content;
@@ -113,7 +138,10 @@ export class VisionClient {
     }
     const label = category.trim();
     const raw = (parsed as { confidence?: unknown }).confidence;
-    const confidence = typeof raw === 'number' && Number.isFinite(raw) ? Math.min(Math.max(raw, 0), 1) : 0.99;
+    if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0 || raw > 1) {
+      throw new Error('ML_INVALID_RESPONSE: confidence must be a number from 0 to 1');
+    }
+    const confidence = raw;
     return { label, confidences: [{ label, confidence }] };
   }
 

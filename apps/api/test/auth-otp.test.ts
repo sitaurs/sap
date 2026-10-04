@@ -46,6 +46,7 @@ interface Harness {
   revokedUsers: string[];
   deletedTokenHashes: string[];
   revokedExcept: Array<{ userId: string; keep: string }>;
+  sentOtp: Array<{ email: string; purpose: 'verify_email' | 'reset_password' }>;
   clearedAvatars: string[];
   scheduledAvatarExpiry: string[];
 }
@@ -68,6 +69,7 @@ async function makeHarness(purpose: 'verify_email' | 'reset_password' = 'verify_
   const revokedUsers: string[] = [];
   const deletedTokenHashes: string[] = [];
   const revokedExcept: Array<{ userId: string; keep: string }> = [];
+  const sentOtp: Array<{ email: string; purpose: 'verify_email' | 'reset_password' }> = [];
   const clearedAvatars: string[] = [];
   const scheduledAvatarExpiry: string[] = [];
 
@@ -92,6 +94,12 @@ async function makeHarness(purpose: 'verify_email' | 'reset_password' = 'verify_
     deleteByTokenHash: async (tokenHash: string) => { deletedTokenHashes.push(tokenHash); },
     deleteAllForUser: async (userId: string) => { revokedUsers.push(userId); },
     deleteAllForUserExcept: async (userId: string, keep: string) => { revokedExcept.push({ userId, keep }); },
+    changePasswordAndRevokeOthers: async (input: { userId: string; keepTokenHash: string; passwordHash: string }) => {
+      if (input.userId !== user.id) return false;
+      user.passwordHash = input.passwordHash;
+      revokedExcept.push({ userId: input.userId, keep: input.keepTokenHash });
+      return true;
+    },
     markReauthenticated: async () => {},
   };
   const sessionService = {
@@ -100,13 +108,21 @@ async function makeHarness(purpose: 'verify_email' | 'reset_password' = 'verify_
   const challenges = {
     findById: async (id: string) => (id === challenge.id ? challenge : null),
     findLatestByEmail: async () => challenge,
+    createOrReuse: async () => ({ challenge, created: false }),
     incrementAttempts: async (id: string) => { if (id === challenge.id) challenge.attempts += 1; },
     consume: async (id: string) => {
       if (id === challenge.id && !challenge.consumedAt) { challenge.consumedAt = new Date(); return true; }
       return false;
     },
+    completePasswordReset: async (input: { challengeId: string; userId: string; passwordHash: string }) => {
+      if (input.challengeId !== challenge.id || input.userId !== user.id || challenge.consumedAt) return false;
+      challenge.consumedAt = new Date();
+      user.passwordHash = input.passwordHash;
+      revokedUsers.push(input.userId);
+      return true;
+    },
   };
-  const mailer = { sendOtp: async () => {} };
+  const mailer = { sendOtp: async (email: string, _code: string, mailPurpose: 'verify_email' | 'reset_password') => { sentOtp.push({ email, purpose: mailPurpose }); } };
   const deletions = {};
   const outbox = {};
   // These OTP-flow tests never enter the MFA login branch; a no-factor stub keeps
@@ -127,7 +143,7 @@ async function makeHarness(purpose: 'verify_email' | 'reset_password' = 'verify_
     deletions as never, outbox as never, passwords as never, crypto as never, mailer as never,
     media as never, mfa as never,
   );
-  return { service, challenge, user, revokedUsers, deletedTokenHashes, revokedExcept, clearedAvatars, scheduledAvatarExpiry };
+  return { service, challenge, user, revokedUsers, deletedTokenHashes, revokedExcept, sentOtp, clearedAvatars, scheduledAvatarExpiry };
 }
 
 test('verifyEmail consumes the OTP challenge exactly once (single-use)', async () => {
@@ -170,6 +186,7 @@ test('resetPassword revokes every session for the account', async () => {
   assert.match(ack.message, /kata sandi/i);
   assert.deepEqual(h.revokedUsers, ['u1'], 'reset-password must revoke all sessions for the user');
   assert.ok(await new PasswordService().verify(h.user.passwordHash, 'brand-new-password-1'));
+  assert.ok(h.challenge.consumedAt, 'successful reset must consume its OTP challenge');
 });
 
 test('logout revokes the current session token', async () => {
@@ -202,6 +219,45 @@ test('changePassword updates the hash and revokes other sessions, keeping the cu
   assert.ok(await new PasswordService().verify(h.user.passwordHash, 'brand-new-password-1'), 'new password must be stored');
   assert.deepEqual(h.revokedExcept, [{ userId: 'u1', keep: 'token-hash' }], 'other sessions revoked, current kept');
   assert.deepEqual(h.revokedUsers, [], 'must not revoke every session (would boot the caller)');
+});
+
+test('changePassword does not report success if the transaction cannot retain the current live session', async () => {
+  const h = await makeHarness('verify_email');
+  const sessions = (h.service as unknown as { sessions: { changePasswordAndRevokeOthers: (...args: unknown[]) => Promise<boolean> } }).sessions;
+  sessions.changePasswordAndRevokeOthers = async () => false;
+  await assert.rejects(
+    h.service.changePassword('u1', 'revoked-token', 'current-password-1', 'brand-new-password-1'),
+    (error) => errorCode(error) === 'SESSION_EXPIRED',
+  );
+  assert.ok(await new PasswordService().verify(h.user.passwordHash, 'current-password-1'), 'password remains unchanged when the current session is not live');
+  assert.deepEqual(h.revokedExcept, [], 'no other sessions may be revoked on a rejected change');
+});
+
+test('changePassword propagates transaction failure without claiming the password or sessions changed', async () => {
+  const h = await makeHarness('verify_email');
+  const sessions = (h.service as unknown as { sessions: { changePasswordAndRevokeOthers: (...args: unknown[]) => Promise<boolean> } }).sessions;
+  sessions.changePasswordAndRevokeOthers = async () => { throw new Error('simulated transaction failure'); };
+  await assert.rejects(
+    h.service.changePassword('u1', 'token-hash', 'current-password-1', 'brand-new-password-1'),
+    /simulated transaction failure/,
+  );
+  assert.ok(await new PasswordService().verify(h.user.passwordHash, 'current-password-1'));
+  assert.deepEqual(h.revokedExcept, []);
+});
+
+test('OTP issuance sends mail only when the atomic challenge repository creates a challenge', async () => {
+  const h = await makeHarness('verify_email');
+  // The repository result is the persistence boundary: a reused active challenge
+  // must never send a code that does not match that stored challenge.
+  const challenges = (h.service as unknown as { challenges: { createOrReuse: (...args: unknown[]) => Promise<unknown> } }).challenges;
+  let created = true;
+  challenges.createOrReuse = async () => ({ challenge: h.challenge, created });
+
+  await h.service.resendVerification({ email: h.user.emailNormalized });
+  assert.equal(h.sentOtp.length, 1);
+  created = false;
+  await h.service.resendVerification({ email: h.user.emailNormalized });
+  assert.equal(h.sentOtp.length, 1, 'a reused challenge must not send a newly generated but unstored OTP');
 });
 
 test('changePassword rejects a wrong current password', async () => {

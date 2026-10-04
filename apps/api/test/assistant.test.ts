@@ -63,24 +63,34 @@ before(async () => {
 
 interface StoreState {
   rateAllowed: boolean;
+  lockAvailable: boolean;
   conversation: Array<{ role: 'user' | 'assistant'; content: string }> | null;
   appended: number;
+  released: number;
   deleted: boolean;
 }
 
 function makeStore(overrides: Partial<StoreState> = {}) {
   const state: StoreState = {
     rateAllowed: overrides.rateAllowed ?? true,
+    lockAvailable: overrides.lockAvailable ?? true,
     conversation: overrides.conversation ?? null,
     appended: 0,
+    released: 0,
     deleted: overrides.deleted ?? true,
   };
   const store = {
     newConversationId: () => 'new-conv-id',
     getConversation: async () => state.conversation,
     checkRateLimit: async () => ({ allowed: state.rateAllowed, retryAfterSeconds: state.rateAllowed ? 0 : 30 }),
-    appendTurn: async () => { state.appended += 1; },
-    deleteConversation: async () => state.deleted,
+    acquireConversation: async (): Promise<string | null> => state.lockAvailable ? 'lock-token' : null,
+    releaseConversation: async () => { state.released += 1; },
+    renewConversation: async () => true,
+    appendTurn: async (): Promise<'appended' | 'lock_lost' | 'conversation_missing'> => {
+      state.appended += 1;
+      return 'appended';
+    },
+    deleteConversation: async () => state.deleted ? 'deleted' as const : 'not_found' as const,
   };
   return { store, state };
 }
@@ -145,11 +155,70 @@ test('chat returns 429 RATE_LIMITED when the per-minute quota is exceeded', asyn
 });
 
 test('chat returns 404 when a supplied conversationId does not resolve', async () => {
-  const { store } = makeStore({ conversation: null });
+  const { store, state } = makeStore({ conversation: null });
   const service = new AssistantService(makeProvider(OK_REPLY) as never, store as never);
   await assert.rejects(
     service.chat(ENABLED_CALLER, { message: 'halo', pageContext: 'scan', conversationId: 'missing-id' }),
     (error) => errorCode(error) === 'CONVERSATION_NOT_FOUND' && httpStatus(error) === 404,
+  );
+  assert.equal(state.released, 1, 'the lock should be released after a missing conversation');
+});
+
+test('chat rejects a busy conversation before retrieval or provider spend', async () => {
+  const { store, state } = makeStore({ lockAvailable: false, conversation: [{ role: 'user', content: 'old' }] });
+  let providerCalls = 0;
+  const provider = { complete: async () => { providerCalls += 1; return OK_REPLY; } };
+  const service = new AssistantService(provider as never, store as never);
+  await assert.rejects(
+    service.chat(ENABLED_CALLER, { message: 'lanjut', pageContext: 'help', conversationId: 'c1' }),
+    (error) => errorCode(error) === 'CONVERSATION_BUSY' && httpStatus(error) === 409,
+  );
+  assert.equal(providerCalls, 0, 'a conflicting request must not spend on the LLM');
+  assert.equal(state.appended, 0);
+  assert.equal(state.released, 0, 'a request that did not acquire the lock must not release it');
+});
+
+test('chat acquires the conversation lease before loading the latest history and calling the provider', async () => {
+  const events: string[] = [];
+  const { store } = makeStore({ conversation: [
+    { role: 'user', content: 'previous question' },
+    { role: 'assistant', content: 'previous answer' },
+  ] });
+  store.acquireConversation = async (): Promise<string | null> => { events.push('lease'); return 'token'; };
+  store.getConversation = async () => { events.push('history'); return [
+    { role: 'user', content: 'latest question' },
+    { role: 'assistant', content: 'latest answer' },
+  ]; };
+  let providerHistory: string[] = [];
+  const provider = { complete: async (messages: Array<{ role: string; content: string }>) => {
+    events.push('provider');
+    providerHistory = messages.map((entry) => entry.content);
+    return OK_REPLY;
+  } };
+  const service = new AssistantService(provider as never, store as never);
+  await service.chat(ENABLED_CALLER, { message: 'next question', pageContext: 'help', conversationId: 'c1' });
+  assert.deepEqual(events, ['lease', 'history', 'provider']);
+  assert.ok(providerHistory.includes('latest question'));
+  assert.ok(providerHistory.includes('latest answer'));
+});
+
+test('chat converts a lost lease at commit into 409 instead of returning an unpersisted reply', async () => {
+  const { store, state } = makeStore();
+  store.appendTurn = async (): Promise<'appended' | 'lock_lost' | 'conversation_missing'> => 'lock_lost';
+  const service = new AssistantService(makeProvider(OK_REPLY) as never, store as never);
+  await assert.rejects(
+    service.chat(ENABLED_CALLER, REQUEST),
+    (error) => errorCode(error) === 'CONVERSATION_BUSY' && httpStatus(error) === 409,
+  );
+  assert.equal(state.released, 1, 'the old token is released safely even after fencing rejects the write');
+});
+
+test('delete rejects a busy conversation so it cannot race an in-flight chat', async () => {
+  const { store } = makeStore({ lockAvailable: false });
+  const service = new AssistantService(makeProvider(OK_REPLY) as never, store as never);
+  await assert.rejects(
+    service.deleteConversation('u1', 'c1'),
+    (error) => errorCode(error) === 'CONVERSATION_BUSY' && httpStatus(error) === 409,
   );
 });
 
@@ -278,6 +347,35 @@ test('provider raises ProviderUnavailableError on non-JSON model output', async 
       provider.complete([{ role: 'user', content: 'hi' }]),
       (error) => error instanceof ProviderUnavailableError,
     );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('provider timeout stays active while reading a stalled response body', async () => {
+  const provider = new AssistantProvider();
+  (provider as unknown as { config: ReturnType<typeof getConfig> }).config = {
+    ...getConfig(), SAPA_LLM_TIMEOUT_MS: 25,
+  };
+  const originalFetch = globalThis.fetch;
+  let receivedSignal: AbortSignal | null = null;
+  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+    receivedSignal = init.signal as AbortSignal;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => new Promise((_resolve, reject) => {
+        receivedSignal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true });
+      }),
+    } as Response;
+  }) as typeof fetch;
+  const startedAt = Date.now();
+  try {
+    await assert.rejects(
+      provider.complete([{ role: 'user', content: 'hi' }]),
+      (error) => error instanceof ProviderUnavailableError,
+    );
+    assert.ok(Date.now() - startedAt < 500, 'the configured provider deadline includes body consumption');
   } finally {
     globalThis.fetch = originalFetch;
   }

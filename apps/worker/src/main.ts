@@ -1,5 +1,5 @@
 import { loadConfig } from '@sap/config';
-import { Worker } from 'bullmq';
+import { Queue, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { setDefaultResultOrder } from 'node:dns';
@@ -11,12 +11,12 @@ import { MlAdapter } from './ml-adapter.js';
 import { MlClient } from './ml-client.js';
 import { ObjectStore } from './object-store.js';
 import { ScanProcessor } from './scan-processor.js';
-import { ScanRepository } from './scan-repository.js';
+import { SCAN_OUTBOX_POLL_MS, ScanRepository } from './scan-repository.js';
 import { ScanSettingsRepository } from './scan-settings-repository.js';
 import { VisionClient } from './vision-client.js';
 import { ExtensionJobs } from './extension-jobs.js';
+import { drainScanOutboxOnce, SCAN_JOB } from './scan-outbox-relay.js';
 
-const SCAN_JOB = 'scan.process';
 /** How often to poll the outbox for pending deletion events. */
 const DELETION_POLL_MS = 5_000;
 /** How often to run the retention/orphan sweep. */
@@ -35,8 +35,9 @@ const connection = new Redis(config.REDIS_URL, {
 const sql = postgres(config.DATABASE_URL);
 
 const store = new ObjectStore(config);
+const scanRepository = new ScanRepository(sql);
 const processor = new ScanProcessor(
-  new ScanRepository(sql),
+  scanRepository,
   store,
   new MlAdapter(new MlClient(config), config),
   new VisionClient(config),
@@ -60,6 +61,7 @@ const worker = new Worker(
   },
   { connection, concurrency: 1 },
 );
+const scanQueue = new Queue('sap-jobs', { connection });
 
 worker.on('error', (error) => console.error('worker_error', { message: error.message }));
 worker.on('failed', (job, error) =>
@@ -69,6 +71,7 @@ worker.on('failed', (job, error) =>
 // Outbox relay: drain pending account-deletion events, then back off to a poll.
 let stopping = false;
 let deletionTimer: NodeJS.Timeout | undefined;
+let scanOutboxTimer: NodeJS.Timeout | undefined;
 async function pollDeletions(): Promise<void> {
   if (stopping) return;
   try {
@@ -102,12 +105,32 @@ async function sweep(): Promise<void> {
 void pollDeletions();
 void sweep();
 
+async function pollScanOutbox(): Promise<void> {
+  if (stopping) return;
+  try {
+    let handled = true;
+    while (handled && !stopping) {
+      handled = (await drainScanOutboxOnce(scanRepository, scanQueue, {
+        error: (message, context) => console.error(message, context),
+      })) > 0;
+    }
+  } catch (error) {
+    console.error('scan_outbox_poll_error', {
+      message: error instanceof Error ? error.message : 'unknown',
+    });
+  }
+  if (!stopping) scanOutboxTimer = setTimeout(() => void pollScanOutbox(), SCAN_OUTBOX_POLL_MS);
+}
+void pollScanOutbox();
+
 async function shutdown(signal: string) {
   console.info('worker_shutdown', { signal });
   stopping = true;
   if (deletionTimer) clearTimeout(deletionTimer);
+  if (scanOutboxTimer) clearTimeout(scanOutboxTimer);
   if (sweepTimer) clearTimeout(sweepTimer);
   await extensionJobs?.close();
+  await scanQueue.close();
   await worker.close();
   await connection.quit();
   await sql.end({ timeout: 5 });

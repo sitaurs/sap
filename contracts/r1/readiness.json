@@ -26,9 +26,9 @@
   "flagsDisabledByDefault": true,
   "hashes": {
     "publishedOpenApi": "44ff3b719ecc93304c0e9bc16fb40b6957e17f7f15b98d34abec5e30c6c2b294",
-    "sharedContract": "caba4dd95d6f23f1c2dec693367aa2a433e2aa8258fab1de4e64b52302fee606"
+    "sharedContract": "3ca42c80fb54a2e9d3f1ac3d4f2b62bef81b3648b14b5559632b1e311f7b6720"
   },
-  "newOperationCount": 79,
+  "newOperationCount": 81,
   "newOperations": [
     {
       "method": "GET",
@@ -816,6 +816,26 @@
       "handler": "PublicationAssetsController.asset",
       "source": "apps/api/src/publications/publications.controller.ts",
       "successStatus": 302,
+      "schemaState": "draft",
+      "handlerState": "implemented",
+      "runtimeState": "not_verified"
+    },
+    {
+      "method": "GET",
+      "path": "/health/live",
+      "handler": "HealthController.getLiveness",
+      "source": "apps/api/src/health/health.controller.ts",
+      "successStatus": 200,
+      "schemaState": "draft",
+      "handlerState": "implemented",
+      "runtimeState": "not_verified"
+    },
+    {
+      "method": "GET",
+      "path": "/health/ready",
+      "handler": "HealthController.getReadiness",
+      "source": "apps/api/src/health/health.controller.ts",
+      "successStatus": 200,
       "schemaState": "draft",
       "handlerState": "implemented",
       "runtimeState": "not_verified"

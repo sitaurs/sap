@@ -127,15 +127,35 @@ export class EvidenceService {
  private async retractMediaUses(tx:Executor,mediaId:string,reportId?:string){
   const posts=await tx`SELECT p.* FROM instagram_posts p WHERE p.media_id=${mediaId} AND (${!reportId} OR p.report_id=${reportId??'00000000-0000-4000-8000-000000000000'}::uuid) AND p.status NOT IN ('cancelled','retracted') ORDER BY p.id FOR UPDATE`;
   for(const post of posts){
-   const [existing]=await tx`SELECT * FROM instagram_operations WHERE post_id=${post.id} AND kind='retract' AND status NOT IN ('succeeded','cancelled') ORDER BY created_at DESC LIMIT 1`;
-   const [publish]=await tx`SELECT * FROM instagram_operations WHERE post_id=${post.id} AND kind='publish' AND (status='running' OR stage IN ('publish_requested','uncertain','published')) LIMIT 1`;
-   const harmless=!post.published_at&&!post.provider_media_id&&!publish;
+   const [existing]=await tx`SELECT * FROM instagram_operations WHERE post_id=${post.id} AND kind='retract' AND status NOT IN ('succeeded','cancelled') ORDER BY created_at DESC LIMIT 1 FOR UPDATE`;
+   const [publish]=await tx`SELECT * FROM instagram_operations WHERE post_id=${post.id} AND kind='publish' AND (status='running' OR stage IN ('publish_requested','uncertain','published')) LIMIT 1 FOR UPDATE`;
+   const harmless=!post.published_at&&!post.provider_media_id&&!publish&&['draft','failed'].includes(post.status);
    const [created]=existing?[]:await tx`INSERT INTO instagram_operations(post_id,account_id,kind,status,stage,channels,message) VALUES(${post.id},${post.account_id},'retract',${harmless?'succeeded':'queued'},${harmless?'not_created':'queued'},${tx.json({sap:'unaffected',instagram:harmless?'not_created':'pending'})},${harmless?'Izin dicabut sebelum publikasi.':'Menunggu penarikan setelah izin dicabut.'}) RETURNING *`;
-   const operation=existing??created!;
-   await tx`UPDATE instagram_posts SET status=${harmless?'cancelled':'retracting'},approval=${tx.json({status:'invalidated',contentRevision:null,sourceRevision:null,renditionId:null,approvedAt:null})},last_operation_id=${operation.id},revision=revision+1,updated_at=now() WHERE id=${post.id}`;
+   let operation=existing??created!;
+   // Existing operations are never silently retried here. In particular, a
+   // needs_action retract can mean Meta accepted a delete/publish request but
+   // the provider media ID is still uncertain; only explicit reconciliation,
+   // retry, or manual confirmation may resolve that state.
+   if(existing?.status==='failed'&&this.retractionIsUncertain(operation,publish)){
+    const channels={...(operation.channels??{}),instagram:'needs_action'};
+    await tx`UPDATE instagram_operations SET status='needs_action',channels=${tx.json(channels)},error_code='PUBLICATION_UNCERTAIN',message='Identitas publikasi belum dipastikan; penarikan memerlukan rekonsiliasi atau tindakan admin.',next_retry_at=NULL,updated_at=now() WHERE id=${operation.id} AND status='failed'`;
+    operation={...operation,status:'needs_action',channels,error_code:'PUBLICATION_UNCERTAIN'};
+   }
+   const postStatus=existing?this.retractionPostStatus(operation.status):harmless?'cancelled':'retracting';
+   await tx`UPDATE instagram_posts SET status=${postStatus},approval=${tx.json({status:'invalidated',contentRevision:null,sourceRevision:null,renditionId:null,approvedAt:null})},last_operation_id=${operation.id},revision=revision+1,updated_at=now() WHERE id=${post.id}`;
    await tx`UPDATE instagram_operations SET status='cancelled',message='Dibatalkan karena izin dicabut.',updated_at=now() WHERE post_id=${post.id} AND kind='publish' AND status='queued' AND stage NOT IN ('publish_requested','uncertain')`;
    if(!existing&&!harmless)await tx`INSERT INTO outbox_events(topic,aggregate_id,payload_minimal,dedup_key) VALUES('instagram.retract.requested',${operation.id},${tx.json({aggregateRevision:1})},${`instagram.retract.requested:${operation.id}:1`}) ON CONFLICT DO NOTHING`;
   }
+ }
+ private retractionIsUncertain(operation:Record<string,any>,publish:Record<string,any>|undefined):boolean{
+  return ['publish_requested','uncertain','published','delete_requested'].includes(operation.stage)||
+   !!publish&&['publish_requested','uncertain','published'].includes(publish.stage);
+ }
+ private retractionPostStatus(operationStatus:string):'retracting'|'failed'|'needs_action'{
+  if(operationStatus==='queued'||operationStatus==='running')return 'retracting';
+  if(operationStatus==='failed')return 'failed';
+  if(operationStatus==='needs_action')return 'needs_action';
+  return 'needs_action';
  }
  private async rendition(r:Record<string,any>){const signed=r.status==='ready'&&r.object_key?await this.objects.createSignedGetUrl(r.object_key):null;return {id:r.id,mediaId:r.media_id,revision:r.revision,status:r.status,url:signed?.url??null,expiresAt:signed?.expiresAt.toISOString()??null,redactions:r.redactions};}
 }

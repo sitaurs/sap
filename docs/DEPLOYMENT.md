@@ -96,6 +96,10 @@ Baseline VPS 4 GB/2 vCPU, CPU-only, satu process dan concurrency 1 sampai benchm
 
 Root HTTP 200 hanya liveness. Detail ada di [ML_INTEGRATION.md](ML_INTEGRATION.md).
 
+### Production worker-to-Gradio private route
+
+When EcoLens runs as a container on the same VPS as the SAP worker, connect both containers to an internal Docker network (production currently uses `sap-ml-private`) and give the EcoLens service the network alias `ml-inference`. Set the worker's `ML_INFERENCE_URL` to the internal base URL `http://ml-inference:7860`; keep Basic Auth credentials in the server-side environment. Persist the shared network and worker attachment in the production Compose configuration before a redeploy. Do not expose the model port publicly just to connect the worker. A successful `/gradio_api/info` request or a single synthetic inference is only a connectivity smoke; it does not replace model-aware readiness or scan E2E.
+
 ## 5. CI/CD
 
 1. Frozen install; lint/typecheck; validate OpenAPI/fixture.
@@ -122,6 +126,6 @@ Rollback aplikasi hanya ke release kompatibel schema; destructive migration tida
 
 Monitor error API, p95 non-ML, Neon, queue age/reconnect Upstash, scan timeout, ML liveness/readiness/providerRevision, CPU/RAM VPS, email send/deliverability, R2 cleanup, oldest submitted report dan snapshot staleness.
 
-Log memakai requestId/scanId/reportId tanpa token, password, Authorization, foto atau koordinat tepat. Job retry terkontrol. Redis hilang → replay outbox; DB gagal → readiness 503/tolak mutation; R2 gagal → jangan membuat media seolah selesai; ML 401/403 → configuration incident tanpa retry tak terbatas.
+Log memakai requestId/scanId/reportId tanpa token, password, Authorization, foto atau koordinat tepat. `GET /api/v1/health/live` hanya memeriksa proses dan tidak menghubungi dependency. `GET /api/v1/health/ready` memeriksa DB, Redis, dan R2 dengan timeout terbatas; hanya status generik `ok`/`unavailable` yang dikembalikan, tanpa URL/provider error/credential. DB gagal → HTTP 503 dan tolak mutation; Redis atau R2 gagal → HTTP 200 `degraded` dengan komponen yang gagal terlihat, supaya pembacaan DB yang aman tetap tersedia. `GET /api/v1/health` tetap response contract 1.1.0 lama. Route live/ready tercatat di draft R1, bukan contract published 1.1.0. Redis hilang → replay outbox; R2 gagal → jangan membuat media seolah selesai; ML 401/403 → configuration incident tanpa retry tak terbatas.
 
 Rujukan: [NestJS queues/BullMQ](https://docs.nestjs.com/techniques/queues). Dokumen tidak menjanjikan SLA/biaya provider.

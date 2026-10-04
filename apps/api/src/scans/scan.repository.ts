@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DATABASE, type Database } from '../infrastructure/database.module.js';
-import { IdempotencyStore } from '../infrastructure/idempotency.store.js';
+import { IdempotencyStore, type Tx } from '../infrastructure/idempotency.store.js';
 import type { CategoryId, ScanOutcome, ScanPrediction, ScanRecord, ScanStatus, ScanView } from './scan.types.js';
 
 interface ScanRow {
@@ -55,6 +55,7 @@ export class ScanRepository {
     key: string;
     requestHash: string;
     toView: (record: ScanRecord) => ScanView;
+    beforeCreate?: (tx: Tx) => Promise<void>;
   }): Promise<{ view: ScanView; replayed: boolean }> {
     return this.sql.begin(async (tx) => {
       const replay = await this.idempotency.reserve(tx, {
@@ -65,10 +66,17 @@ export class ScanRepository {
       });
       if (replay) return { view: replay.body as ScanView, replayed: true };
 
+      await input.beforeCreate?.(tx);
+
       const rows = await tx<ScanRow[]>`
         INSERT INTO scans (user_id, media_id, status)
         VALUES (${input.userId}, ${input.mediaId}, 'queued')
         RETURNING ${tx.unsafe(COLUMNS)}`;
+      // Keep the durable delivery event inside the same commit as both the
+      // scan and its idempotency response. Redis may be unavailable here; the
+      // worker relay will deliver this row later.
+      await tx`
+        INSERT INTO scan_outbox (scan_id) VALUES (${rows[0]!.id})`;
       const view = input.toView(mapScan(rows[0]!));
       await this.idempotency.storeResponse(tx, {
         actorScope: input.actorScope,
@@ -107,8 +115,8 @@ export class ScanRepository {
   }
 
   /** Count this user's scans created since `since` (for the per-account rate limit). */
-  async countRecentForUser(userId: string, since: Date): Promise<{ count: number; oldestAt: Date | null }> {
-    const rows = await this.sql<{ count: number; oldest: Date | null }[]>`
+  async countRecentForUser(userId: string, since: Date, executor: Database | Tx = this.sql): Promise<{ count: number; oldestAt: Date | null }> {
+    const rows = await executor<{ count: number; oldest: Date | null }[]>`
       SELECT count(*)::int AS count, min(created_at) AS oldest
       FROM scans WHERE user_id = ${userId} AND created_at >= ${since}`;
     return { count: Number(rows[0]?.count ?? 0), oldestAt: rows[0]?.oldest ?? null };

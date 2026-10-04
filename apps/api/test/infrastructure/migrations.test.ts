@@ -20,6 +20,8 @@ const EXPECTED_TABLES = [
   'categories',
   // 0003 scans + activity
   'scans',
+  // 0018 durable scan delivery
+  'scan_outbox',
   'point_ledger',
   'user_daily_activity',
   'achievement_definitions',
@@ -130,4 +132,31 @@ test('every expected table is created exactly once', async () => {
   for (const [name, count] of counts) {
     assert.equal(count, 1, `table ${name} must be created exactly once (found ${count})`);
   }
+});
+
+test('activity public cancellation reason migration is nullable and never copies private hold reasons', async () => {
+  const files = await loadMigrations();
+  const migration = files.find(file => file.filename === '0017_activity_public_cancel_reason.sql');
+  assert.ok(migration, 'expected the cancellation-reason migration');
+  assert.match(migration.sql, /ADD COLUMN public_cancel_reason text\b/i);
+  assert.match(migration.sql, /public_cancel_reason IS NULL OR \(\s*status\s*=\s*'cancelled'/i);
+  assert.match(migration.sql, /char_length\(btrim\(public_cancel_reason\)\) BETWEEN 5 AND 1000/i);
+  assert.doesNotMatch(migration.sql, /\b(?:UPDATE|DELETE|DROP|TRUNCATE)\b/i,
+    'the additive migration must not rewrite historical activity data or remove schema');
+  assert.doesNotMatch(migration.sql, /hold_reason/i,
+    'private historic hold/review reasons must never be backfilled into public cancellation reasons');
+});
+
+test('scan outbox migration is additive, backfills unfinished scans, and adds lease fencing', async () => {
+  const files = await loadMigrations();
+  const migration = files.find(file => file.filename === '0018_scan_durable_outbox.sql');
+  assert.ok(migration, 'expected the durable scan outbox migration');
+  assert.match(migration.sql, /ALTER TABLE scans[\s\S]*ADD COLUMN processing_generation integer NOT NULL DEFAULT 0/i);
+  assert.match(migration.sql, /ADD COLUMN processing_lease_expires_at timestamptz/i);
+  assert.match(migration.sql, /CREATE TABLE scan_outbox[\s\S]*PRIMARY KEY[\s\S]*REFERENCES scans\s*\(id\) ON DELETE CASCADE/i);
+  assert.match(migration.sql, /CHECK \(state IN \('pending', 'dispatching', 'enqueued', 'processed'\)\)/i);
+  assert.match(migration.sql, /UPDATE scans[\s\S]*SET processing_lease_expires_at = clock_timestamp\(\) \+ interval '4 minutes'[\s\S]*WHERE status = 'processing'/i);
+  assert.match(migration.sql, /INSERT INTO scan_outbox \(scan_id, available_at\)[\s\S]*SELECT id, COALESCE\(processing_lease_expires_at, clock_timestamp\(\)\)[\s\S]*FROM scans WHERE status IN \('queued', 'processing'\)/i);
+  assert.doesNotMatch(migration.sql, /\b(?:DROP|TRUNCATE)\b|\bDELETE\s+FROM\s+scans\b|\bUPDATE\s+scans\s+SET\s+(?:status|outcome|points_awarded)\b/i,
+    'the migration must not rewrite scan outcomes or remove existing domain data');
 });

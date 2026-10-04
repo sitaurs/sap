@@ -42,6 +42,12 @@ class TestController {
 
 let app: INestApplication;
 let server: Server;
+const dependencyState = {
+  status: 'ok' as 'ok' | 'degraded',
+  ready: true,
+  dependencies: { database: 'ok' as 'ok' | 'unavailable', redis: 'ok' as 'ok' | 'unavailable', objectStorage: 'ok' as 'ok' | 'unavailable' },
+  contractVersion: '1.1.0',
+};
 
 function header(response: request.Response, name: string): string {
   const value = response.headers[name];
@@ -68,7 +74,14 @@ before(async () => {
   class TestModule {}
 
   app = await NestFactory.create(TestModule, { logger: false });
-  app.get(HealthService).check = async () => ({ status: 'ok', dbOk: true, contractVersion: '1.1.0' as const });
+  const health = app.get(HealthService);
+  health.check = async () => ({
+    status: dependencyState.status,
+    dbOk: dependencyState.dependencies.database === 'ok',
+    contractVersion: dependencyState.contractVersion,
+  });
+  health.readiness = async () => dependencyState;
+  health.liveness = () => ({ status: 'ok', contractVersion: '1.1.0' });
   bootstrapHttpApp(app, (await import('@sap/config')).getConfig(environment));
   await app.init();
   server = app.getHttpServer() as Server;

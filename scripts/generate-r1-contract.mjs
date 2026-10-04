@@ -190,7 +190,7 @@ schemas.ActivityResultInput['x-domain-rules'] = ['1–3 combined beforeMediaIds/
 schemas.EvidenceApprovalInput['x-domain-rules'] = ['renditionId required non-null when approved=true; current relationship, ready rendition and active channel consent required'];
 schemas.InstagramCreateInput['x-domain-rules'] = ['initial requires milestoneId=null; resolution requires approved milestone on this source; replacement points to latest cancelled/retracted generation'];
 schemas.Redaction['x-domain-rules'] = ['x+width <= 1; y+height <= 1'];
-schemas.ActivityCommandInput['x-domain-rules'] = ['hold/resume/cancel require reason 5–1000; other actions permit null'];
+schemas.ActivityCommandInput['x-domain-rules'] = ['hold/resume/cancel require reason 5–1000; other actions permit null', 'cancel reason is public and separate from private hold/review reason; historical cancellations are never backfilled from hold_reason'];
 
 // Infer stable scalar formats in the new types, keeping category/H3 identifiers as taxonomy strings.
 function enrich(schema, field = '') {
@@ -348,6 +348,47 @@ for (const row of rows) {
   spec.paths[row.path][row.method] = op;
   operationInventory.push({ method: row.method.toUpperCase(), path: row.path, handler: handler.handler, source: handler.file, successStatus: status, schemaState: 'draft', handlerState: 'implemented', runtimeState: 'not_verified' });
 }
+// Operational probes are draft-only additions: keep the published 1.1.0
+// `/health` schema untouched while documenting the runtime's separate probes.
+const healthDependency = { type: 'string', enum: ['ok', 'unavailable'] };
+schemas.HealthDependencyStateR1 = healthDependency;
+schemas.HealthReadinessR1 = closedObject({
+  status: { type: 'string', enum: ['ok', 'degraded'] },
+  ready: { type: 'boolean', description: 'True when DB-backed safe read traffic can be served.' },
+  dependencies: closedObject({ database: ref('HealthDependencyStateR1'), redis: ref('HealthDependencyStateR1'), objectStorage: ref('HealthDependencyStateR1') }),
+  contractVersion: { type: 'string', const: published.info.version },
+});
+schemas.HealthLivenessR1 = closedObject({ status: { type: 'string', const: 'ok' }, contractVersion: { type: 'string', const: published.info.version } });
+schemas.HealthReadinessR1Response = closedObject({ data: ref('HealthReadinessR1'), meta: ref('Meta') });
+schemas.HealthLivenessR1Response = closedObject({ data: ref('HealthLivenessR1'), meta: ref('Meta') });
+const operationalHeaders = {
+  'X-Contract-Version': { $ref: '#/components/headers/ContractVersion' },
+  'Cache-Control': { schema: { type: 'string', const: 'no-store' } },
+};
+const operationalProbe = (operationId, summary, schemaName, statuses) => ({
+  operationId,
+  summary,
+  tags: ['health'],
+  security: [],
+  parameters: [],
+  responses: Object.fromEntries(statuses.map(([status, description]) => [status, {
+    description,
+    headers: operationalHeaders,
+    content: { 'application/json': { schema: ref(schemaName) } },
+  }])),
+  'x-contract-stage': 'draft',
+  'x-runtime-readiness': 'implemented-locally-unverified-in-production',
+});
+spec.paths['/health/live'] = {
+  get: operationalProbe('r1GetHealthLiveness', 'Process liveness tanpa dependency probes', 'HealthLivenessR1Response', [[200, 'Process is responding']]),
+};
+spec.paths['/health/ready'] = {
+  get: operationalProbe('r1GetHealthReadiness', 'Dependency readiness dengan status aman per komponen', 'HealthReadinessR1Response', [[200, 'DB-backed read traffic can be served; auxiliary dependencies may be degraded'], [503, 'Database unavailable; safe read traffic cannot be served']]),
+};
+operationInventory.push(
+  { method: 'GET', path: '/health/live', handler: 'HealthController.getLiveness', source: 'apps/api/src/health/health.controller.ts', successStatus: 200, schemaState: 'draft', handlerState: 'implemented', runtimeState: 'not_verified' },
+  { method: 'GET', path: '/health/ready', handler: 'HealthController.getReadiness', source: 'apps/api/src/health/health.controller.ts', successStatus: 200, schemaState: 'draft', handlerState: 'implemented', runtimeState: 'not_verified' },
+);
 // Existing operations gain only the R1 request delta in this draft copy.
 schemas.DecisionInput.properties.resolutionEvidenceIds = { type: 'array', items: uuidSchema, minItems: 1, maxItems: 3, uniqueItems: true };
 schemas.DecisionInput.properties.publicEvidenceApprovals = { type: 'array', items: ref('EvidencePublicationInput'), maxItems: 3 };

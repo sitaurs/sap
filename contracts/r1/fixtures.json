@@ -168,6 +168,7 @@
       "title": "DATA CONTOH SINTETIS",
       "description": "DATA CONTOH SINTETIS",
       "status": "registration_open",
+      "cancellationReason": null,
       "area": {
         "cellId": "8928308280fffff",
         "label": "DATA CONTOH SINTETIS"
@@ -505,6 +506,7 @@
       "title": "DATA CONTOH: kegiatan warga",
       "description": "Kegiatan sintetis untuk pengembangan tampilan.",
       "status": "registration_open",
+      "cancellationReason": null,
       "area": {
         "cellId": "8928308280fffff",
         "label": "DATA CONTOH SINTETIS"
@@ -630,6 +632,7 @@
       "id": "d88dd3f9-be13-4ba8-980b-583413928c04",
       "status": "on_hold",
       "message": "DATA CONTOH SINTETIS",
+      "cancellationReason": null,
       "canonicalPath": "/synthetic-example"
     },
     "MyActivity": {
@@ -641,6 +644,7 @@
         "title": "DATA CONTOH SINTETIS",
         "description": "DATA CONTOH SINTETIS",
         "status": "registration_open",
+        "cancellationReason": null,
         "area": {
           "cellId": "8928308280fffff",
           "label": "DATA CONTOH SINTETIS"
@@ -1061,6 +1065,7 @@
         "title": "DATA CONTOH: kegiatan warga",
         "description": "Kegiatan sintetis untuk pengembangan tampilan.",
         "status": "registration_open",
+        "cancellationReason": null,
         "area": {
           "cellId": "8928308280fffff",
           "label": "DATA CONTOH SINTETIS"

@@ -429,6 +429,7 @@ type ActivityInput = {
 type PublicActivity = {
   kind: 'activity'; id: string; reportId: string; revision: number; title: string; description: string;
   status: 'registration_open'|'registration_closed'|'in_progress'|'awaiting_result'|'completed'|'on_hold'|'cancelled';
+  cancellationReason: string|null;
   area: { cellId: string; label: string }; coordinatorDisplayName: string;
   startsAt: string; endsAt: string; registrationClosesAt: string; timezone: 'Asia/Jakarta'; capacity: number;
   acceptedCount: number; availableSeats: number; registrationOpen: boolean;
@@ -459,18 +460,21 @@ type Membership = {
 };
 type ManagedMembership = Membership & { displayName: string };
 type ActivityNotice = {
-  kind: 'activity_notice'; id: string; status: 'on_hold'|'cancelled'; message: string; canonicalPath: string;
+  kind: 'activity_notice'; id: string; status: 'on_hold'|'cancelled'; message: string;
+  cancellationReason: string|null; canonicalPath: string;
 };
 type MyActivity = { activity: PublicActivity | ActivityNotice; membership: Membership | null; isCoordinator: boolean };
 ```
 
 ActivityInput wajib memuat semua field; nullable boleh pada draft. Sebelum publish: sumber canonical publik terbuka, koordinator diterima, waktu/kapasitas/titik kumpul/rencana penanganan lengkap, startsAt dan registrationClosesAt belum lewat. Title 5–150, description 20–2000, capacity 1–200, equipment <=15 butir masing-masing 1–200, accessibilityNotes 0–1000, wasteHandoverPlan 0–1000 saat draft dan 1–1000 saat publish. MeetingPoint.instructions 1–1000 bila titik kumpul terisi. startsAt<endsAt, registrationClosesAt<=startsAt; latitude/longitude berpasangan dan batas geografi valid. ReportId immutable setelah create; koordinator hanya bisa diubah admin dan calon baru harus menerima.
 
-Tambahan penerimaan tugas: `PUT /activities/{id}/coordinator-acceptance` V, calon koordinator yang ditunjuk, IM activity; body `{ accepted: boolean, publishDisplayName: boolean }`, 200 ManagedActivity. Calon yang belum menerima dapat membaca penugasannya sendiri. Publish hanya A. Command action=`publish|close_registration|start|hold|resume|cancel|request_result`; reason wajib 5–1000 untuk hold/resume/cancel dan nullable untuk lainnya. Status transisi tidak dikendalikan timer browser.
+Tambahan penerimaan tugas: `PUT /activities/{id}/coordinator-acceptance` V, calon koordinator yang ditunjuk, IM activity; body `{ accepted: boolean, publishDisplayName: boolean }`, 200 ManagedActivity. Calon yang belum menerima dapat membaca penugasannya sendiri. Publish hanya A. Command action=`publish|close_registration|start|hold|resume|cancel|request_result`; reason wajib 5–1000 untuk hold/resume/cancel dan nullable untuk lainnya. Pada `cancel`, reason adalah teks publik yang boleh dibaca siapa pun; pada `hold`, reason adalah catatan internal privat. Alasan resume hanya untuk audit. Status transisi tidak dikendalikan timer browser.
 
 Coordinator candidates hanya akun aktif dengan email terverifikasi, search displayName 3–100 karakter; hasil tidak berisi email/telepon atau role privat. Endpoint khusus admin ini membantu memilih calon, bukan menetapkan tugas tanpa persetujuannya. Assignment baru diberitahukan melalui notifikasi in-app coordinator_assigned; penolakan penerimaan membuat coordinatorAcceptedAt=null dan kegiatan belum boleh publish.
 
 PublicActivity tidak membuka meetingPoint rinci atau daftar peserta. MeetingPoint viewer hanya untuk accepted member atau C selama aksesnya sah; setelah source dicabut peserta mendapat null dan C mengakses detail melalui manage untuk penanganan. Nama koordinator publik memakai displayName jika disetujui saat menerima tugas, selain itu label Koordinator SAP; bukan email. Daftar kegiatan mengecualikan draft dan kejadian nonpublik; detail kegiatan yang pernah publik dengan source dicabut mengembalikan ActivityNotice tanpa konten sumber. GET activities/{id} karena itu mengembalikan union PublicActivity|ActivityNotice; MyActivity memakai union yang sama.
+
+`cancellationReason` hanya berisi alasan publik dari kolom terpisah yang ditetapkan saat command `cancel`; nilainya null kecuali status kegiatan `cancelled`. Alasan untuk `hold`, peninjauan sumber, atau assignment koordinator disimpan sebagai `holdReason` privat bagi route terkelola dan tidak pernah disalin ke proyeksi publik/ActivityNotice. Operator yang membatalkan wajib menulis alasan yang aman untuk ditampilkan publik; teks ini boleh tampil pada ActivityNotice cancelled yang diterima peserta terdahulu melalui `/users/me/activities`, tanpa membuka konten kejadian yang ditinjau/ditarik. Baris pembatalan sebelum migrasi tidak di-backfill dari `hold_reason`, sehingga cancellationReason-nya null.
 
 PUT membership participating=true membuat requested, bukan langsung accepted. Request ulang tidak mengubah accepted kembali requested. participating=false membatalkan permintaan sendiri sesuai aturan waktu. Rejoin setelah cancelled sebelum penutupan mengembalikan requested. Join menolak setelah deadline/ketika sumber nonpublik walaupun UI masih menampilkan tombol.
 

@@ -98,8 +98,8 @@ VPS baseline 4 GB/2 vCPU, CPU-only, satu process dan concurrency 1. Benchmark RS
 
 ## 7. Status penerimaan
 
-Terverifikasi: Basic Auth, discovery/`view_api`, upload, `/predict_gradio`, inferensi dasar dan bentuk `LabelData`.
+Terverifikasi: Basic Auth, discovery/`view_api`, upload, `/predict_gradio`, dan bentuk `LabelData`. Pada 4 Oktober 2026 worker production juga berhasil mengakses Gradio melalui jaringan Docker privat dan menjalankan satu inferensi pada gambar sintetis; hasilnya `paper` dengan tiga confidence entries. Ini hanya smoke test koneksi dan adapter, bukan bukti akurasi atau kesiapan model.
 
-Pending: fixture 10 kelas; unknown/no_waste/invalid/malformed/`error`; model hilang/mismatch; timeout/polling/late result/restart; benchmark; dan bukti `providerRevision`. Lihat [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md). Service dapat dihubungi atau source berhasil di-clone belum berarti integrasi selesai.
+Pending: fixture 10 kelas; known-positive/known-negative; unknown/no_waste/invalid/malformed/`error`; model hilang/mismatch; timeout/polling/late result/restart; benchmark; bukti `providerRevision`; dan scan E2E API → queue → worker → database. Lihat [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md). Satu inferensi berhasil belum membuktikan akurasi, kesiapan kedua checkpoint, atau keseluruhan scan.
 
 Rujukan: [Gradio JS client](https://www.gradio.app/main/docs/js-client) dan [source EcoLens](https://huggingface.co/spaces/wahb-amir/ecoLens/blob/3d41e0d13f1199eb34d2cd803914db49f6458904/utils/predict.py).

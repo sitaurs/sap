@@ -40,9 +40,8 @@ export class AssistantProvider {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.config.SAPA_LLM_TIMEOUT_MS);
-    let response: Response;
     try {
-      response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+      const response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -60,22 +59,25 @@ export class AssistantProvider {
         }),
         signal: controller.signal,
       });
+      if (!response.ok) {
+        this.logger.warn(`SAPA provider returned status ${response.status}`);
+        throw new ProviderUnavailableError(`upstream status ${response.status}`);
+      }
+
+      // Keep the deadline active while consuming/parsing the response body too;
+      // fetch may resolve headers while a stalled body would otherwise hold the
+      // conversation lease and request open indefinitely.
+      const content = await this.extractContent(response);
+      return this.parseReply(content);
     } catch (error) {
+      if (error instanceof ProviderUnavailableError) throw error;
       // AbortError (timeout) or network failure. Do not log request content.
-      const reason = (error as Error).name === 'AbortError' ? 'timeout' : 'network error';
+      const reason = error instanceof Error && error.name === 'AbortError' ? 'timeout' : 'network error';
       this.logger.warn(`SAPA provider unavailable: ${reason}`);
       throw new ProviderUnavailableError(reason);
     } finally {
       clearTimeout(timer);
     }
-
-    if (!response.ok) {
-      this.logger.warn(`SAPA provider returned status ${response.status}`);
-      throw new ProviderUnavailableError(`upstream status ${response.status}`);
-    }
-
-    const content = await this.extractContent(response);
-    return this.parseReply(content);
   }
 
   /** Pull the assistant message text out of the OpenAI-compatible envelope. */
@@ -83,7 +85,8 @@ export class AssistantProvider {
     let body: unknown;
     try {
       body = await response.json();
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') throw error;
       throw new ProviderUnavailableError('non-JSON upstream body');
     }
     const content = (body as { choices?: Array<{ message?: { content?: unknown } }> })?.choices?.[0]?.message

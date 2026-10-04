@@ -30,29 +30,35 @@ export class ScanProcessor {
     const context = await this.repo.loadContext(scanId);
     if (!context) return;
     if (context.status === 'succeeded' || context.status === 'failed') return;
+
+    // Claim fresh work or recover a processing lease after worker death. The
+    // returned generation fences any old worker that eventually wakes up.
+    const generation = await this.repo.markProcessing(scanId);
+    if (generation === null) return;
+
     if (context.mediaState !== 'stored') {
-      await this.repo.completeFailed(scanId, 'MEDIA_INVALID');
+      await this.repo.completeFailed(scanId, generation, 'MEDIA_INVALID');
       return;
     }
-
-    // Claim the job; if it is not queued anymore another worker owns it.
-    const claimed = await this.repo.markProcessing(scanId);
-    if (!claimed) return;
 
     let bytes: Buffer;
     try {
       bytes = await this.store.getObject(context.objectKey);
     } catch {
-      await this.repo.completeFailed(scanId, 'MEDIA_INVALID');
+      await this.repo.completeFailed(scanId, generation, 'MEDIA_INVALID');
       return;
     }
 
+    let result: AdapterResult;
     try {
-      const result = await this.classify(bytes);
-      await this.repo.completeSucceeded(scanId, context.userId, context.sha256, result);
+      result = await this.classify(bytes);
     } catch (error) {
-      await this.repo.completeFailed(scanId, classifyError(error));
+      await this.repo.completeFailed(scanId, generation, classifyError(error));
+      return;
     }
+    // Persistence failures must escape to BullMQ/outbox recovery. Treating a
+    // Postgres failure as an ML failure would terminally lose a valid result.
+    await this.repo.completeSucceeded(scanId, generation, context.userId, context.sha256, result);
   }
 
   /** Apply the hybrid policy when configured, else plain ML classification. */

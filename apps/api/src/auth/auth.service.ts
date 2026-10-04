@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { SessionService } from '../session/session.service.js';
 import { SessionRepository } from '../session/session.repository.js';
@@ -7,7 +7,7 @@ import { MediaRepository } from '../media/media.repository.js';
 import { AuthCryptoService } from './auth-crypto.js';
 import type { ChallengePurpose, ChallengeRecord, DeletionRecord, UserRecord, UserView } from './auth.types.js';
 import { toUserView } from './auth.types.js';
-import { ChallengeRepository } from './challenge.repository.js';
+import { ChallengeRepository, MAX_CHALLENGE_ATTEMPTS } from './challenge.repository.js';
 import { DeletionRepository } from './deletion.repository.js';
 import { MailerService } from './mailer.service.js';
 import { OutboxRepository } from './outbox.repository.js';
@@ -17,7 +17,6 @@ import { MfaService } from './mfa.service.js';
 
 const OTP_TTL_MS = 10 * 60 * 1_000;
 const RESEND_COOLDOWN_MS = 60 * 1_000;
-const MAX_ATTEMPTS = 5;
 const REAUTH_WINDOW_MS = 10 * 60 * 1_000;
 const RECEIPT_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
 const CHALLENGE_MESSAGE = 'Jika akun memenuhi syarat, kode verifikasi telah dikirim ke email tersebut.';
@@ -172,12 +171,17 @@ export class AuthService {
   }
 
   async resetPassword(input: { challengeId: string; code: string; newPassword: string }): Promise<AckResult> {
-    const challenge = await this.consumeChallenge(input.challengeId, input.code, 'reset_password');
+    const challenge = await this.validatedChallenge(input.challengeId, input.code, 'reset_password');
     if (!challenge.userId) throw this.invalidChallenge();
     const passwordHash = await this.passwords.hash(input.newPassword);
-    await this.users.updatePassword(challenge.userId, passwordHash);
-    // Resetting the password revokes every existing session for the account.
-    await this.sessions.deleteAllForUser(challenge.userId);
+    // Consume the challenge, update the password and revoke sessions together;
+    // a database failure cannot strand a consumed OTP without resetting the account.
+    const completed = await this.challenges.completePasswordReset({
+      challengeId: challenge.id,
+      userId: challenge.userId,
+      passwordHash,
+    });
+    if (!completed) throw this.invalidChallenge();
     return { message: 'Kata sandi berhasil diperbarui. Silakan masuk kembali.' };
   }
 
@@ -212,8 +216,10 @@ export class AuthService {
       throw new BadRequestException({ code: 'VALIDATION_ERROR', message: 'Kata sandi baru harus berbeda dari yang sekarang.' });
     }
     const passwordHash = await this.passwords.hash(newPassword);
-    await this.users.updatePassword(userId, passwordHash);
-    await this.sessions.deleteAllForUserExcept(userId, sessionTokenHash);
+    const changed = await this.sessions.changePasswordAndRevokeOthers({ userId, keepTokenHash: sessionTokenHash, passwordHash });
+    if (!changed) {
+      throw new UnauthorizedException({ code: 'SESSION_EXPIRED', message: 'Your session has expired.' });
+    }
     return { message: 'Kata sandi berhasil diperbarui. Sesi di perangkat lain telah keluar.' };
   }
 
@@ -294,27 +300,29 @@ export class AuthService {
    * seconds, which is how the client learns when it may request another code.
    */
   private async issueChallenge(input: { userId: string; email: string; emailHash: string; purpose: ChallengePurpose }): Promise<ChallengeResult> {
-    const now = Date.now();
-    const latest = await this.challenges.findLatestByEmail(input.emailHash, input.purpose);
-    if (latest && !latest.consumedAt && latest.resendAfter && latest.resendAfter.getTime() > now && latest.expiresAt.getTime() > now) {
-      return this.toChallengeResult(latest);
-    }
-
     const code = this.crypto.generateOtp();
-    const challenge = await this.challenges.create({
+    const issued = await this.challenges.createOrReuse({
       userId: input.userId,
       emailHash: input.emailHash,
       purpose: input.purpose,
       codeHash: this.crypto.hashOtp(code),
-      expiresAt: new Date(now + OTP_TTL_MS),
-      resendAfter: new Date(now + RESEND_COOLDOWN_MS),
+      ttlMs: OTP_TTL_MS,
+      resendCooldownMs: RESEND_COOLDOWN_MS,
     });
-    await this.mailer.sendOtp(input.email, code, input.purpose);
-    return this.toChallengeResult(challenge);
+    if (issued.created) await this.mailer.sendOtp(input.email, code, input.purpose);
+    return this.toChallengeResult(issued.challenge);
   }
 
   /** Validate + atomically consume a challenge, enforcing expiry and the attempt cap. */
   private async consumeChallenge(challengeId: string, code: string, purpose: ChallengePurpose): Promise<ChallengeRecord> {
+    const challenge = await this.validatedChallenge(challengeId, code, purpose);
+    const consumed = await this.challenges.consume(challenge.id);
+    if (!consumed) throw this.invalidChallenge();
+    return challenge;
+  }
+
+  /** Validate the code before a separate transactional completion step. */
+  private async validatedChallenge(challengeId: string, code: string, purpose: ChallengePurpose): Promise<ChallengeRecord> {
     const challenge = await this.challenges.findById(challengeId);
     const now = Date.now();
     if (
@@ -322,7 +330,7 @@ export class AuthService {
       challenge.purpose !== purpose ||
       challenge.consumedAt ||
       challenge.expiresAt.getTime() <= now ||
-      challenge.attempts >= MAX_ATTEMPTS
+      challenge.attempts >= MAX_CHALLENGE_ATTEMPTS
     ) {
       throw this.invalidChallenge();
     }
@@ -330,8 +338,6 @@ export class AuthService {
       await this.challenges.incrementAttempts(challenge.id);
       throw this.invalidChallenge();
     }
-    const consumed = await this.challenges.consume(challenge.id);
-    if (!consumed) throw this.invalidChallenge();
     return challenge;
   }
 

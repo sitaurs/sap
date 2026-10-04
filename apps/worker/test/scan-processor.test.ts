@@ -15,19 +15,20 @@ interface Calls {
   failed: Array<{ scanId: string; code: string }>;
 }
 
-function harness(context: ScanContext | null, opts: { claim?: boolean; classify?: () => Promise<AdapterResult> } = {}) {
+function harness(context: ScanContext | null, opts: { claim?: boolean; classify?: () => Promise<AdapterResult>; persistFailure?: Error } = {}) {
   const calls: Calls = { markProcessing: [], succeeded: [], failed: [] };
   const repo = {
     loadContext: async () => context,
     markProcessing: async (id: string) => {
       calls.markProcessing.push(id);
-      return opts.claim ?? true;
+      return opts.claim === false ? null : 1;
     },
-    completeSucceeded: async (scanId: string, _u: string, _s: string, result: AdapterResult) => {
+    completeSucceeded: async (scanId: string, _generation: number, _u: string, _s: string, result: AdapterResult) => {
+      if (opts.persistFailure) throw opts.persistFailure;
       calls.succeeded.push({ scanId, result });
       return result.outcome === 'classified' ? 10 : 0;
     },
-    completeFailed: async (scanId: string, code: string) => {
+    completeFailed: async (scanId: string, _generation: number, code: string) => {
       calls.failed.push({ scanId, code });
     },
   } as unknown as ScanRepository;
@@ -70,7 +71,7 @@ test('ScanProcessor fails a scan whose media is not stored', async () => {
   const { processor, calls } = harness({ ...baseContext, mediaState: 'pending' });
   await processor.process('scan-1');
   assert.deepEqual(calls.failed, [{ scanId: 'scan-1', code: 'MEDIA_INVALID' }]);
-  assert.equal(calls.markProcessing.length, 0);
+  assert.equal(calls.markProcessing.length, 1, 'terminal media failures must first obtain the fencing lease');
 });
 
 test('ScanProcessor does nothing when the job cannot be claimed', async () => {
@@ -91,12 +92,78 @@ test('ScanProcessor records the domain error code when the adapter throws', asyn
   assert.deepEqual(calls.failed, [{ scanId: 'scan-1', code: 'ML_TIMEOUT' }]);
 });
 
+test('ScanProcessor lets result persistence errors escape for outbox recovery', async () => {
+  const { processor, calls } = harness(baseContext, { persistFailure: new Error('database unavailable') });
+  await assert.rejects(processor.process('scan-1'), /database unavailable/);
+  assert.deepEqual(calls.failed, [], 'a database outage must not be mislabeled as an ML failure');
+});
+
 test('ScanProcessor ignores an unknown scan id', async () => {
   const { processor, calls } = harness(null);
   await processor.process('missing');
   assert.equal(calls.markProcessing.length, 0);
   assert.equal(calls.succeeded.length, 0);
   assert.equal(calls.failed.length, 0);
+});
+
+test('expired processing is reclaimed and stale worker is fenced without duplicate ledger award', async () => {
+  let status = 'queued';
+  let generation = 0;
+  let leaseLive = true;
+  const ledgerAwards: string[] = [];
+  const completions: Array<{ generation: number; accepted: boolean }> = [];
+  const repo = {
+    loadContext: async () => ({ ...baseContext, status }),
+    markProcessing: async () => {
+      if (status === 'queued' || (status === 'processing' && !leaseLive)) {
+        status = 'processing';
+        leaseLive = true;
+        generation += 1;
+        return generation;
+      }
+      return null;
+    },
+    completeSucceeded: async (scanId: string, claimedGeneration: number, _userId: string, _sha256: string, result: AdapterResult) => {
+      const accepted = status === 'processing' && leaseLive && claimedGeneration === generation;
+      completions.push({ generation: claimedGeneration, accepted });
+      if (!accepted) return { accepted: false, pointsAwarded: 0 };
+      status = 'succeeded';
+      if (result.outcome === 'classified') ledgerAwards.push(scanId);
+      return { accepted: true, pointsAwarded: 10 };
+    },
+    completeFailed: async () => false,
+  } as unknown as ScanRepository;
+  let providerCalls = 0;
+  let providerStarted!: () => void;
+  const started = new Promise<void>(resolve => { providerStarted = resolve; });
+  let finishFirst!: (result: AdapterResult) => void;
+  const firstResult = new Promise<AdapterResult>(resolve => { finishFirst = resolve; });
+  const adapter = {
+    classify: async () => {
+      providerCalls += 1;
+      if (providerCalls === 1) {
+        providerStarted();
+        return firstResult;
+      }
+      return { outcome: 'classified', categoryId: 'metal', predictions: [], providerRevision: null } as AdapterResult;
+    },
+  } as unknown as MlAdapter;
+  const store = { getObject: async () => Buffer.from('bytes') } as unknown as ObjectStore;
+  const firstWorker = new ScanProcessor(repo, store, adapter);
+  const secondWorker = new ScanProcessor(repo, store, adapter);
+
+  const staleRun = firstWorker.process('scan-1');
+  await started;
+  leaseLive = false; // models provider/worker death beyond the persisted lease
+  await secondWorker.process('scan-1'); // reclaims with generation 2 and commits once
+  finishFirst({ outcome: 'classified', categoryId: 'plastic', predictions: [], providerRevision: null });
+  await staleRun;
+  await firstWorker.process('scan-1'); // terminal duplicate delivery is a no-op
+
+  assert.equal(status, 'succeeded');
+  assert.equal(generation, 2);
+  assert.deepEqual(completions, [{ generation: 2, accepted: true }, { generation: 1, accepted: false }]);
+  assert.deepEqual(ledgerAwards, ['scan-1']);
 });
 
 // --- Hybrid wiring (settings repo + vision client) -------------------------
@@ -109,12 +176,12 @@ function hybridHarness(opts: {
   const calls: Calls = { markProcessing: [], succeeded: [], failed: [] };
   const repo = {
     loadContext: async () => baseContext,
-    markProcessing: async (id: string) => { calls.markProcessing.push(id); return true; },
-    completeSucceeded: async (scanId: string, _u: string, _s: string, result: AdapterResult) => {
+    markProcessing: async (id: string) => { calls.markProcessing.push(id); return 1; },
+    completeSucceeded: async (scanId: string, _generation: number, _u: string, _s: string, result: AdapterResult) => {
       calls.succeeded.push({ scanId, result });
       return result.outcome === 'classified' ? 10 : 0;
     },
-    completeFailed: async (scanId: string, code: string) => { calls.failed.push({ scanId, code }); },
+    completeFailed: async (scanId: string, _generation: number, code: string) => { calls.failed.push({ scanId, code }); },
   } as unknown as ScanRepository;
   const store = { getObject: async () => Buffer.from('bytes') } as unknown as ObjectStore;
   const adapter = {

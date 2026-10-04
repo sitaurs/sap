@@ -1,10 +1,10 @@
 # API_SPEC — SAP REST API
 
-v1.1 · Sumber mesin: [contracts/openapi.json](contracts/openapi.json). Base URL `/api/v1`; tanggal UTC dan hari Asia/Jakarta. Kontrak ini untuk implementasi, belum endpoint berjalan.
+v1.1 · Sumber mesin: [contracts/openapi.json](../contracts/openapi.json). Base URL `/api/v1`; tanggal UTC dan hari Asia/Jakarta. **Pembaruan 4 Oktober 2026:** tabel di bawah merangkum 48 operasi dalam kontrak published di repository; ini bukan klaim bahwa semua endpoint sudah aktif di production. Handler tersedia di source, tetapi ketersediaan runtime, health provider, dan acceptance E2E harus dilihat per fitur di [status backend](BACKEND_IMPLEMENTATION_STATUS.md). Kontrak extension R1/1.2 ada sebagai draft terpisah dan belum published.
 
 ## 1. Envelope dan autentikasi
 
-Sukses `{data,meta:{requestId}}`; error `{error:{code,message,fields?},meta:{requestId}}`. Kontrak mesin saat ini mendeklarasikan `X-Contract-Version: 1.1.0` pada respons sukses, belum pada seluruh respons error. Penambahan header pada error adalah perubahan kontrak terkoordinasi yang masih pending dan harus mengubah OpenAPI, generated client, fixture/test, serta implementasi bersama; dokumen ini tidak menganggapnya sudah berlaku. Cookie `sap_session` opaque, HttpOnly; GET auth/csrf memberi token untuk X-CSRF-Token pada mutasi. Login akun belum terverifikasi mengembalikan403 EMAIL_UNVERIFIED, frontend membuka resend/verify; verify sukses memulai sesi. Reset password mencabut semua sesi dan meminta login ulang. recent reauth diperlukan untuk delete account.
+Sukses `{data,meta:{requestId}}`; error `{error:{code,message,fields?},meta:{requestId}}`. Kontrak 1.1.0 mendeklarasikan `X-Contract-Version` pada respons sukses dan error; middleware HTTP di source memasang header itu untuk semua respons API. Cookie `sap_session` opaque, HttpOnly; GET auth/csrf memberi token untuk X-CSRF-Token pada mutasi. Login akun belum terverifikasi mengembalikan 403 `EMAIL_UNVERIFIED`, frontend membuka resend/verify; verify sukses memulai sesi. Reset password mencabut semua sesi dan meminta login ulang. Recent reauth diperlukan untuk delete account.
 
 `Idempotency-Key` wajib tepat pada createScan, createReport, decideReport dan deleteMe; auth mutation dan uploadMedia tidak memakainya. Key sama + canonical payload sama mengembalikan respons original selama 24 jam; key sama + payload berbeda menghasilkan409 IDEMPOTENCY_CONFLICT. PATCH report dan keputusan admin wajib If-Match integer revision. User tidak pernah menentukan userId/role/points/status lewat payload create umum. Header wajib yang hilang menghasilkan400, expired session401, role403, resource bukan pemilik404.
 
@@ -18,7 +18,7 @@ Public berarti tanpa login; user memerlukan session; admin juga memerlukan role;
 | POST | `/auth/register` | `register` | public | 202 | RegisterInput | Challenge |
 | POST | `/auth/verify-email` | `verifyEmail` | public | 200 | VerifyInput | User |
 | POST | `/auth/resend-verification` | `resendVerification` | public | 202 | EmailInput | Challenge |
-| POST | `/auth/login` | `login` | public | 200 | LoginInput | User |
+| POST | `/auth/login` | `login` | public | 200 | LoginInput | Login |
 | POST | `/auth/forgot-password` | `forgotPassword` | public | 202 | EmailInput | Challenge |
 | POST | `/auth/reset-password` | `resetPassword` | public | 200 | ResetInput | Ack |
 | POST | `/auth/logout` | `logout` | user | 200 | — | Ack |
@@ -49,6 +49,21 @@ Public berarti tanpa login; user memerlukan session; admin juga memerlukan role;
 | GET | `/admin/stats` | `getAdminStats` | admin | 200 | — | AdminStats |
 | GET | `/admin/audit` | `listAuditEvents` | admin | 200 | — | AuditEventPage |
 | GET | `/health` | `getHealth` | public | 200 | — | Health |
+| PATCH | `/users/me/preferences` | `updatePreferences` | user | 200 | UserPreferencesInput | UserPreferences |
+| POST | `/assistant/chat` | `assistantChat` | user | 200 | AssistantChatInput | AssistantChat |
+| DELETE | `/assistant/conversations/{conversationId}` | `deleteAssistantConversation` | user | 200 | — | Ack |
+| GET | `/admin/scan-settings` | `getScanSettings` | admin | 200 | — | ScanSettings |
+| PUT | `/admin/scan-settings` | `updateScanSettings` | admin | 200 | ScanSettingsUpdateInput | ScanSettings |
+| PATCH | `/users/me/password` | `changePassword` | user | 200 | ChangePasswordInput | Ack |
+| PATCH | `/users/me/avatar` | `setAvatar` | user | 200 | SetAvatarInput | User |
+| GET | `/auth/mfa` | `getMfaStatus` | user | 200 | — | MfaStatus |
+| DELETE | `/auth/mfa` | `disableMfa` | user | 200 | MfaCurrentCodeInput | Ack |
+| POST | `/auth/mfa/enroll` | `beginMfaEnrollment` | user | 200 | — | MfaEnrollment |
+| POST | `/auth/mfa/enroll/confirm` | `confirmMfaEnrollment` | user | 200 | MfaConfirmInput | MfaRecoveryCodes |
+| POST | `/auth/mfa/recovery-codes` | `regenerateMfaRecoveryCodes` | user | 200 | MfaCurrentCodeInput | MfaRecoveryCodes |
+| POST | `/auth/mfa/login` | `completeMfaLogin` | preauth + CSRF | 200 | MfaLoginInput | User |
+
+Baris di atas tetap kontrak published **1.1.0** (48 operasi). Route operasional `GET /health/live` dan `GET /health/ready` ada hanya di draft R1 1.2.0; keduanya belum menambah schema atau route ke kontrak published. `GET /health` mempertahankan response 1.1.0 yang lama.
 
 ## 3. Semantik domain tambahan
 
@@ -64,7 +79,7 @@ Public berarti tanpa login; user memerlukan session; admin juga memerlukan role;
 
 ## 4. Error code yang dipakai UI
 
-VALIDATION_ERROR400; AUTH_REQUIRED/SESSION_EXPIRED401; EMAIL_UNVERIFIED/FORBIDDEN/CSRF_INVALID403; NOT_FOUND/AREA_NO_DATA404; REVISION_CONFLICT/IDEMPOTENCY_CONFLICT409; IMAGE_TOO_LARGE413; UNSUPPORTED_IMAGE415; REPORT_INVALID/INVALID_TRANSITION/MEDIA_INVALID/MAP_BOUNDS_TOO_LARGE422; RATE_LIMITED429 dengan Retry-After; ML_UNAVAILABLE/DEPENDENCY_UNAVAILABLE503; INTERNAL_ERROR500. Scan failed memakai errorCode domain pada ScanDto, status HTTP polling tetap200.
+VALIDATION_ERROR400; AUTH_REQUIRED/SESSION_EXPIRED401; EMAIL_UNVERIFIED/FORBIDDEN/CSRF_INVALID403; NOT_FOUND/AREA_NO_DATA404; REVISION_CONFLICT/IDEMPOTENCY_CONFLICT/CONVERSATION_BUSY409; IMAGE_TOO_LARGE413; UNSUPPORTED_IMAGE415; REPORT_INVALID/INVALID_TRANSITION/MEDIA_INVALID/MAP_BOUNDS_TOO_LARGE422; RATE_LIMITED429 dengan Retry-After; ML_UNAVAILABLE/DEPENDENCY_UNAVAILABLE503; INTERNAL_ERROR500. SAPA mengembalikan CONVERSATION_BUSY bila chat lain masih memegang percakapan atau delete bersaing dengan chat; klien dapat mencoba kembali sebentar lagi. Chat yang ditolak karena bentrok tidak memanggil provider model. Scan failed memakai errorCode domain pada ScanDto, status HTTP polling tetap200.
 
 ## 5. Contoh dan uji
 

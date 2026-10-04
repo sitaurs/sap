@@ -3,8 +3,8 @@ import { createHash } from 'node:crypto';
 import { MediaRepository } from '../media/media.repository.js';
 import { evaluateRateLimit, RateLimitException, SCAN_RATE_LIMIT } from '../platform/http/rate-limit.js';
 import { ScanRepository } from './scan.repository.js';
-import { ScanQueueService } from './scan-queue.service.js';
 import { toScanView, type ScanView } from './scan.types.js';
+import type { Tx } from '../infrastructure/idempotency.store.js';
 
 export const SCANS_ROUTE = 'POST /scans';
 export const DEFAULT_SCAN_PAGE = 20;
@@ -19,12 +19,9 @@ export class ScansService {
   constructor(
     private readonly scans: ScanRepository,
     private readonly media: MediaRepository,
-    private readonly queue: ScanQueueService,
   ) {}
 
   async createScan(userId: string, input: { mediaId: string }, idempotencyKey: string): Promise<ScanView> {
-    await this.enforceRateLimit(userId);
-
     // Ownership gate: unknown or someone else's media is indistinguishable -> 404.
     const media = await this.media.findStoredForOwner(input.mediaId, userId);
     if (!media) {
@@ -32,7 +29,7 @@ export class ScansService {
     }
 
     const requestHash = createHash('sha256').update(JSON.stringify({ mediaId: input.mediaId })).digest('hex');
-    const { view, replayed } = await this.scans.createQueuedIdempotent({
+    const { view } = await this.scans.createQueuedIdempotent({
       userId,
       mediaId: input.mediaId,
       actorScope: `user:${userId}`,
@@ -40,10 +37,15 @@ export class ScansService {
       key: idempotencyKey,
       requestHash,
       toView: toScanView,
+      beforeCreate: async (tx) => {
+        // Serialize fresh creates per user so parallel requests cannot all pass the quota.
+        await tx`SELECT pg_advisory_xact_lock(hashtextextended(${`scan-rate-limit:${userId}`},0))`;
+        await this.enforceRateLimit(userId, tx);
+      },
     });
 
-    // Enqueue only for a fresh reservation; a replayed create must not double-queue.
-    if (!replayed) await this.queue.enqueueScan(view.id);
+    // Delivery is asynchronous and driven from the transactionally inserted
+    // scan_outbox row. Returning 202 does not depend on Redis being reachable.
     return view;
   }
 
@@ -65,9 +67,9 @@ export class ScansService {
   }
 
   /** Baseline: 10 scans/hour/account (TECH_SPEC §). 429 + Retry-After when exceeded. */
-  private async enforceRateLimit(userId: string): Promise<void> {
+  private async enforceRateLimit(userId: string, tx?: Tx): Promise<void> {
     const now = Date.now();
-    const state = await this.scans.countRecentForUser(userId, new Date(now - SCAN_RATE_LIMIT.windowMs));
+    const state = await this.scans.countRecentForUser(userId, new Date(now - SCAN_RATE_LIMIT.windowMs), tx);
     const decision = evaluateRateLimit(state, SCAN_RATE_LIMIT, now);
     if (!decision.allowed) throw new RateLimitException(decision.retryAfterSeconds);
   }

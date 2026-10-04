@@ -402,3 +402,25 @@ test('a preauth challenge is refused once its attempt cap is reached, even with 
   );
   assert.equal(h.createdSessions.length, 0, 'a capped challenge can never mint a session');
 });
+
+test('a correct TOTP on the fifth allowed preauth attempt can complete login', async () => {
+  const h = await makeMfaHarness();
+  const preauth = await issue(h);
+  const now = Date.now();
+  const center = h.crypto.currentStep(now);
+  const acceptedCodes = new Set([center - 1, center, center + 1].map((step) => h.crypto.totpForStep(h.factorSecret, step)));
+  let wrong = '000000';
+  for (let n = 0; acceptedCodes.has(wrong); n += 1) wrong = String(n).padStart(6, '0');
+
+  for (let i = 0; i < 4; i += 1) {
+    await assert.rejects(
+      h.service.completeLogin({ preauthToken: preauth.token, code: wrong, now }),
+      (error) => errorCode(error) === 'MFA_INVALID',
+    );
+  }
+
+  const good = h.crypto.totpForStep(h.factorSecret, center);
+  const result = await h.service.completeLogin({ preauthToken: preauth.token, code: good, now });
+  assert.equal(result.user.id, 'u1');
+  assert.equal(h.createdSessions.length, 1, 'the fifth and final allowed attempt may mint one session');
+});

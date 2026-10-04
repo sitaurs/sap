@@ -1,8 +1,9 @@
 /**
- * SAPA starter knowledge base (SAPA_ASSISTANT.md §18). This is the ONLY source
- * of truth the model may answer from: the service retrieves the entries most
- * relevant to the page + question and injects them as a KONTEKS block. Entries
- * carry no PII, coordinates, media, or invented statistics. Items still marked
+ * SAPA curated FAQ knowledge base (SAPA_ASSISTANT.md §18). The service retrieves
+ * entries relevant to the page + question and may combine them with approved
+ * corpus passages or read-only, caller-scoped query tools. This FAQ alone is not
+ * proof that an answer is grounded or factually correct. Entries carry no PII,
+ * coordinates, media, or invented statistics. Items still marked
  * `TODO-VERIFIKASI` deliberately steer to Bantuan instead of quoting a number.
  */
 import {

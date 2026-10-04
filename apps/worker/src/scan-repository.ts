@@ -1,6 +1,13 @@
 import type { Sql } from 'postgres';
 import type { AdapterResult } from './ml-adapter.js';
 
+/** Lease covers the documented 90s provider flow plus its one transient retry. */
+export const SCAN_PROCESSING_LEASE_MS = 4 * 60 * 1_000;
+export const SCAN_OUTBOX_DISPATCH_LEASE_MS = 30 * 1_000;
+export const SCAN_OUTBOX_LIVE_JOB_POLL_MS = 60 * 1_000;
+export const SCAN_OUTBOX_POLL_MS = 1_000;
+export const SCAN_OUTBOX_BATCH_SIZE = 20;
+
 export interface ScanContext {
   scanId: string;
   userId: string;
@@ -8,6 +15,17 @@ export interface ScanContext {
   objectKey: string;
   sha256: string;
   mediaState: string;
+}
+
+export interface ScanDelivery {
+  scanId: string;
+  generation: number;
+  scanStatus: 'queued' | 'processing';
+}
+
+export interface ScanCompletion {
+  accepted: boolean;
+  pointsAwarded: number;
 }
 
 /** Asia/Jakarta (UTC+7, no DST) calendar day as YYYY-MM-DD. */
@@ -41,26 +59,131 @@ export class ScanRepository {
     };
   }
 
-  /** Transition queued -> processing. Returns false when the scan is no longer queued. */
-  async markProcessing(scanId: string): Promise<boolean> {
-    const rows = await this.sql<{ id: string }[]>`
-      UPDATE scans SET status = 'processing', started_at = now(), updated_at = now()
-      WHERE id = ${scanId} AND status = 'queued'
-      RETURNING id`;
-    return rows.length > 0;
+  /**
+   * Reserve due outbox entries. The state/generation update is committed before
+   * touching Redis, so an enqueue crash is reclaimed after the short dispatch
+   * lease. Each delivery gets a distinct BullMQ id; failed Bull jobs therefore
+   * cannot permanently block a repaired delivery under an old id.
+   */
+  async claimOutboxBatch(limit = SCAN_OUTBOX_BATCH_SIZE): Promise<ScanDelivery[]> {
+    return this.sql.begin(async (tx) => {
+      const rows = await tx<Array<{ scan_id: string; generation: number; scan_status: 'queued' | 'processing' }>>`
+        WITH candidates AS (
+          SELECT o.scan_id, s.status AS scan_status
+          FROM scan_outbox o
+          JOIN scans s ON s.id = o.scan_id
+          WHERE s.status IN ('queued', 'processing')
+            AND (
+              (o.state = 'pending' AND o.available_at <= clock_timestamp())
+              OR (o.state = 'dispatching' AND o.lease_expires_at <= clock_timestamp())
+              OR (
+                o.state = 'enqueued'
+                AND o.lease_expires_at <= clock_timestamp()
+                AND (s.status = 'queued' OR s.processing_lease_expires_at IS NULL OR s.processing_lease_expires_at <= clock_timestamp())
+              )
+          )
+          ORDER BY o.available_at, o.created_at, o.scan_id
+          LIMIT ${limit}
+          FOR UPDATE OF o SKIP LOCKED
+        )
+        UPDATE scan_outbox o
+        SET state = 'dispatching',
+            generation = CASE WHEN o.state = 'pending' AND o.generation = 0 THEN 1 ELSE o.generation END,
+            lease_expires_at = now() + (${SCAN_OUTBOX_DISPATCH_LEASE_MS} * interval '1 millisecond'),
+            updated_at = now()
+        FROM candidates c
+        WHERE o.scan_id = c.scan_id
+        RETURNING o.scan_id, o.generation, c.scan_status`;
+      return rows.map(row => ({ scanId: row.scan_id, generation: row.generation, scanStatus: row.scan_status }));
+    });
+  }
+
+  async markOutboxEnqueued(delivery: ScanDelivery): Promise<void> {
+    await this.sql`
+      UPDATE scan_outbox
+      SET state = 'enqueued',
+          lease_expires_at = GREATEST(
+            COALESCE((SELECT processing_lease_expires_at FROM scans WHERE id = ${delivery.scanId} AND status = 'processing'), clock_timestamp()),
+            clock_timestamp() + (${SCAN_OUTBOX_LIVE_JOB_POLL_MS} * interval '1 millisecond')
+          ),
+          updated_at = now()
+      WHERE scan_id = ${delivery.scanId} AND generation = ${delivery.generation} AND state = 'dispatching'`;
+  }
+
+  /** Reserve one replacement generation after BullMQ reports an old job terminal. */
+  async advanceOutboxGeneration(delivery: ScanDelivery): Promise<ScanDelivery | null> {
+    const rows = await this.sql<Array<{ generation: number; scan_status: 'queued' | 'processing' }>>`
+      UPDATE scan_outbox o
+      SET generation = o.generation + 1,
+          state = 'dispatching',
+          lease_expires_at = clock_timestamp() + (${SCAN_OUTBOX_DISPATCH_LEASE_MS} * interval '1 millisecond'),
+          updated_at = now()
+      FROM scans s
+      WHERE o.scan_id = ${delivery.scanId} AND o.scan_id = s.id
+        AND o.generation = ${delivery.generation} AND o.state = 'dispatching'
+        AND s.status IN ('queued', 'processing')
+      RETURNING o.generation, s.status AS scan_status`;
+    const row = rows[0];
+    return row ? { scanId: delivery.scanId, generation: row.generation, scanStatus: row.scan_status } : null;
+  }
+
+  async releaseOutbox(delivery: ScanDelivery, delayMs = 5_000): Promise<void> {
+    await this.sql`
+      UPDATE scan_outbox
+      SET state = 'pending', available_at = now() + (${delayMs} * interval '1 millisecond'),
+          lease_expires_at = NULL, updated_at = now()
+      WHERE scan_id = ${delivery.scanId} AND generation = ${delivery.generation} AND state = 'dispatching'`;
   }
 
   /**
-   * Persist a successful classification and award scan points atomically.
-   * Points: +10 per classified scan, max 5/day, deduped by (user, sha256, day).
-   * A late result (scan already terminal) is a no-op.
+   * Claim queued work or recover a processing lease that expired after a worker
+   * crash. The increasing generation is a fencing token for every completion.
    */
-  async completeSucceeded(scanId: string, userId: string, sha256: string, result: AdapterResult): Promise<number> {
+  async markProcessing(scanId: string): Promise<number | null> {
     return this.sql.begin(async (tx) => {
-      const current = await tx<{ status: string }[]>`
-        SELECT status FROM scans WHERE id = ${scanId} FOR UPDATE`;
-      const status = current[0]?.status;
-      if (!status || status === 'succeeded' || status === 'failed') return 0;
+      const rows = await tx<Array<{ processing_generation: number }>>`
+        UPDATE scans
+        SET status = 'processing', started_at = now(), updated_at = now(),
+            processing_generation = processing_generation + 1,
+            processing_lease_expires_at = now() + (${SCAN_PROCESSING_LEASE_MS} * interval '1 millisecond')
+        WHERE id = ${scanId}
+          AND (status = 'queued' OR (
+            status = 'processing' AND
+            (processing_lease_expires_at IS NULL OR processing_lease_expires_at <= clock_timestamp())
+          ))
+        RETURNING id, processing_generation, processing_lease_expires_at`;
+      const generation = rows[0]?.processing_generation;
+      if (generation === undefined) return null;
+      await tx`
+        UPDATE scan_outbox
+        SET state = 'enqueued',
+            lease_expires_at = (SELECT processing_lease_expires_at FROM scans WHERE id = ${scanId}),
+            updated_at = now()
+        WHERE scan_id = ${scanId} AND state <> 'processed'`;
+      return generation;
+    });
+  }
+
+  /**
+   * Persist classification, award points, and close the outbox atomically. A
+   * stale worker (wrong generation or expired lease) is fenced before it can
+   * mutate the scan or ledger.
+   */
+  async completeSucceeded(
+    scanId: string,
+    generation: number,
+    userId: string,
+    sha256: string,
+    result: AdapterResult,
+  ): Promise<ScanCompletion> {
+    return this.sql.begin(async (tx) => {
+      const current = await tx<{ status: string; processing_generation: number }[]>`
+        SELECT status, processing_generation FROM scans
+        WHERE id = ${scanId} AND status = 'processing'
+          AND processing_generation = ${generation}
+          AND processing_lease_expires_at > clock_timestamp()
+        FOR UPDATE`;
+      if (current.length === 0) return { accepted: false, pointsAwarded: 0 };
 
       let pointsAwarded = 0;
       if (result.outcome === 'classified') {
@@ -96,17 +219,34 @@ export class ScanRepository {
         UPDATE scans
         SET status = 'succeeded', outcome = ${result.outcome}, category_id = ${result.categoryId},
             predictions = ${tx.json(result.predictions as never)}, points_awarded = ${pointsAwarded},
-            provider_revision = ${result.providerRevision}, finished_at = now(), updated_at = now()
-        WHERE id = ${scanId}`;
-      return pointsAwarded;
+            provider_revision = ${result.providerRevision}, finished_at = now(), updated_at = now(),
+            processing_lease_expires_at = NULL
+        WHERE id = ${scanId} AND processing_generation = ${generation}`;
+      await tx`
+        UPDATE scan_outbox
+        SET state = 'processed', lease_expires_at = NULL, processed_at = now(), updated_at = now()
+        WHERE scan_id = ${scanId}`;
+      return { accepted: true, pointsAwarded };
     });
   }
 
-  /** Mark the scan failed with a domain error code (no points). Late result -> no-op. */
-  async completeFailed(scanId: string, errorCode: string): Promise<void> {
-    await this.sql`
-      UPDATE scans
-      SET status = 'failed', error_code = ${errorCode}, finished_at = now(), updated_at = now()
-      WHERE id = ${scanId} AND status NOT IN ('succeeded', 'failed')`;
+  /** Mark a terminal provider/media failure only while this worker still owns the lease. */
+  async completeFailed(scanId: string, generation: number, errorCode: string): Promise<boolean> {
+    return this.sql.begin(async (tx) => {
+      const rows = await tx<{ id: string }[]>`
+        UPDATE scans
+        SET status = 'failed', error_code = ${errorCode}, finished_at = now(), updated_at = now(),
+            processing_lease_expires_at = NULL
+        WHERE id = ${scanId} AND status = 'processing'
+          AND processing_generation = ${generation}
+          AND processing_lease_expires_at > clock_timestamp()
+        RETURNING id`;
+      if (rows.length === 0) return false;
+      await tx`
+        UPDATE scan_outbox
+        SET state = 'processed', lease_expires_at = NULL, processed_at = now(), updated_at = now()
+        WHERE scan_id = ${scanId}`;
+      return true;
+    });
   }
 }

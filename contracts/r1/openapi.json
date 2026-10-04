@@ -8007,6 +8007,21 @@
               }
             }
           },
+          "409": {
+            "description": "Conversation has another turn in progress (CONVERSATION_BUSY); retry shortly. This request is rejected before provider invocation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
           "422": {
             "description": "Pesan kosong/terlalu panjang atau pageContext tidak dikenal (ASSISTANT_MESSAGE_INVALID)",
             "content": {
@@ -8160,6 +8175,21 @@
           },
           "404": {
             "description": "Conversation not found atau bukan milik pengguna (CONVERSATION_NOT_FOUND)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            }
+          },
+          "409": {
+            "description": "Conversation has an in-flight chat turn or the delete lost its lease (CONVERSATION_BUSY); retry shortly.",
             "content": {
               "application/json": {
                 "schema": {
@@ -32644,6 +32674,81 @@
         "x-implementation-handler": "PublicationAssetsController.asset",
         "x-implementation-file": "apps/api/src/publications/publications.controller.ts"
       }
+    },
+    "/health/live": {
+      "get": {
+        "operationId": "r1GetHealthLiveness",
+        "summary": "Process liveness tanpa dependency probes",
+        "tags": [
+          "health"
+        ],
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Process is responding",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthLivenessR1Response"
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production"
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "r1GetHealthReadiness",
+        "summary": "Dependency readiness dengan status aman per komponen",
+        "tags": [
+          "health"
+        ],
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "DB-backed read traffic can be served; auxiliary dependencies may be degraded",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReadinessR1Response"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Database unavailable; safe read traffic cannot be served",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReadinessR1Response"
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production"
+      }
     }
   },
   "components": {
@@ -35806,7 +35911,8 @@
         ],
         "additionalProperties": false,
         "x-domain-rules": [
-          "hold/resume/cancel require reason 5–1000; other actions permit null"
+          "hold/resume/cancel require reason 5–1000; other actions permit null",
+          "cancel reason is public and separate from private hold/review reason; historical cancellations are never backfilled from hold_reason"
         ]
       },
       "CoordinatorAcceptanceInput": {
@@ -36662,6 +36768,16 @@
               "cancelled"
             ]
           },
+          "cancellationReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "area": {
             "type": "object",
             "properties": {
@@ -36754,6 +36870,7 @@
           "title",
           "description",
           "status",
+          "cancellationReason",
           "area",
           "coordinatorDisplayName",
           "startsAt",
@@ -36793,6 +36910,16 @@
           "message": {
             "type": "string"
           },
+          "cancellationReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "canonicalPath": {
             "type": "string",
             "pattern": "^/"
@@ -36803,6 +36930,7 @@
           "id",
           "status",
           "message",
+          "cancellationReason",
           "canonicalPath"
         ],
         "additionalProperties": false
@@ -41496,6 +41624,110 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/WithdrawalResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "HealthDependencyStateR1": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "unavailable"
+        ]
+      },
+      "HealthReadinessR1": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ]
+          },
+          "ready": {
+            "type": "boolean",
+            "description": "True when DB-backed safe read traffic can be served."
+          },
+          "dependencies": {
+            "type": "object",
+            "properties": {
+              "database": {
+                "$ref": "#/components/schemas/HealthDependencyStateR1"
+              },
+              "redis": {
+                "$ref": "#/components/schemas/HealthDependencyStateR1"
+              },
+              "objectStorage": {
+                "$ref": "#/components/schemas/HealthDependencyStateR1"
+              }
+            },
+            "required": [
+              "database",
+              "redis",
+              "objectStorage"
+            ],
+            "additionalProperties": false
+          },
+          "contractVersion": {
+            "type": "string",
+            "const": "1.1.0"
+          }
+        },
+        "required": [
+          "status",
+          "ready",
+          "dependencies",
+          "contractVersion"
+        ],
+        "additionalProperties": false
+      },
+      "HealthLivenessR1": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok"
+          },
+          "contractVersion": {
+            "type": "string",
+            "const": "1.1.0"
+          }
+        },
+        "required": [
+          "status",
+          "contractVersion"
+        ],
+        "additionalProperties": false
+      },
+      "HealthReadinessR1Response": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/HealthReadinessR1"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "HealthLivenessR1Response": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/HealthLivenessR1"
           },
           "meta": {
             "$ref": "#/components/schemas/Meta"

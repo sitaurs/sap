@@ -44,9 +44,10 @@ export class ActivitiesService {
  publishReady(row:ActivityRow):boolean {const d=row.data;return !!row.coordinator_accepted_at&&!!d.startsAt&&!!d.endsAt&&!!d.registrationClosesAt&&d.capacity!==null&&d.meetingPoint!==null&&d.wasteHandoverPlan.length>0&&Date.parse(d.startsAt)>Date.now()&&Date.parse(d.registrationClosesAt)>Date.now();}
  async publicDto(db:Executor,row:ActivityRow) {
   if(!row.public_ever||row.status==='draft')fail(404,'NOT_FOUND');
-  if(!this.sourcePublic(row))return {kind:'activity_notice' as const,id:row.id,status:row.status==='cancelled'?'cancelled' as const:'on_hold' as const,message:'Informasi kegiatan sedang ditinjau atau tidak tersedia.',canonicalPath:`/activities/${row.id}`};
+  const cancellationReason=row.status==='cancelled'?row.public_cancel_reason:null;
+  if(!this.sourcePublic(row))return {kind:'activity_notice' as const,id:row.id,status:row.status==='cancelled'?'cancelled' as const:'on_hold' as const,message:'Informasi kegiatan sedang ditinjau atau tidak tersedia.',cancellationReason,canonicalPath:`/activities/${row.id}`};
   const d=row.data;if(!d.startsAt||!d.endsAt||!d.registrationClosesAt||d.capacity===null)fail(409,'ACTIVITY_NOT_READY');
-  const acceptedCount=await this.count(db,row.id);return {kind:'activity' as const,id:row.id,reportId:row.report_id,revision:row.revision,title:d.title,description:d.description,status:row.status,area:{cellId:row.h3_cell,label:`Area ${row.h3_cell}`},coordinatorDisplayName:row.publish_display_name?(row.coordinator_name??'Koordinator SAP'):'Koordinator SAP',startsAt:d.startsAt,endsAt:d.endsAt,registrationClosesAt:d.registrationClosesAt,timezone:d.timezone,capacity:d.capacity,acceptedCount,availableSeats:Math.max(0,d.capacity-acceptedCount),registrationOpen:row.status==='registration_open'&&this.sourceOpen(row)&&Date.parse(d.registrationClosesAt)>Date.now(),equipment:d.equipment,accessibilityNotes:d.accessibilityNotes,wasteHandoverPlan:d.wasteHandoverPlan,resultOutcome:row.result_outcome,canonicalPath:`/activities/${row.id}`};
+  const acceptedCount=await this.count(db,row.id);return {kind:'activity' as const,id:row.id,reportId:row.report_id,revision:row.revision,title:d.title,description:d.description,status:row.status,cancellationReason,area:{cellId:row.h3_cell,label:`Area ${row.h3_cell}`},coordinatorDisplayName:row.publish_display_name?(row.coordinator_name??'Koordinator SAP'):'Koordinator SAP',startsAt:d.startsAt,endsAt:d.endsAt,registrationClosesAt:d.registrationClosesAt,timezone:d.timezone,capacity:d.capacity,acceptedCount,availableSeats:Math.max(0,d.capacity-acceptedCount),registrationOpen:row.status==='registration_open'&&this.sourceOpen(row)&&Date.parse(d.registrationClosesAt)>Date.now(),equipment:d.equipment,accessibilityNotes:d.accessibilityNotes,wasteHandoverPlan:d.wasteHandoverPlan,resultOutcome:row.result_outcome,canonicalPath:`/activities/${row.id}`};
  }
  memberDto(row:MembershipRow) {return {id:row.id,activityId:row.activity_id,revision:row.revision,status:row.status,attendance:row.attendance,reason:row.reason,createdAt:iso(row.created_at),updatedAt:iso(row.updated_at)};}
  async get(id:string) {return this.publicDto(this.store.db,await this.load(this.store.db,id));}
@@ -102,17 +103,23 @@ export class ActivitiesService {
  }
  async command(actor:Actor,id:string,expected:number,key:string,raw:unknown) {
   const b=object(raw,['action','reason']);const action=enumeration(b.action,['publish','close_registration','start','hold','resume','cancel','request_result']);const reason=['hold','resume','cancel'].includes(action)?text(b.reason,5,1000):b.reason===null?null:text(b.reason,5,1000);
-  return this.store.mutate(actor,`activityCommand:${id}`,key,{expected,action,reason},async tx=>{const row=await this.load(tx,id,true);this.scoped(row,actor);checkRevision(row.revision,expected);let next:ActivityRow['status']=row.status;let prior=row.prior_state;let hold=row.hold_reason;
+  return this.store.mutate(actor,`activityCommand:${id}`,key,{expected,action,reason},async tx=>{const row=await this.load(tx,id,true);this.scoped(row,actor);checkRevision(row.revision,expected);let next:ActivityRow['status']=row.status;let prior=row.prior_state;let hold=row.hold_reason;let publicCancel=row.public_cancel_reason;
    if(action==='publish'){requireAdmin(actor);if(row.status!=='draft'||!this.sourceOpen(row)||!this.publishReady(row))fail(409,'ACTIVITY_NOT_READY');await this.validateCoordinator(tx,row.coordinator_id);next='registration_open';}
    if(action==='close_registration'){if(row.status!=='registration_open')fail(409,'INVALID_TRANSITION');next='registration_closed';}
    if(action==='start'){if(!this.canStart(row))fail(409,'ACTIVITY_NOT_READY');next='in_progress';}
    if(action==='request_result'){if(row.status!=='in_progress'||!this.sourcePublic(row))fail(409,'INVALID_TRANSITION');next='awaiting_result';}
    if(action==='hold'){if(['completed','cancelled','on_hold'].includes(row.status))fail(409,'INVALID_TRANSITION');next='on_hold';prior=row.status;hold=reason;}
    if(action==='resume'){if(!this.canResume(row)||!prior)fail(409,'ACTIVITY_NOT_READY');await this.validateCoordinator(tx,row.coordinator_id);next=prior;prior=null;hold=null;}
-   if(action==='cancel'){if(['completed','cancelled'].includes(row.status))fail(409,'INVALID_TRANSITION');next='cancelled';prior=null;hold=reason;}
-   await tx`UPDATE activities SET status=${next},prior_state=${prior},hold_reason=${hold},public_ever=public_ever OR ${action==='publish'},revision=revision+1,updated_at=now() WHERE id=${id}`;
-   if(action==='cancel')await tx`UPDATE activity_memberships SET status='cancelled',reason=${reason},revision=revision+1,updated_at=now() WHERE activity_id=${id} AND status IN ('requested','accepted','waitlisted')`;
-   if(row.public_ever||action==='publish'){await this.notifyParticipants(tx,id,`activity:${id}:${expected+1}`,action==='cancel'?'activity_cancelled':'activity_changed');await this.notifyFollowers(tx,row.report_id,`activity:${id}:${expected+1}`,action==='cancel'?'activity_cancelled':'activity_changed',`/activities/${id}`);}
+   if(action==='cancel'){if(['completed','cancelled'].includes(row.status))fail(409,'INVALID_TRANSITION');next='cancelled';prior=null;publicCancel=reason;}
+   await tx`UPDATE activities SET status=${next},prior_state=${prior},hold_reason=${hold},public_cancel_reason=${publicCancel},public_ever=public_ever OR ${action==='publish'},revision=revision+1,updated_at=now() WHERE id=${id}`;
+   let cancellationRecipients:string[]=[];
+   if(action==='cancel'){const cancelled=await tx<{user_id:string|null}[]>`UPDATE activity_memberships SET status='cancelled',reason=${reason},revision=revision+1,updated_at=now() WHERE activity_id=${id} AND status IN ('requested','accepted','waitlisted') RETURNING user_id`;cancellationRecipients=cancelled.map(member=>member.user_id).filter((userId):userId is string=>userId!==null);}
+   if(row.public_ever||action==='publish'){
+    const eventKey=`activity:${id}:${expected+1}`;const type=action==='cancel'?'activity_cancelled':'activity_changed';
+    if(action==='cancel')await this.notify(tx,[...cancellationRecipients,row.coordinator_id],eventKey,type,`/activities/${id}`);
+    else await this.notifyParticipants(tx,id,eventKey,type);
+    await this.notifyFollowers(tx,row.report_id,eventKey,type,`/activities/${id}`);
+   }
    await this.store.audit(tx,actor.id,`activity_${action}`,'activity',id,{from:row.status,to:next,reason});await this.store.event(tx,'activity.changed',id,expected+1,{reportId:row.report_id});return this.managed(tx,await this.load(tx,id),actor);
   });
  }
@@ -169,7 +176,7 @@ export class ActivitiesService {
   for(const userId of new Set(userIds.filter((id):id is string=>id!==null)))await tx`INSERT INTO notifications(user_id,event_key,type,title,message,target_path) SELECT id,${eventKey},${type},${labels[type]},'Buka SAP untuk melihat informasi yang tersedia bagi akun Anda.',${targetPath} FROM users WHERE id=${userId} AND deleted_at IS NULL ON CONFLICT(user_id,event_key,type) DO NOTHING`;
  }
  async notifyFollowers(tx:Tx,reportId:string,eventKey:string,type:NotificationType,path=`/incidents/${reportId}`):Promise<void> {const users=await tx<{user_id:string}[]>`SELECT user_id FROM incident_follows WHERE report_id=${reportId} AND following`;await this.notify(tx,users.map(u=>u.user_id),eventKey,type,path);}
- async notifyParticipants(tx:Tx,id:string,eventKey:string,type:NotificationType):Promise<void> {const users=await tx<{user_id:string|null}[]>`SELECT user_id FROM activity_memberships WHERE activity_id=${id} AND status IN ('requested','accepted','waitlisted','cancelled') UNION SELECT coordinator_id FROM activities WHERE id=${id} AND coordinator_id IS NOT NULL`;await this.notify(tx,users.map(u=>u.user_id),eventKey,type,`/activities/${id}`);}
+ async notifyParticipants(tx:Tx,id:string,eventKey:string,type:NotificationType):Promise<void> {const users=await tx<{user_id:string|null}[]>`SELECT user_id FROM activity_memberships WHERE activity_id=${id} AND status IN ('requested','accepted','waitlisted') UNION SELECT coordinator_id FROM activities WHERE id=${id} AND coordinator_id IS NOT NULL`;await this.notify(tx,users.map(u=>u.user_id),eventKey,type,`/activities/${id}`);}
  async redactForReport(tx:Tx,reportId:string):Promise<void> {
   const rows=await tx<{id:string;revision:number}[]>`UPDATE activities SET prior_state=CASE WHEN status<>'on_hold' THEN status ELSE prior_state END,status='on_hold',hold_reason='Sumber kejadian sedang ditinjau.',revision=revision+1,updated_at=now() WHERE report_id=${reportId} AND public_ever AND status NOT IN ('completed','cancelled') AND (status<>'on_hold' OR hold_reason IS DISTINCT FROM 'Sumber kejadian sedang ditinjau.') RETURNING id,revision`;
   const all=await tx<{id:string}[]>`SELECT id FROM activities WHERE report_id=${reportId}`;for(const a of all)await tx`UPDATE notifications SET title='Informasi kegiatan diperbarui',message='Informasi sumber kejadian sedang ditinjau.',target_path=${`/activities/${a.id}`} WHERE target_path IN (${`/activities/${a.id}`},${`/activities/${a.id}/manage`})`;

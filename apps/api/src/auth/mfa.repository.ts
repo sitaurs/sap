@@ -194,7 +194,7 @@ export class MfaRepository {
       const preauth = await tx<{ token_hash: string }[]>`
         UPDATE mfa_preauth_challenges SET consumed_at = now()
         WHERE token_hash = ${input.tokenHash} AND user_id = ${input.userId}
-          AND consumed_at IS NULL AND expires_at > now() AND attempts < 5
+          AND consumed_at IS NULL AND expires_at > now() AND attempts <= 5
         RETURNING token_hash`;
       if (preauth.length !== 1) throw ROLLBACK_SENTINEL;
       const factor = await tx<{ user_id: string }[]>`
@@ -217,7 +217,7 @@ export class MfaRepository {
       const preauth = await tx<{ token_hash: string }[]>`
         UPDATE mfa_preauth_challenges SET consumed_at = now()
         WHERE token_hash = ${input.tokenHash} AND user_id = ${input.userId}
-          AND consumed_at IS NULL AND expires_at > now() AND attempts < 5
+          AND consumed_at IS NULL AND expires_at > now() AND attempts <= 5
         RETURNING token_hash`;
       if (preauth.length !== 1) throw ROLLBACK_SENTINEL;
       const code = await tx<{ id: string }[]>`

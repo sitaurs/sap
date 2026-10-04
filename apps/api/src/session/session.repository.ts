@@ -121,4 +121,38 @@ export class SessionRepository {
   async deleteAllForUserExcept(userId: string, keepTokenHash: string): Promise<void> {
     await this.sql`DELETE FROM sessions WHERE user_id = ${userId} AND token_hash <> ${keepTokenHash}`;
   }
+
+  /**
+   * Change a password and revoke other devices in one PostgreSQL transaction.
+   * Lock order (user, then session) matches the account/MFA session flows. The
+   * current session must still be live; otherwise no password change is made.
+   */
+  async changePasswordAndRevokeOthers(input: {
+    userId: string;
+    keepTokenHash: string;
+    passwordHash: string;
+  }): Promise<boolean> {
+    return this.sql.begin(async (tx) => {
+      const users = await tx<{ id: string }[]>`
+        SELECT id FROM users WHERE id = ${input.userId} AND deleted_at IS NULL FOR UPDATE`;
+      if (users.length !== 1) return false;
+
+      const currentSessions = await tx<{ id: string }[]>`
+        SELECT id FROM sessions
+        WHERE user_id = ${input.userId} AND token_hash = ${input.keepTokenHash}
+          AND expires_at > clock_timestamp()
+        FOR UPDATE`;
+      if (currentSessions.length !== 1) return false;
+
+      const updatedUsers = await tx<{ id: string }[]>`
+        UPDATE users SET password_hash = ${input.passwordHash}, updated_at = now()
+        WHERE id = ${input.userId} AND deleted_at IS NULL
+        RETURNING id`;
+      if (updatedUsers.length !== 1) return false;
+
+      await tx`
+        DELETE FROM sessions WHERE user_id = ${input.userId} AND token_hash <> ${input.keepTokenHash}`;
+      return true;
+    });
+  }
 }
