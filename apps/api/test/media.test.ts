@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import sharp from 'sharp';
+import sharp, { type Sharp } from 'sharp';
 import type { HttpException } from '@nestjs/common';
 import { ImageProcessorService, MAX_UPLOAD_BYTES } from '../src/media/image-processor.service.js';
 import { MediaService } from '../src/media/media.service.js';
@@ -12,7 +12,7 @@ function errorCode(error: unknown): string {
   return typeof body === 'object' && body !== null ? (body as { code?: string }).code ?? '' : '';
 }
 
-const solid = (extra: (s: sharp.Sharp) => sharp.Sharp = (s) => s) =>
+const solid = (extra: (s: Sharp) => Sharp = (s) => s) =>
   extra(sharp({ create: { width: 16, height: 16, channels: 3, background: { r: 12, g: 200, b: 90 } } }));
 
 test('ImageProcessor accepts PNG and returns a stripped, re-encoded buffer', async () => {

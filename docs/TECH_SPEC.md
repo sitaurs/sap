@@ -13,7 +13,7 @@ v1.0 · Keputusan stack untuk tim frontend/backend terpisah.
 | Data | Neon PostgreSQL + PostGIS; Drizzle ORM + SQL migrations | Transaksi ledger dan query/index geospasial |
 | Jobs | Upstash Redis native TLS (`rediss://`) + BullMQ, worker Node | ML, cleanup dan agregasi tidak menahan request; Redis bukan source of truth |
 | Media | Cloudflare R2 private melalui S3-compatible API | Foto tidak menjadi base64 di database atau objek publik |
-| Email | SMTP managed | OTP/recovery server-to-server |
+| Email | Resend HTTPS API | OTP/recovery server-to-server; API key tetap di backend |
 | ML | `@gradio/client` ke layanan Gradio self-hosted configurable | Mengisolasi protokol provider tanpa mengganti model EcoLens |
 | Kontrak/uji | OpenAPI 3.1; openapi-typescript + openapi-fetch; Vitest/Jest, Playwright, MSW | Shared schema, generated client dan mock |
 
@@ -28,7 +28,7 @@ flowchart TD
   P --> A["NestJS /api/v1"]
   A --> D["Neon PostgreSQL + PostGIS"]
   A --> S["Cloudflare R2 private / S3 API"]
-  A --> E["Managed SMTP"]
+  A --> E["Resend HTTPS API"]
   A --> Q["Upstash Redis TLS / BullMQ"]
   Q --> J["Worker Node"]
   J --> G["EcoLens ML / Gradio self-hosted VPS"]
@@ -36,7 +36,7 @@ flowchart TD
   J --> S
 ```
 
-Neon, Upstash, R2 dan SMTP berada di luar private network VPS. Semua koneksi wajib TLS, timeout, retry terbatas, credential terpisah per environment dan observability. Frontend tidak menyimpan secret atau memanggil Gradio langsung.
+Neon, Upstash, R2 dan Resend berada di luar private network VPS. Semua koneksi wajib TLS, timeout, retry terbatas, credential terpisah per environment dan observability. Frontend tidak menyimpan secret atau memanggil Gradio langsung.
 
 API memvalidasi session/owner media dan membuat scan+outbox dalam transaksi. Dispatcher memasukkan job BullMQ dengan ID scan deterministik. Worker membaca media tervalidasi dari R2, memanggil Gradio, lalu menulis hasil+ledger atomik dan menandai outbox processed. Retry/crash tidak boleh menggandakan event.
 
@@ -86,6 +86,6 @@ Status layanan ada di [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md).
 
 ## 7. Development dan rujukan
 
-Development default memakai Neon, Upstash, R2, SMTP dan Gradio remote khusus development; emulator/container lokal opsional. Dev/staging/production wajib memakai resource dan credential berbeda.
+Development default memakai Neon, Upstash, R2, Resend dan Gradio remote khusus development; emulator/container lokal opsional. Dev/staging/production wajib memakai resource dan credential berbeda.
 
 [NestJS OpenAPI](https://docs.nestjs.com/openapi/introduction), [OpenAPI TypeScript](https://openapi-ts.dev/introduction), [Gradio JS client](https://www.gradio.app/main/docs/js-client), dan [MapLibre](https://maplibre.org/maplibre-gl-js/docs/) menjadi rujukan implementasi.

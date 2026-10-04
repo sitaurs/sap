@@ -18,7 +18,7 @@
     "h3-js": "^4.5.0",
     "ioredis": "^5.8.1",
     "postgres": "^3.4.9",
-    "sharp": "^0.34.5"
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "tsx": "^4.20.6"

@@ -2,7 +2,7 @@
 
 Paket spesifikasi v1.0 · 24 September 2026 · Bahasa produk: Indonesia
 
-**Pembaruan 3 Oktober 2026:** paket di bawah adalah baseline produk. Untuk extension komunitas, relawan, Hermes, dan Instagram R1, mulai dari [kontrak Zaka–Zamani](CONTRACT_ZAKA_ZAMANI.md) dan [rencana backend](BACKEND_EXECUTION_PLAN.md), lalu kedua [riset](research/2026-10-03-community-volunteers-hermes-ux.md). Baseline sudah mempunyai implementasi di repository; endpoint extension baru masih berupa rencana. Zaka bebas menentukan desain/layout extension, sementara fungsi dan perilaku mengikuti kontrak bersama.
+**Pembaruan 4 Oktober 2026:** dokumen ini mencakup baseline produk dan extension komunitas, relawan, Hermes, dan Instagram R1. Baseline serta banyak handler extension telah diimplementasikan di repository. Kontrak extension `1.2.0` masih draft, beberapa provider belum siap, frontend extension belum seluruhnya terintegrasi, dan release gate belum lulus. Baca [status implementasi backend](BACKEND_IMPLEMENTATION_STATUS.md) sebelum menganggap fitur aktif sebagai rilis siap. Untuk extension, mulai dari [kontrak Zaka–Zamani](CONTRACT_ZAKA_ZAMANI.md), [rencana backend](BACKEND_EXECUTION_PLAN.md), dan kedua [riset](research/2026-10-03-community-volunteers-hermes-ux.md). Zaka bebas menentukan desain/layout extension, sementara fungsi dan perilaku mengikuti kontrak bersama.
 
 ## Kesepakatan proyek
 
@@ -79,7 +79,7 @@ Checkout lokal `/sap/ecoLens` dan `/sap/ecoLens_ML` bersifat **read-only referen
 
 ## Keputusan yang belum membutuhkan jawaban sekarang
 
-Domain publik, penyedia hosting/tiles/SMTP, kota cakupan awal, akun admin produksi dan kebijakan retensi final ditetapkan pada setup. Baseline teknis rinci sudah diberikan agar pekerjaan dapat dimulai. Endpoint, Basic Auth, discovery API, upload, dan inferensi dasar Gradio self-hosted sudah diverifikasi; matriks 10 kelas, kondisi model terdegradasi, serta benchmark cold/warm masih harus diselesaikan. Status layanan selengkapnya dicatat di [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md).
+Domain publik, penyedia hosting/tiles/email, kota cakupan awal, akun admin produksi dan kebijakan retensi final ditetapkan pada setup. Baseline teknis rinci sudah diberikan agar pekerjaan dapat dimulai. Endpoint, Basic Auth, discovery API, upload, dan inferensi dasar Gradio self-hosted sudah diverifikasi; matriks 10 kelas, kondisi model terdegradasi, serta benchmark cold/warm masih harus diselesaikan. Status layanan selengkapnya dicatat di [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md).
 
 ## Serah terima
 

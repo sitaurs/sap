@@ -15,7 +15,7 @@ v1.0 · Checkbox hanya ditandai bila ada bukti aktual; dokumen/kontrak bukan buk
 - [ ] C-03 BOTH — Bootstrap checkout bersih repo `sitaurs/sap`, monorepo, lockfile, generated client, MSW dan CI kontrak; `ecoLens`/`ecoLens_ML` tidak ikut repo. Selesai jika perubahan field yang disengaja membuat gate gagal. SetelahC-01.
   - [ ] Sebelum coding auth, dokumentasikan response `Set-Cookie` untuk `sap_csrf`, `sap_session`, dan `sap_deletion` di OpenAPI; regenerasi dan validasi client contract.
 - [ ] C-04 BOTH — Buat staging origin tunggal dan akun tes; FE memanggil API tanpa CORS/cookie mismatch. SetelahC-03,B-01.
-- [ ] C-05 BE — Tutup external readiness: koneksi Neon pooled/direct dari runtime target, BullMQ/reconnect/replay outbox, R2 presigned lifecycle, SMTP delivery, dan model-aware readiness; perbarui ENVIRONMENT_READINESS tanpa secret. SetelahC-03.
+- [ ] C-05 BE — Tutup external readiness: koneksi Neon pooled/direct dari runtime target, BullMQ/reconnect/replay outbox, R2 presigned lifecycle, Resend delivery, dan model-aware readiness; perbarui ENVIRONMENT_READINESS tanpa secret. SetelahC-03.
 
 ## UI/UX dan frontend — Zaka
 

@@ -1,18 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { getConfig } from '@sap/config';
-import type { Transporter } from 'nodemailer';
 
 /**
- * SMTP mailer for transactional auth email (OTP codes). The transport is created
- * lazily on first send — never at construction — so importing this provider does
- * not open a socket and offline `npm run check` stays green. In NODE_ENV=test the
- * transport is stubbed to a no-op.
+ * Resend HTTPS mailer for transactional auth email (OTP codes). Requests are
+ * made only when sending, so importing this provider opens no network connection.
+ * In NODE_ENV=test sends are a no-op.
  */
 @Injectable()
 export class MailerService {
   private readonly config = getConfig();
   private readonly logger = new Logger(MailerService.name);
-  private transporter: Transporter | null = null;
 
   async sendOtp(to: string, code: string, purpose: 'verify_email' | 'reset_password'): Promise<void> {
     const subject = purpose === 'verify_email' ? 'Verifikasi email SAP' : 'Reset kata sandi SAP';
@@ -25,21 +22,20 @@ export class MailerService {
   }
 
   private async send(message: { to: string; subject: string; text: string }): Promise<void> {
-    const transporter = await this.getTransporter();
-    if (!transporter) return;
-    await transporter.sendMail({ from: this.config.MAIL_FROM, ...message });
-  }
-
-  private async getTransporter(): Promise<Transporter | null> {
-    if (this.config.NODE_ENV === 'test') return null;
-    if (this.transporter) return this.transporter;
-    const { createTransport } = await import('nodemailer');
-    this.transporter = createTransport({
-      host: this.config.SMTP_HOST,
-      port: this.config.SMTP_PORT,
-      secure: this.config.SMTP_PORT === 465,
-      auth: { user: this.config.SMTP_USER, pass: this.config.SMTP_PASSWORD },
+    if (this.config.NODE_ENV === 'test') return;
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.config.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from: this.config.MAIL_FROM, ...message }),
+      signal: AbortSignal.timeout(10_000),
     });
-    return this.transporter;
+    await response.arrayBuffer();
+    if (!response.ok) {
+      this.logger.error(`Resend rejected an email request (HTTP ${response.status})`);
+      throw new Error(`Email provider rejected the request (HTTP ${response.status})`);
+    }
   }
 }

@@ -75,8 +75,8 @@ Frontend menerima fixture dulu dan endpoint staging bertahap. Fitur belum selesa
 
 ## Deliverable frontend
 
-Base URL staging; version/commit kontrak; generated client; akun dev via kanal aman; fixture semua state; endpoint ready; cara CSRF; contoh error; batas field publik. Credential SMTP, Neon, Upstash, R2, ML dan application secret tidak masuk browser, docs atau chat.
+Base URL staging; version/commit kontrak; generated client; akun dev via kanal aman; fixture semua state; endpoint ready; cara CSRF; contoh error; batas field publik. Credential email Resend, Neon, Upstash, R2, ML dan application secret tidak masuk browser, docs atau chat.
 
 ## Readiness awal
 
-Layanan telah diuji pada tingkat berbeda; path aplikasi penuh masih sebagian pending. Neon SQL Editor/PostGIS berhasil tetapi pooled/direct dari runtime VPS masih perlu dibuktikan. SMTP TLS/auth belum membuktikan deliverability. ML discovery/inferensi dasar belum menggantikan matriks kelas, degraded-model test dan benchmark. Gunakan [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md) sebagai status resmi.
+Layanan telah diuji pada tingkat berbeda; path aplikasi penuh masih sebagian pending. Neon SQL Editor/PostGIS berhasil tetapi pooled/direct dari runtime VPS masih perlu dibuktikan. Resend API key tersedia belum membuktikan deliverability. ML discovery/inferensi dasar belum menggantikan matriks kelas, degraded-model test dan benchmark. Gunakan [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md) sebagai status resmi.

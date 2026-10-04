@@ -1,0 +1,35 @@
+[Unit]
+Description=Private SAP Hermes evidence reviewer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sap-hermes-review
+Group=sap-hermes-review
+WorkingDirectory=/opt/sap/hermes-review
+EnvironmentFile=/etc/sap/hermes-review.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+Environment=HOME=/tmp
+ExecStart=/usr/local/lib/hermes-agent/venv/bin/python /opt/sap/hermes-review/server.py
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=15s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/var/lib/sap/hermes-review
+TasksMax=32
+LimitNOFILE=256
+
+[Install]
+WantedBy=multi-user.target

@@ -4,7 +4,7 @@ Implements the private worker transport for `sap-evidence-review-v1`. The servic
 
 ## Runtime preparation
 
-Use [the official source environment workflow](https://hermes-agent.nousresearch.com/docs/guides/python-library). Clone the official repository into a dedicated service checkout and check out **`bd0affe5e5f723579df8902852f5d0c47795f355`**. Prepare its source environment according to that pinned checkout's instructions. The service refuses a checkout containing `.env`, because the SDK loads that file implicitly; supply the documented model settings through the isolated service environment. No provider call or installation was performed as part of implementing this service.
+Use [the official source environment workflow](https://hermes-agent.nousresearch.com/docs/guides/python-library). The tested Hermes source revision is **`63279301bcbdc185c1b07b98a9312eb0c862f26d`**, matching the Hermes runtime already installed on the VPS. The service refuses a checkout containing `.env`, because the SDK loads that file implicitly; supply model settings through the isolated service environment. The tested provider is the existing 9Router OpenAI-compatible endpoint, using provider `custom` and model id `combo-hermes`.
 
 Required service environment:
 
@@ -15,13 +15,13 @@ Required service environment:
 | `HERMES_REVIEW_SECRET` | Server/worker shared random secret, at least 32 characters |
 | `HERMES_MODEL_VERSION` | Exact provider model identifier, matching SAP worker config |
 | `HERMES_PROVIDER_API_KEY` | Provider credential, available only to the reviewer service |
-| `HERMES_PROVIDER` | Provider name; default `openrouter` |
-| `HERMES_PROVIDER_BASE_URL` | Optional explicitly configured provider base URL |
+| `HERMES_PROVIDER` | Provider name; `custom` for the OpenAI-compatible 9Router endpoint |
+| `HERMES_PROVIDER_BASE_URL` | Required private OpenAI-compatible provider base URL ending in `/v1` |
 | `HERMES_INPUT_USD_PER_MILLION` | Operator-reviewed upper bound on this model's input/image/cache/reasoning cost |
 | `HERMES_OUTPUT_USD_PER_MILLION` | Operator-reviewed upper bound on output cost |
 | `SAP_HERMES_BIND`, `SAP_HERMES_PORT` | Default `127.0.0.1:8092`; private network only |
 
-Run `python /absolute/path/to/sap-run/services/hermes-review/server.py` using the activated Hermes interpreter. `/health` reports pin/policy/tool configuration; it does not prove provider readiness. Connect worker `HERMES_REVIEW_URL` to the private origin and configure the same secret/model/policy. Enable the SAP master and Hermes flags only after provider/model, pricing bounds, data handling and evidence pilot have been reviewed. There is no browser-facing Hermes endpoint.
+Run `python /absolute/path/to/sap-run/services/hermes-review/server.py` using the tested Hermes interpreter. `/health` queries the configured provider's `/models` endpoint and returns ready only when the pinned model id is present. Keep the service bound to a Docker bridge address reachable by the SAP worker; do not expose it publicly. Connect worker `HERMES_REVIEW_URL` to that private address and set the matching model id. The SAP master and Hermes flags may be enabled only while this model-aware check passes. There is no browser-facing Hermes endpoint.
 
 ## Resource and privacy rules
 
@@ -35,4 +35,4 @@ Run `python /absolute/path/to/sap-run/services/hermes-review/server.py` using th
 
 ## Integration limitations
 
-The checked-in Python source has been syntax reviewed, but the pinned Hermes environment/provider has not been installed or invoked. The runtime requires an operator-provided credential and measured model/pricing setup. Images exceeding conservative admission limits deliberately fall back to humans. Updating Hermes requires explicitly reviewing internal persistence/retry fields and updating the pin; startup refuses a different checkout revision.
+An actual provider call was made through the installed Hermes SDK using a synthetic image and the existing 9Router model. The result passed the structured schema and used 4,649 input and 623 output tokens; it remained a `human_review` recommendation. The service still refuses another Hermes source revision. The selected combo can fall back across configured models, so provider-account billing remains the source of truth; SAP reserves a conservative per-run cap and a daily cap, and never lets Hermes decide or publish automatically.

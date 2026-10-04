@@ -1,6 +1,6 @@
 # TEST_PLAN — Verifikasi SAP
 
-v1.0 · Paket ini mendefinisikan pengujian; aplikasi belum diimplementasikan. Fixtures sintetis bukan bukti akurasi model atau kejadian nyata.
+v1.0 · Paket ini mendefinisikan acceptance SAP. Aplikasi kini memiliki implementasi backend/frontend dan automated unit/contract checks, tetapi suite ini belum seluruhnya lulus sebagai integration/E2E release evidence. Fixtures sintetis bukan bukti akurasi model atau kejadian nyata. Status pemeriksaan terbaru ada di [BACKEND_IMPLEMENTATION_STATUS.md](BACKEND_IMPLEMENTATION_STATUS.md).
 
 ## 1. Tingkat pengujian
 

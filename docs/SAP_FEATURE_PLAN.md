@@ -8,9 +8,9 @@
 
 ## 1. Executive summary
 
-1. **SAPA (flagship):** Current implementation is a single-call, read-only FAQ assistant; it has no agent tool registry or execution loop. Evolve it into a **bounded, read-only agentic assistant** built on **LangGraph** (its 1.x runtime, via `create_agent`), keeping our OpenAI-compatible gateway through LangChain's `ChatOpenAI` with a custom `baseURL`. Ship in three layers: (a) a **hybrid cited-retrieval** knowledge baseline (PostgreSQL `pgvector` + full-text with an Indonesian stop-list, fused with RRF); (b) a small catalog of **~8 read-only, account-scoped tools** whose identity/scope is enforced in server code, never by the model; (c) LangGraph orchestration for durable conversation state, streaming, and human-in-the-loop slots. Keep the simple FAQ answer path near-direct (do not route trivial lookups through the full agent). All existing guardrails (feature flag, per-account opt-in, rate limit, ownership) wrap the graph rather than being replaced by it. **Decision reversed from the earlier baseline:** LangChain/LangGraph is now adopted deliberately and selectively — see §5 (SAPA-RAG and SAPA-R5) and §17.
-2. **Account settings:** Improve profile/security controls with an authenticated password-change flow, optional MFA with secure recovery, and a carefully isolated avatar upload lifecycle. Do not collect date of birth without a documented product/legal need.
-3. **Malang map:** Correct the map’s initial location to Malang, but do not manufacture reports to fill it. Obtain genuine, permissioned incident records with usable coordinates, dates, evidence, and provenance; moderate them through the normal workflow. Until then show an honest “Belum ada data” state. For the competition demo, if historical coverage is needed, use a separate, clearly labeled **“Data historis bersumber”** layer sourced from cited public material — never by backdating reports into the live verified pipeline (see Part C section 11).
+1. **SAPA (flagship):** The repository now has a **bounded, read-only LangGraph agent**, a curated tool registry, and hybrid cited retrieval (PostgreSQL `pgvector` + lexical search). These paths have automated tests and the production gateway/corpus has passed provider smoke checks. The Indonesian evaluation set and measured relevance/grounding/abstention results are still release gates; see the current status in [BACKEND_IMPLEMENTATION_STATUS.md](BACKEND_IMPLEMENTATION_STATUS.md).
+2. **Account settings:** Authenticated password change, optional TOTP MFA/recovery, and an isolated avatar upload lifecycle now have implementation and automated tests. Do not collect date of birth without a documented product/legal need; current API/profile does not collect it.
+3. **Malang map:** The default map viewport is centered on Malang. Do not manufacture reports to fill it. Obtain genuine, permissioned incident records with usable coordinates, dates, evidence, and provenance; moderate them through the normal workflow. Until then show an honest “Belum ada data” state. For the competition demo, if historical coverage is needed, use a separate, clearly labeled **“Data historis bersumber”** layer sourced from cited public material — never by backdating reports into the live verified pipeline (see Part C section 11).
 4. **Loading UX:** Keep explicit form pending states, improve the login-to-dashboard transition and dashboard bootstrap feedback, and use route-level loading UI only where it covers actual navigation waits. Respect reduced motion and accessibility.
 
 No feature may bypass SAP's existing session, CSRF, authorization, privacy, moderation, idempotency, or contract conventions.
@@ -30,9 +30,9 @@ No feature may bypass SAP's existing session, CSRF, authorization, privacy, mode
 - Monorepo with NestJS API, Next.js App Router frontend, BullMQ worker, PostgreSQL/PostGIS, Redis, S3-compatible object storage, OpenAPI contract and fixtures.
 - API uses cookie sessions and CSRF/Origin checks; authorization and ownership belong on the server.
 - OpenAPI is the source of truth for endpoint/payload/status changes; fixtures and generated web types must remain synchronized.
-- SAPA currently uses an OpenAI-compatible adapter, backend-owned prompt/FAQ, and temporary Redis conversation history. It is not currently an agent framework integration. Its existing FAQ matching is simple lexical/token-overlap scoring with page-context boost — no vector search or embedding index — which is a usable starting point for the thin cited retrieval baseline described in SAPA-RAG.
-- Existing auth supports email verification and email-OTP password recovery. Login is password-only; recovery OTP is not MFA. Profile currently supports display name and email projection, with no avatar, birth date, in-session password change, or MFA lifecycle.
-- Existing map aggregation accepts a viewport and shows H3 cells computed from eligible reports. Current map and report-location fallback coordinates are around Bandar Lampung, not Malang.
+- SAPA uses an OpenAI-compatible provider, curated help corpus, hybrid retrieval, and a bounded LangGraph tool path. Conversation history remains user-scoped temporary Redis history; there is no durable LangGraph checkpointer or streaming/HITL workflow. Retrieval evaluation and a measured abstention threshold remain pending.
+- Auth includes email verification/recovery plus password change, optional TOTP MFA/recovery, and avatar lifecycle. Email recovery OTP is still distinct from MFA. Date of birth is not collected.
+- Map aggregation accepts a viewport and shows H3 cells computed from eligible reports. The default map viewport is now Malang. No synthetic incident data is inserted into production to fill empty map areas.
 - Login submit already has a pending button label and dashboard bootstrap already has a branded full-screen waiting state; the goal is to improve and make behavior coherent, not to assume loading is wholly absent.
 
 ## 3. Shared implementation principles
@@ -51,16 +51,14 @@ No feature may bypass SAP's existing session, CSRF, authorization, privacy, mode
 
 ## 4. Current behavior and verified gaps
 
-Current request flow: authenticated `POST /assistant/chat` → controller/service checks feature flag, user preference, message/page context, rate limit, conversation ownership → FAQ retrieval → OpenAI-compatible provider → validated response → Redis conversation storage. Conversation keys are user-scoped, have a 30-minute TTL, and retain at most 12 messages. The existing chat contract is already present in OpenAPI; older statements in `SAPA_ASSISTANT.md` that routes are absent/proposals need reconciliation when implementation work begins.
+Current request flow: authenticated `POST /assistant/chat` checks the global feature flag, per-user preference, request bounds, rate limit, conversation ownership, retrieves curated context, and routes eligible turns through the read-only LangGraph tool executor; other turns use the direct provider path. Validated responses and bounded user-scoped history are stored in Redis. The current suite exercises retrieval fallback, citations, allowed tools, budgets, and ownership boundaries.
 
-Verified planning concerns:
+Release gaps verified against this repository:
 
-- SAPA is a single-call FAQ assistant today: no tool registry or tool loop exists.
-- Active prompt language permits some general-knowledge answers, while documentation says answer only from supplied context. Decide and enforce one grounding policy.
-- Provider failure/invalid output currently yields `503`; a declared fallback constant is not used in the service path. Decide whether deterministic FAQ fallback is required and test it.
-- User text and rendered FAQ context are sent together in a user-role message in the current provider path. Preserve the untrusted-data boundary and test prompt-injection behavior before changing prompt composition.
-- Existing Redis rate limit increments and expiry handling should be reviewed for atomicity before introducing retries or multiple model/tool iterations. Duplicate/concurrent turns can also incur provider cost or race transcript updates.
-- No streaming/progress/approval protocol exists in the current UI/API. Do not imply these capabilities without contract and UI work.
+- No versioned Indonesian retrieval/answer evaluation set or measured Recall@k/MRR, groundedness, citation quality, and abstention results were found. The plan requires those before declaring SAPA-RAG accepted.
+- Hybrid retrieval falls back to the curated in-memory corpus when database/embedding retrieval fails; there is not yet measured evidence that the production corpus meets an answerability threshold.
+- Conversation state remains temporary Redis history; durable checkpoint/resume, streaming and HITL are not implemented. Checkpoint/HITL are optional unless a concrete workflow is approved.
+- The full authenticated browser-to-API conversation path and provider outage behavior have not been verified end-to-end in an isolated environment.
 
 ## 5. Requirements
 
@@ -210,7 +208,7 @@ Eligibility and policy:
 - On success update password hash, rotate/revoke sessions per explicit rule, notify through verified email, and return a clear UI outcome.
 - Proposed default: revoke all other active sessions and rotate the current session; test reset-password behavior remains distinct and continues to revoke sessions as designed.
 - Generic-safe failures should not disclose account existence; never log password values.
-- **Concrete choices (OWASP ASVS 5.0 / Top 10:2025):** hash with **Argon2id** (`argon2` npm package; ≥19 MiB memory, 2 iterations, parallelism 1). bcrypt is legacy-only (cost ≥12, 72-byte cap); if SAP already stores bcrypt, opportunistically re-hash to Argon2id on next successful login. Do **not** force periodic rotation — only on suspected breach. Validate the new password against breached-credential lists via the **HaveIBeenPwned k-anonymity range API** (never sends the full password) or at minimum a local top-10k list. Revoking other sessions is the single most important post-change control; use SAP's Redis session store to delete all of the user's session keys except the current one, and rotate the current session id. Notify via SMTP (ASVS §6.3.7); the email discloses that a change happened, never the password. Plan the email-change flow together (dual-email: notify old address, confirm new via time-limited nonce, store new as pending).
+- **Concrete choices (OWASP ASVS 5.0 / Top 10:2025):** hash with **Argon2id** (`argon2` npm package; ≥19 MiB memory, 2 iterations, parallelism 1). bcrypt is legacy-only (cost ≥12, 72-byte cap); if SAP already stores bcrypt, opportunistically re-hash to Argon2id on next successful login. Do **not** force periodic rotation — only on suspected breach. Validate the new password against breached-credential lists via the **HaveIBeenPwned k-anonymity range API** (never sends the full password) or at minimum a local top-10k list. Revoking other sessions is the single most important post-change control; use SAP's Redis session store to delete all of the user's session keys except the current one, and rotate the current session id. Notify through the configured transactional email provider (ASVS §6.3.7); the email discloses that a change happened, never the password. Plan the email-change flow together (dual-email: notify old address, confirm new via time-limited nonce, store new as pending).
 
 ### ACCOUNT-R3 — MFA
 

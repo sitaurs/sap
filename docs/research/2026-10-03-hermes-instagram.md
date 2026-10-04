@@ -257,9 +257,11 @@ Sumber: [Meta — Instagram Media](https://developers.facebook.com/documentation
 | Host utama | `graph.instagram.com` | `graph.facebook.com` |
 | Scope publish | `instagram_business_basic`, `instagram_business_content_publish` | `instagram_basic`, `instagram_content_publish`, izin Page sesuai operasi |
 | Hapus media kebutuhan SAP | Tidak didukung pada referensi delete yang dibaca | Didukung dengan izin tambahan di §5.1 |
-| Rekomendasi | Bila kebutuhan hanya publish tanpa delete | **Dipilih untuk rancangan SAP ini** |
+| Rekomendasi awal riset | Bila kebutuhan hanya publish tanpa delete | **Dipilih untuk rancangan SAP ini** |
 
-Dua konfigurasi, jenis akun, keterkaitan Page, serta perbedaan akses dijelaskan oleh [Meta — Overview](https://developers.facebook.com/documentation/instagram-platform/overview). Permission publish berasal dari [Meta — Content Publishing](https://developers.facebook.com/documentation/instagram-platform/content-publishing). Rekomendasi pemilihan jalur adalah kesimpulan rancangan SAP dari kebutuhan hapus.
+Dua konfigurasi, jenis akun, keterkaitan Page, serta perbedaan akses dijelaskan oleh [Meta — Overview](https://developers.facebook.com/documentation/instagram-platform/overview). Permission publish berasal dari [Meta — Content Publishing](https://developers.facebook.com/documentation/instagram-platform/content-publishing). Rekomendasi awal pemilihan Facebook Login adalah kesimpulan rancangan SAP dari kebutuhan hapus.
+
+**Riwayat keputusan:** naskah awal tanggal 3 Oktober sempat mengusulkan Instagram Login. Keputusan itu dibatalkan pada 4 Oktober 2026 setelah pemilik aplikasi mengonfirmasi bahwa Facebook Login for Business sudah dikonfigurasi dan akun SAP berhasil tersambung. Jalur implementasi yang berlaku adalah **Facebook Login for Business**; OAuth, penemuan Page/Instagram, dan penghapusan tetap mengikuti backend SAP yang ada.
 
 Permission minimum yang perlu dibuktikan untuk koneksi Facebook SAP: `instagram_basic`, `instagram_content_publish`, `instagram_manage_contents`, serta `pages_show_list`/`pages_read_engagement` untuk discovery dan operasi terkait Page. Jika role melalui Business Manager memerlukan izin tambahan menurut endpoint, verifikasi pada konfigurasi akun aktual. Jangan meminta ads/messages/comments permissions hanya karena tersedia.
 
@@ -317,6 +319,52 @@ Guide Content Publishing memuat angka 100 API-published posts per rolling 24 jam
 | Hapus saat token revoked | Perlu reconnect atau tindakan pemilik akun; status tetap menunggu penanganan |
 
 Full control berarti semua tindakan yang SAP dukung mempunyai kontrol, status, alasan, audit, dan pemulihan kegagalan. UI tidak boleh menunjukkan “terhapus di Instagram” hanya karena row lokal disembunyikan.
+
+### 5.7 Catatan historis: persiapan Instagram Login
+
+> Bagian ini adalah riset alternatif yang tidak berlaku untuk konfigurasi saat ini. Pemilik aplikasi memilih Facebook Login for Business pada 4 Oktober 2026; jangan ikuti langkah atau ganti env di bagian ini untuk deployment SAP.
+
+Meta mendukung Instagram Login untuk akun professional Business atau Creator tanpa Facebook Page yang tertaut. Scope minimum untuk profil dan publishing adalah `instagram_business_basic` dan `instagram_business_content_publish`. Jangan meminta izin komentar, pesan, insights, atau iklan untuk kebutuhan publish saja. [Koleksi API Instagram Login resmi Meta](https://www.postman.com/meta/instagram/folder/6raa77c/instagram-api-with-instagram-login).
+
+#### Nilai yang perlu diambil
+
+| Nilai untuk backend Instagram Login | Cara mendapatkannya | Keterangan |
+| --- | --- | --- |
+| Instagram App ID | **My Apps → pilih app SAP → Use cases → Customize → Instagram API → API setup with Instagram login**; salin **Instagram app ID**. | Bisa berbeda dari Facebook/Meta App ID yang tampak di URL dashboard. Itu tidak otomatis berarti aplikasinya berbeda; pakai ID yang berlabel **Instagram app ID** untuk Instagram OAuth. |
+| Instagram App Secret | Di halaman yang sama, klik **Show** di **Instagram app secret**, lalu simpan langsung ke secret manager VPS. | Rahasia server. Jangan kirim lewat chat atau commit ke repo. |
+| OAuth redirect URI | Gunakan URL HTTPS publik untuk route callback yang benar-benar akan diterapkan SAP; daftarkan persis di **API setup with Instagram login → Set up Instagram business login → Set up → Business login settings → Valid OAuth Redirect URIs**. | Kandidat dari route API saat ini: `https://<host-publik-SAP>/api/v1/admin/instagram/account/callback`. Backend belum dimigrasikan, jadi konfirmasi ulang route sebelum menyimpan di Meta. Jangan masukkan ke Facebook Login settings atau Webhooks. |
+| Graph API version | Ditentukan oleh implementasi backend dan versi yang masih didukung Meta. | Bukan nilai yang disalin dari halaman token. Tetapkan saat perubahan backend, bukan sekarang. |
+| Encryption key | Jika belum ada: `openssl rand -hex 32`. | Env sekarang bernama `META_CREDENTIAL_KEY`. Pertahankan key existing jika sudah ada token terenkripsi di database; rotasi perlu migrasi atau reconnect. |
+| Public media origin | Host HTTPS publik SAP yang menyajikan media publik yang sudah disetujui untuk diambil Meta. | Ini nilai deployment SAP, bukan credential yang dikeluarkan Meta. Pada repo, `META_MEDIA_DELIVERY_ORIGIN` ada di validator env tetapi saat ini tidak ditemukan pemakaiannya di kode publication; tinjau sebagai bagian migrasi. |
+
+Token hasil tombol **Generate token** digunakan untuk pengujian manual saja, bukan env produksi. Koneksi normal dimulai dari tombol Hubungkan Instagram di SAP: backend menerima OAuth code sementara, menukarnya menjadi token, memvalidasi akun/izin, lalu menyimpan token terenkripsi di database. Jangan membuat env `INSTAGRAM_ACCESS_TOKEN` untuk alur ini.
+
+#### Langkah dashboard
+
+1. Buka **My Apps** dan pilih aplikasi SAP yang dimaksud.
+2. Buka **Use cases → Customize → Instagram API → API setup with Instagram login**. Ini berbeda dari **Facebook Login for Business → Settings** pada screenshot yang dikirim; jangan mengisi Valid OAuth Redirect URI di halaman Facebook itu untuk alur Instagram Login.
+3. Pastikan izin `instagram_business_basic` dan `instagram_business_content_publish` tersedia untuk pengujian akun professional SAP.
+4. Ambil **Instagram app ID** dan **Instagram app secret** seperti tabel di atas.
+5. Buka **Set up Instagram business login → Set up → Business login settings**. Tambahkan callback SAP yang sudah disepakati dan dijalankan backend ke **Valid OAuth Redirect URIs**, lalu simpan. URI harus sama persis (HTTPS, host, path, dan slash).
+6. **Generate token** boleh dipakai untuk smoke check manual, tetapi jangan ditempel ke env. Untuk produksi/test dashboard gunakan alur OAuth SAP setelah backend dimigrasikan.
+7. Webhooks tidak dibutuhkan hanya untuk menerbitkan post. Jika Business Login settings meminta **Deauthorize callback URL** atau **Data Deletion Request URL**, keduanya harus menunjuk endpoint SAP yang benar-benar menangani permintaan itu; jangan isi dengan URI OAuth atau webhook secara asal. Repo belum memiliki handler Meta khusus yang terverifikasi untuk nilai tersebut.
+
+#### Pemetaan env usulan setelah migrasi
+
+Nama berikut adalah rancangan env yang menghindari tertukarnya Facebook App ID dengan Instagram App ID. **Belum diterima oleh kode saat ini; jangan ubah env VPS sekarang.**
+
+```dotenv
+META_IG_APP_ID=                 # Instagram app ID dari API setup with Instagram login
+META_IG_APP_SECRET=             # Instagram app secret; rahasia server
+META_IG_REDIRECT_URI=           # URL HTTPS callback persis seperti yang didaftarkan ke Meta
+META_GRAPH_VERSION=             # Versi Graph API yang dipatok oleh implementasi
+META_CREDENTIAL_KEY=            # 64 karakter hex; pertahankan key existing bila sudah dipakai
+META_MEDIA_DELIVERY_ORIGIN=     # Host HTTPS publik SAP untuk media; tinjau pemakaian di kode
+```
+
+`META_LOGIN_CONFIG_ID` dan `META_PAGE_ID` saat ini khusus untuk Facebook Login path sehingga tidak dibutuhkan oleh Instagram Login. Backend sekarang membangun `facebook.com/dialog/oauth`, meminta `config_id`, mencari akun via `/me/accounts`, mengharuskan scope Facebook, dan mengenkripsi pasangan User Token + Page Token. Migrasi harus mengubah OAuth/code exchange, pemanggilan Graph API, izin, pencarian akun, bentuk credential terenkripsi, token expiry/refresh, dan kapabilitas hapus. `META_DELETE_ENABLED` harus tetap `false` untuk Instagram Login sampai ada jalur API delete yang resmi dan teruji.
+
+Jangan isi atau ganti env produksi sebelum perubahan backend dan reconnect flow tersedia. Setelah migrasi, verifikasi koneksi akun Business/Creator, username dan IG user ID, token tersimpan terenkripsi, penerbitan satu post uji, dan status provider. Hapus post melalui dashboard tidak boleh ditampilkan sebagai sukses pada jalur Instagram Login.
 
 ## 6. Penarikan laporan dan postingan: bagian wajib MVP
 

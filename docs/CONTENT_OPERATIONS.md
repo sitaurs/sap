@@ -38,4 +38,4 @@ Sebelum submit, jelaskan moderasi, penggunaan lokasi untuk agregasi, publikasi t
 - [ ] Metode area, periode, asOf dan no-data dijelaskan.
 - [ ] Verify/duplicate/reject/resolve/reopen telah diuji bersama frontend/backend.
 - [ ] Privacy copy, retensi, account deletion, log redaction dan audit berjalan.
-- [ ] SMTP/tiles/Gradio/queue/R2 failure mempunyai runbook dan pemilik.
+- [ ] email/tiles/Gradio/queue/R2 failure mempunyai runbook dan pemilik.

@@ -1,41 +1,35 @@
-# Status implementasi backend Zamani — R1
+# Backend implementation and release status
 
-3 Oktober 2026. Acuan: [kontrak bersama](CONTRACT_ZAKA_ZAMANI.md), [rencana eksekusi](BACKEND_EXECUTION_PLAN.md), [poster Instagram](INSTAGRAM_POST_DESIGN.md).
+Checked 4 October 2026. This report covers the baseline backend, the documented SAPA/account releases, and the Community, Activities, Volunteers, Hermes, and Instagram extension. It distinguishes code/configuration from verified end-to-end behavior. **The backend is not yet production-certified.**
 
-## Kode yang tersedia
+## Current status by release area
 
-| Bagian | Implementasi |
-| --- | --- |
-| Fondasi | Migration 0011–0016, transaksi idempotent, revisi, audit, guard, upload pending sebelum penyimpanan objek |
-| Kejadian/komunitas | Public projection/timeline, support/follow, update bukti dan keputusan moderator, lifecycle/claim resolusi |
-| Review Hermes | Snapshot privat, dedup intent otomatis, hasil tervalidasi, biaya/timeout, service Python terisolasi, fallback antrean manusia |
-| Relawan/dampak | Kegiatan, acceptance koordinator, membership/slot/ack jadwal/attendance, hasil/measurement, koreksi, agregat dan notifikasi |
-| Bukti | Consent pemilik per kanal, rendition/redaksi, approval, private URL sesuai relasi |
-| Instagram | OAuth terikat sesi, token terenkripsi, draf/preview/approval, intent publish/retract/disconnect, status needs_action saat hasil tidak pasti |
-| Poster | Template referensi v2, foto bukti approved, peta jalan/sungai/geografi OSM nyata, area H3 publik, snapshot/version/metadata dan atribusi |
-| Worker | Antrean review/render/publish/retract/domain terpisah, lease, business acknowledgement, rekonstruksi intent dari SQL, log metrik antrean/operasi berkala dan pemakaian Hermes tervalidasi |
-| Cleanup | Penghapusan akun dan objek, inventory poster, tugas cleanup berjejak, anonimisasi statistik, perlindungan bukti aktif |
-| Handoff Zaka | [OpenAPI/fixture/readiness draft](../contracts/r1/README.md), generator dari kontrak MD dan source handler |
+| Area | What is implemented and observed | What is still needed for production acceptance |
+| --- | --- | --- |
+| Baseline SAP: auth, scan, reports, moderation, map, media, gamification, operations | Code and automated tests are present. Current production API, web, worker, PostgreSQL, and Redis are running. | The configured Gradio host is unreachable, so live scan/classification cannot pass. Resend delivery, full R2 upload/delete/restore, account lifecycle, load/security and restore-drill gates remain unverified. |
+| SAPA assistant (R1/R2/R3/R5/RAG) | Bounded, read-only LangGraph assistant and retrieval code/tests exist; prior provider and embedding smoke checks returned valid responses. | No scored Indonesian evaluation set for retrieval/grounding/abstention and no authenticated browser-to-API conversation E2E. Assistant remains read-only as required. |
+| Account (ACCOUNT-R1–R4) | Minimization, password change, TOTP MFA/recovery, avatar and related tests exist; production MFA was previously observed configured. | No live authenticated account lifecycle test in this verification. |
+| Community, volunteers, Activities | Migrations 0011–0016 are applied with matching checksums. Extension, community and activity flags are true. Public activities and impact-summary routes return 200; admin routes reject unauthenticated requests with 401. | No authenticated create/join/participant/result/review lifecycle was exercised on production. Tables had no workflow data in the last observed production snapshot. Frontend handoff and role-specific E2E evidence are still needed. |
+| Hermes assisted review | Private, unprivileged service is installed and enabled. Production worker reaches `/health` with HTTP 200 and the configured `combo-hermes` model; no tools or automated decisions are enabled. A synthetic image completed a real provider call and passed the strict result schema. The synthetic intent row was removed. | The full SAP worker → PostgreSQL review run → human moderation lifecycle was not run. Provider smoke is not evidence that a report review was persisted correctly. |
+| Instagram publishing/retraction | Facebook Login for Business account connection and required publishing scopes were previously verified. Instagram/render/publish/delete feature flags are true. Consent, rendition, approval, retry and durable publish code is present. | There is no production media item with recorded Instagram consent, ready approved rendition and publication approval. Therefore no draft, publish, retract or delete was run; those controls were not bypassed. |
+| API contract and frontend handoff | Published contract is `1.1.0`; extension/R1 draft is `1.2.0`. Route check finds 127 API routes matching 127 draft operations. | Keep `1.2.0` a draft until client adapters, authenticated lifecycle tests and release acceptance are complete. |
 
-“Kode tersedia” bukan bukti integrasi produksi berhasil. Checklist acceptance pada rencana eksekusi tetap menjadi gate rilis; tidak dicentang hanya karena kompilasi berhasil.
+## Verification completed on 4 October 2026
 
-## Pemeriksaan dan batas hasil
+- Local `npm run check` passed: contract lint, 225 Node tests, 5 Hermes Python tests, typechecks, API/worker builds and contract route matching.
+- `npm audit` reports 0 vulnerabilities after updating direct API/worker `sharp` from `0.34.5` to `0.35.5`. The updated package was built and deployed to API and worker; both report runtime `sharp` `0.35.5`. A synthetic PNG decode succeeded in local tests. This update addresses upstream `libvips` advisories: [GitHub advisory GHSA-f88m-g3jw-g9cj](https://github.com/advisories/GHSA-f88m-g3jw-g9cj), [sharp v0.35.5 release](https://github.com/lovell/sharp/releases/tag/v0.35.5).
+- Production containers after deploy: API and worker running; PostgreSQL and Redis healthy; web running. Only API and worker were recreated. No migration or restart of the database, Redis, or web service occurred.
+- Public API probes: `/api/v1/health`, `/api/v1/activities`, and impact summary with RFC3339 date filters returned 200. Unauthenticated admin Activities, review queue, and Instagram routes returned 401.
+- Hermes: synthetic provider request through the deployed private service returned a valid bounded result; worker-to-service health returned 200, matched configured model, and confirmed `tools=[]` and `canAutomate=false`. No real report was submitted to Hermes.
+- ML/Gradio: API-container request to the configured Gradio info endpoint timed out after 10 seconds. The separate model server's SSH connection also timed out; its expected ports were closed or filtered from the API VPS. Scan release tests are blocked by that host being unreachable.
+- Production database and user data were not seeded or edited for tests. The sole synthetic Hermes intent was removed. No email was sent and no Instagram post was created or deleted.
 
-`npm run check` berhasil: typecheck config/API/worker/web; kontrak baseline 43 path, 48 operasi, 45 fixture; 217 test lolos; build API/worker; serta 127 route cocok dengan 127 operasi draft R1 sementara kontrak published tetap 1.1.0. `git diff --check` juga berhasil. Draft R1 berisi 79 operasi tambahan dan 95 contoh DTO sintetis. Test yang tertinggal diselaraskan dengan tabel migration dan cleanup baru.
+## Remaining release blockers
 
-Static review mencakup transaksi, akses bukti per tahap, consent, source revision, lease/recovery, serta approval. Worker kini menyimpan token dan estimasi biaya Hermes yang lolos validasi, lalu mencatat agregat antrean moderasi, backlog/error/latency/biaya, dan ketidakpastian operasi tanpa identitas pengguna atau isi laporan. Migration belum diterapkan ke database; Hermes, Overpass, dan Meta belum dipanggil untuk pemeriksaan integrasi. Poster mengikuti acuan komposisi, memakai foto rendition yang disetujui dan geometri OSM nyata; preview visual dengan foto laporan SAP nyata belum dibuat karena media berizin dan endpoint peta produksi belum tersedia di tugas ini.
+1. **ML service host:** restore access to the configured Gradio machine, then pass model-aware readiness (both checkpoints, valid class outputs, hashes/revision, timeout and degraded-model tests). HTTP reachability alone is insufficient.
+2. **Instagram test asset and lifecycle:** provide an explicitly consented test image or record consent for a synthetic, non-personal test image through the application. Then exercise rendition, human approval, draft, a clearly labeled temporary post, and deletion. Do not fabricate or publish a real-world incident, and do not bypass consent/approval gates.
+3. **Community/volunteer authenticated flows:** run the member/coordinator/admin lifecycle using authorized production test identities and clean up the test records. Public GETs and unit tests do not prove these flows.
+4. **External-service acceptance:** verify transactional email delivery and the complete R2 upload/signed-read/delete lifecycle.
+5. **Operational release gates:** complete restore drill, security and load tests, Indonesian assistant evaluation, and frontend/contract acceptance. Production was used because the owner requested it; no separate staging environment was created.
 
-Semua flag extension, renderer, publisher, dan delete default false. Published OpenAPI/header/frontend existing tetap 1.1.0; kontrak target 1.2.0 hanya draft. Jangan mengaktifkan rilis R1 sebelum handoff frontend, migration, dan readiness/provider selesai.
-
-## Persiapan operator
-
-1. Database PostgreSQL/PostGIS, Redis, dan private object storage memakai konfigurasi server. Backup dan terapkan bundle migration 0011–0016 dengan mekanisme migrator repo; jangan mengubah checksum migration lama.
-2. Hermes: ikuti [runbook service](../services/hermes-review/README.md), checkout pin, credential provider, model vision, volume intent persisten, batas harga/biaya yang sesuai, serta jaringan privat. Secret transport sama pada service dan worker.
-3. Peta: isi `POSTER_OVERPASS_URL` endpoint HTTPS dengan kapasitas yang disiapkan operator, batas request harian dan cache. Folder `apps/worker/assets/fonts` harus ikut deploy worker.
-4. Instagram: akun professional + Page, Meta App/Facebook Login config, scope/token yang sesuai per operasi, domain callback dan delivery HTTPS, kunci enkripsi credential 32 byte, serta admin/moderator. Graph version diisi eksplisit; jangan menaruh secret di frontend atau git.
-5. Siapkan contoh laporan nyata dengan foto milik/izin pelapor, moderator, dan koordinator untuk pilot. Preview harus diperiksa sebelum publish; penarikan harus terbukti dengan akun SAP sebelum kemampuan delete diaktifkan.
-6. Sepakati retensi dan kapasitas operasi. Kirim log `sap_extension_metrics` (setiap 60 detik) ke penyimpanan log terpantau dan pasang alert ambang antrean/lease/failed/needs_action/biaya; log metrik mulai tersedia setelah migration R1 diterapkan. Cost Hermes adalah estimasi layanan, bukan tagihan provider. Pastikan backup restore dan cleanup dipantau. Konfigurasi terisi belum membuktikan readiness.
-
-## Promosi kontrak
-
-Zaka mengubah validator/adapter/frontend berdasarkan draft bersama. Pemeriksaan integrasi dan negative case pada rencana eksekusi harus dilakukan sebelum target 1.2.0 dipromosikan ke published schema/header. Perubahan berikutnya yang diminta push tetap menuju main.
+No percentage or “100% ready” claim is made: the items above have no passing evidence yet. See [environment readiness](ENVIRONMENT_READINESS.md), [test plan](TEST_PLAN.md), and the [backend execution plan](BACKEND_EXECUTION_PLAN.md) for details.

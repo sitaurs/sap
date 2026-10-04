@@ -19,10 +19,12 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
-HERMES_COMMIT = "bd0affe5e5f723579df8902852f5d0c47795f355"
+HERMES_COMMIT = "63279301bcbdc185c1b07b98a9312eb0c862f26d"
 ROOT = Path(__file__).resolve().parent
 REASONS = {"LOCATION_UNCONFIRMED", "TIME_UNCONFIRMED", "POSSIBLE_DUPLICATE", "MORE_EVIDENCE_REQUIRED", "EVIDENCE_CONFLICT", "IMAGE_UNCLEAR", "PUBLIC_PRIVACY_RISK", "NO_NEW_EVIDENCE", "PARTIAL_CLEANUP", "MEASUREMENT_UNCONFIRMED"}
 RESULT_KEYS = {"schemaVersion", "subjectType", "subjectId", "subjectRevision", "sourceReportId", "sourceReportRevision", "snapshotHash", "recommendation", "reasonCodes", "evidence", "duplicateCandidates", "missingEvidence", "publicSummaryProposal", "publicationWarnings"}
@@ -79,6 +81,31 @@ def canonical(value: Any) -> str:
     return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
 
 
+def parse_final_response(value: Any) -> Any:
+    """Extract one bounded JSON object from Hermes' final response."""
+    if not isinstance(value, str) or len(value.encode("utf-8")) > 65536:
+        raise ValueError("HERMES_INVALID_RESPONSE")
+    text = value.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    decoder = json.JSONDecoder()
+    for start, char in enumerate(text):
+        if char != "{":
+            continue
+        try:
+            result, consumed = decoder.raw_decode(text[start:])
+        except json.JSONDecodeError:
+            continue
+        prefix = text[:start].strip().replace("```json", "").replace("```", "").strip()
+        suffix = text[start + consumed:].strip().replace("```", "").strip()
+        if len(prefix) > 160 or len(suffix) > 64 or "{" in prefix or "}" in prefix or "{" in suffix or "}" in suffix:
+            raise ValueError("HERMES_INVALID_RESPONSE")
+        return result
+    raise ValueError("HERMES_INVALID_RESPONSE")
+
+
 def checked_text(value: Any, maximum: int) -> None:
     if not isinstance(value, str) or not 1 <= len(value) <= maximum:
         raise ValueError("HERMES_INVALID_RESPONSE")
@@ -128,7 +155,7 @@ def validate_result(result: Any, request: dict) -> None:
 
 def verify_checkout() -> Path:
     checkout = Path(os.environ["SAP_HERMES_CHECKOUT"]).resolve()
-    revision = subprocess.check_output(["git", "-C", str(checkout), "rev-parse", "HEAD"], text=True, timeout=5).strip()
+    revision = subprocess.check_output(["git", "-c", f"safe.directory={checkout}", "-C", str(checkout), "rev-parse", "HEAD"], text=True, timeout=5).strip()
     if revision != HERMES_COMMIT:
         raise RuntimeError("HERMES_PIN_MISMATCH")
     if (checkout / ".env").exists():
@@ -185,14 +212,15 @@ def infer(request: dict) -> dict:
                         quiet_mode=True, save_trajectories=False, verbose_logging=False, skip_memory=True,
                         skip_context_files=True, skip_background_review=True, load_soul_identity=False,
                         run_budget_seconds=limits["timeoutMs"] / 1000, fallback_model={},
-                        ephemeral_system_prompt=prompt)
+                        ephemeral_system_prompt=prompt,
+                        request_overrides={"response_format": {"type": "json_object"}})
         # These fields are pinned source internals. They disable persistence, retries and implicit tool injection.
         agent._persist_disabled = True
         agent._api_max_retries = 1
         agent.tools = []
         try:
             outcome = agent.run_conversation(user_message=content, system_message=prompt, task_id=request["runId"])
-            result = json.loads(outcome["final_response"])
+            result = parse_final_response(outcome["final_response"])
             actual_input = int(getattr(agent, "session_input_tokens", 0))
             actual_output = int(getattr(agent, "session_output_tokens", 0))
             actual_cost = getattr(agent, "session_estimated_cost_usd", None)
@@ -225,7 +253,23 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/health":
             self.reply(404, {"error": "NOT_FOUND"})
             return
-        self.reply(200, {"ready": True, "hermesCommit": HERMES_COMMIT, "policyVersion": "sap-moderation-r1", "tools": [], "canAutomate": False})
+        try:
+            base_url = os.environ["HERMES_PROVIDER_BASE_URL"].rstrip("/")
+            model = os.environ["HERMES_MODEL_VERSION"]
+            request = urllib.request.Request(
+                base_url + "/models",
+                headers={"Authorization": "Bearer " + os.environ["HERMES_PROVIDER_API_KEY"]},
+            )
+            with urllib.request.urlopen(request, timeout=4) as response:
+                payload = json.loads(response.read(1024 * 1024))
+            models = payload.get("data", []) if isinstance(payload, dict) else []
+            model_ready = any(isinstance(item, dict) and item.get("id") == model for item in models)
+        except (KeyError, OSError, ValueError, TypeError, AttributeError, urllib.error.URLError):
+            model_ready = False
+        status = 200 if model_ready else 503
+        self.reply(status, {"ready": model_ready, "providerReady": model_ready,
+                            "modelVersion": os.environ.get("HERMES_MODEL_VERSION", "unconfigured"),
+                            "hermesCommit": HERMES_COMMIT, "policyVersion": "sap-moderation-r1", "tools": [], "canAutomate": False})
 
     def do_POST(self) -> None:
         secret = os.environ["HERMES_REVIEW_SECRET"]
@@ -284,9 +328,11 @@ def main() -> None:
     verify_checkout()
     if len(os.environ["HERMES_REVIEW_SECRET"]) < 32:
         raise RuntimeError("HERMES_REVIEW_SECRET_TOO_SHORT")
-    for variable in ("HERMES_MODEL_VERSION", "HERMES_PROVIDER_API_KEY", "HERMES_INPUT_USD_PER_MILLION", "HERMES_OUTPUT_USD_PER_MILLION", "SAP_HERMES_INTENT_DB"):
+    for variable in ("HERMES_MODEL_VERSION", "HERMES_PROVIDER_API_KEY", "HERMES_PROVIDER_BASE_URL", "HERMES_INPUT_USD_PER_MILLION", "HERMES_OUTPUT_USD_PER_MILLION", "SAP_HERMES_INTENT_DB"):
         if not os.environ.get(variable):
             raise RuntimeError("Missing configuration: " + variable)
+    sys.path.insert(0, str(Path(os.environ["SAP_HERMES_CHECKOUT"]).resolve()))
+    from run_agent import AIAgent  # noqa: F401 - fail startup if the pinned runtime cannot be imported.
     path = Path(os.environ["SAP_HERMES_INTENT_DB"]).resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(path) as database:

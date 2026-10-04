@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, PayloadTooLargeException, UnprocessableEntityException, UnsupportedMediaTypeException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import sharp from 'sharp';
+import sharp, { type Sharp } from 'sharp';
 
 /** Max upload size on the wire (TECH_SPEC §5: "maksimum 10 MiB"). */
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10_485_760
@@ -102,7 +102,7 @@ export class ImageProcessorService {
     };
   }
 
-  private reencode(pipeline: sharp.Sharp, format: ImageFormat): Promise<Buffer> {
+  private reencode(pipeline: Sharp, format: ImageFormat): Promise<Buffer> {
     switch (format) {
       case 'jpeg':
         return pipeline.jpeg({ quality: 82 }).toBuffer();

@@ -4,11 +4,11 @@ v1.0 · Pemilik API/data/worker: backend; build frontend: frontend. Target awal 
 
 ## 1. Lingkungan dan provider
 
-Default development memakai layanan managed khusus development: Neon PostgreSQL/PostGIS, Upstash Redis native TLS, Cloudflare R2 private via S3 API, managed SMTP, dan Gradio self-hosted di VPS. Emulator/container lokal opsional, bukan syarat bootstrap. Browser memakai Next.js:3000 dan rewrite `/api/v1/*` ke NestJS:3001 bila lokal.
+Default development memakai layanan managed khusus development: Neon PostgreSQL/PostGIS, Upstash Redis native TLS, Cloudflare R2 private via S3 API, Resend HTTPS API, dan Gradio self-hosted di VPS. Emulator/container lokal opsional, bukan syarat bootstrap. Browser memakai Next.js:3000 dan rewrite `/api/v1/*` ke NestJS:3001 bila lokal.
 
-Dev, staging dan production wajib memiliki database, queue, bucket, SMTP credential, ML credential dan application secret terpisah. Jangan mengirim email nyata dari fixture/seed.
+Dev, staging dan production wajib memiliki database, queue, bucket, Resend API key, ML credential dan application secret terpisah. Jangan mengirim email nyata dari fixture/seed.
 
-Produksi: reverse proxy membagi `/api/v1` ke NestJS dan route lain ke Next.js; worker adalah process/container terpisah. Neon, Upstash, R2 dan SMTP berada di luar private network VPS sehingga wajib TLS, timeout, retry terbatas dan monitoring. Cookie host-only dan same-origin API harus konsisten. Rujukan [Next.js rewrites](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites).
+Produksi: reverse proxy membagi `/api/v1` ke NestJS dan route lain ke Next.js; worker adalah process/container terpisah. Neon, Upstash, R2 dan Resend berada di luar private network VPS sehingga wajib TLS, timeout, retry terbatas dan monitoring. Cookie host-only dan same-origin API harus konsisten. Rujukan [Next.js rewrites](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites).
 
 Status aktual ada di [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md); smoke provider tidak menggantikan integration test aplikasi.
 
@@ -23,7 +23,7 @@ Status aktual ada di [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md); smoke
 | `REDIS_URL` | API/worker | Upstash native TLS `rediss://`; bukan REST URL/token |
 | `SESSION_SECRET` | API | Secret signing security/session |
 | `CSRF_SECRET` | API | Secret signed double-submit token |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM` | API/worker | SMTP; credential server-only |
+| `RESEND_API_KEY`, `MAIL_FROM` | API/worker | Resend HTTPS; API key server-only |
 | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | API/worker | R2 private via S3 API |
 | `ML_INFERENCE_URL` | Worker | Base URL Gradio, bukan raw call endpoint |
 | `ML_API_NAME` | Worker | `/predict_gradio` |
@@ -111,8 +111,8 @@ Catat image/release ID, commit kontrak dan `providerRevision`. Mixed-version rol
 - Neon: tetapkan retention sesuai plan dan uji restore staging.
 - R2: inventaris checksum, lifecycle dan restore; objek bukan pengganti metadata DB.
 - Upstash: bukan source of truth; rebuild queue dari outbox/database dan unique constraint.
-- SMTP/ML: simpan runbook failover tanpa credential di repo.
-- Rotasi credential Neon, Upstash, R2, SMTP, ML Basic Auth, session dan CSRF dengan overlap/revocation teruji.
+- Email/ML: simpan runbook failover tanpa credential di repo.
+- Rotasi credential Neon, Upstash, R2, Resend, ML Basic Auth, session dan CSRF dengan overlap/revocation teruji.
 
 Baseline target RPO 24 jam/RTO 8 jam harus dibuktikan. Restore: DB → deletion tombstones → reconcile outbox/queue/ledger → objek R2 → area snapshot → smoke → buka traffic. Restore tidak boleh menghidupkan kembali data wajib-hapus.
 
