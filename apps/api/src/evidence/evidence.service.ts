@@ -3,10 +3,11 @@ import { ExtensionStore, fail, requireAdmin, requireVerified, requireFeature, is
 import * as input from '../extensions/input.js';
 import { ObjectStorageService } from '../media/object-storage.service.js';
 import { CommunityService } from '../community/community.service.js';
+import { ReviewService } from '../community/review.service.js';
 
 @Injectable()
 export class EvidenceService {
- constructor(private readonly store: ExtensionStore, private readonly objects: ObjectStorageService, private readonly community: CommunityService) {}
+ constructor(private readonly store: ExtensionStore, private readonly objects: ObjectStorageService, private readonly community: CommunityService, private readonly reviews: ReviewService) {}
  async consents(actor:Actor,mediaId:string) {
   requireFeature('evidence');input.uuid(mediaId); const media=await this.owner(this.store.db,actor,mediaId);
   const [r]=await this.store.db`SELECT * FROM media_consents WHERE media_id=${mediaId}`;
@@ -19,7 +20,15 @@ export class EvidenceService {
   if(new Set(channels).size!==channels.length)fail(400,'VALIDATION_ERROR');
   return this.store.db.begin(async tx=>{
    // Review and publishing lock the report before its evidence. Keep the same order.
-   await tx`SELECT id FROM reports WHERE id IN (SELECT report_id FROM media_publication_approvals WHERE media_id=${mediaId} UNION SELECT report_id FROM instagram_posts WHERE media_id=${mediaId}) ORDER BY id FOR UPDATE`;
+    await tx`SELECT id FROM reports WHERE id IN (
+      SELECT report_id FROM media_publication_approvals WHERE media_id=${mediaId}
+      UNION SELECT report_id FROM instagram_posts WHERE media_id=${mediaId}
+      UNION SELECT report_id FROM report_media WHERE media_id=${mediaId}
+      UNION SELECT cu.report_id FROM evidence_links el JOIN community_updates cu ON cu.id=el.subject_id
+        WHERE el.subject_type='community_update' AND el.media_id=${mediaId}
+      UNION SELECT ar.report_id FROM evidence_links el JOIN activity_results ar ON ar.id=el.subject_id
+        WHERE el.subject_type='activity_result' AND el.media_id=${mediaId}
+    ) ORDER BY id FOR UPDATE`;
    await this.owner(tx,actor,mediaId);
    await tx`INSERT INTO media_consents(media_id) VALUES(${mediaId}) ON CONFLICT DO NOTHING`;
    const [r]=await tx`SELECT * FROM media_consents WHERE media_id=${mediaId} FOR UPDATE`;if(!r)fail(500,'RESOURCE_STATE_INVALID');
@@ -27,12 +36,14 @@ export class EvidenceService {
    const removed=(r.channels as string[]).filter(c=>!channels.includes(c as 'web'|'instagram'));
    await tx`UPDATE media_consents SET channels=${channels}::text[],revision=revision+1,updated_at=now() WHERE media_id=${mediaId}`;
    if(removed.includes('web'))await tx`UPDATE media SET public_derivative_key=NULL WHERE id=${mediaId}`;
-   if(removed.length){
-    await tx`UPDATE media_publication_approvals SET approved=false,updated_at=now() WHERE media_id=${mediaId} AND channel=ANY(${removed}::text[])`;
-    const reports=await tx`SELECT DISTINCT report_id FROM media_publication_approvals WHERE media_id=${mediaId} AND channel=ANY(${removed}::text[])`;
-    for(const report of reports){
-     const [source]=await tx`UPDATE reports SET revision=revision+1,updated_at=now() WHERE id=${report.report_id} RETURNING revision`;if(!source)fail(500,'RESOURCE_STATE_INVALID');
-     await this.store.event(tx,'publication.source.changed',report.report_id,source.revision,{reason:'consent_revoked',mediaId});
+    if(removed.length){
+     await tx`UPDATE media_publication_approvals SET approved=false,updated_at=now() WHERE media_id=${mediaId} AND channel=ANY(${removed}::text[])`;
+     if(removed.includes('web'))await tx`UPDATE approved_resolution_evidence SET status='revoked' WHERE media_id=${mediaId} AND status='valid'`;
+      const reports=await tx`SELECT DISTINCT report_id FROM media_publication_approvals WHERE media_id=${mediaId} AND channel=ANY(${removed}::text[])`;
+      for(const report of reports){
+       const [source]=await tx`UPDATE reports SET revision=revision+1,updated_at=now() WHERE id=${report.report_id} RETURNING revision`;if(!source)fail(500,'RESOURCE_STATE_INVALID');
+       await this.reviews.supersedeReport(tx,report.report_id);
+       await this.store.event(tx,'publication.source.changed',report.report_id,source.revision,{reason:'consent_revoked',mediaId,channels:removed});
     }
     if(removed.includes('instagram'))await this.retractMediaUses(tx,mediaId);
     await tx`DELETE FROM area_snapshots`;
@@ -100,12 +111,13 @@ export class EvidenceService {
     await this.store.approveEvidence(tx,rendition.subject_type,rendition.subject_id,reportId,actor.id,[{mediaId,renditionId:rendition.id,channels:[channel]}]);
    }else{
     const [approval]=await tx`UPDATE media_publication_approvals SET approved=false,updated_at=now() WHERE report_id=${reportId} AND media_id=${mediaId} AND channel=${channel} RETURNING id`;
-    if(!approval)fail(404,'NOT_FOUND');if(channel==='web')await tx`UPDATE media SET public_derivative_key=NULL WHERE id=${mediaId}`;
+    if(!approval)fail(404,'NOT_FOUND');if(channel==='web'){await tx`UPDATE media SET public_derivative_key=NULL WHERE id=${mediaId}`;await tx`UPDATE approved_resolution_evidence SET status='revoked' WHERE report_id=${reportId} AND media_id=${mediaId} AND status='valid'`;}
    }
-   const [updated]=await tx`UPDATE reports SET revision=revision+1,updated_at=now() WHERE id=${reportId} RETURNING revision`;if(!updated)fail(500,'RESOURCE_STATE_INVALID');
-   if(!approved&&channel==='instagram')await this.retractMediaUses(tx,mediaId,reportId);
-   await tx`DELETE FROM area_snapshots`;
-   await this.store.event(tx,'publication.source.changed',reportId,updated.revision,{mediaId});
+    const [updated]=await tx`UPDATE reports SET revision=revision+1,updated_at=now() WHERE id=${reportId} RETURNING revision`;if(!updated)fail(500,'RESOURCE_STATE_INVALID');
+    await this.reviews.supersedeReport(tx,reportId);
+     if(!approved&&channel==='instagram')await this.retractMediaUses(tx,mediaId,reportId);
+    await tx`DELETE FROM area_snapshots`;
+    await this.store.event(tx,'publication.source.changed',reportId,updated.revision,{mediaId,channel,approved});
    await this.store.audit(tx,actor.id,'media.approval.changed','report',reportId,{mediaId,channel,approved,reason});
    return this.lifecycle(reportId,actor,tx);
   });

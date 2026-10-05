@@ -1,13 +1,14 @@
-import { BarChart3, Camera, CircleHelp, Clock3, FileText, Instagram, LayoutDashboard, Leaf, Map, Settings, ShieldCheck, Sliders, Trophy, type LucideIcon } from "lucide-react";
+import { BarChart3, Camera, CircleHelp, Clock3, FileText, Instagram, LayoutDashboard, Leaf, Map, MessageCircle, Settings, ShieldCheck, Sliders, Trophy, type LucideIcon } from "lucide-react";
 
-export type AdminTab = "admin-moderation" | "admin-settings" | "admin-instagram" | "admin-activities" | "admin-impact";
-export type DashboardTab = "dashboard" | "scan" | "reports" | "map" | "history" | "achievements" | "settings" | "help" | "account" | "admin-menu" | AdminTab;
+export type AdminTab = "admin-moderation" | "admin-settings" | "admin-instagram" | "admin-activities" | "admin-impact" | "admin-community";
+export type DashboardTab = "dashboard" | "scan" | "reports" | "activities" | "map" | "history" | "achievements" | "settings" | "help" | "account" | "admin-menu" | AdminTab;
 type NavigationItem<T extends DashboardTab = DashboardTab> = { id: T; label: string; icon: LucideIcon; description?: string };
 
 export const mainNav: NavigationItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "scan", label: "Scan", icon: Camera },
   { id: "reports", label: "Laporan saya", icon: FileText },
+  { id: "activities", label: "Relawan", icon: Leaf, description: "Cari kegiatan dan kelola pendaftaran." },
   { id: "map", label: "Peta area", icon: Map },
   { id: "history", label: "Riwayat scan", icon: Clock3 },
   { id: "achievements", label: "Pencapaian", icon: Trophy },
@@ -15,6 +16,7 @@ export const mainNav: NavigationItem[] = [
 export const adminNav: NavigationItem<AdminTab>[] = [
   { id: "admin-moderation", label: "Moderasi laporan", icon: ShieldCheck, description: "Tinjau laporan yang masuk." },
   { id: "admin-activities", label: "Kegiatan relawan", icon: Leaf, description: "Kelola kegiatan dan peserta." },
+  { id: "admin-community", label: "Komunitas & Hermes", icon: MessageCircle, description: "Tinjau pembaruan warga dan rekomendasi." },
   { id: "admin-impact", label: "Dampak", icon: BarChart3, description: "Pantau hasil aksi lingkungan." },
   { id: "admin-settings", label: "Pengaturan scan", icon: Sliders, description: "Atur pemindaian dan model AI." },
   { id: "admin-instagram", label: "Publikasi Instagram", icon: Instagram, description: "Kelola draf dan postingan." },

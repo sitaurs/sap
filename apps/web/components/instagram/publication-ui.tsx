@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { CheckCircle2, Clock3, FileText, Info, LoaderCircle, TriangleAlert } from "lucide-react";
+import { Ban, CheckCircle2, Clock3, FileText, Info, LoaderCircle, RotateCcw, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import type { PublicationStatus } from "./types";
 import { publicationDate } from "./publication-utils";
@@ -12,6 +12,10 @@ export function PostStatus({ status }: { status: PublicationStatus | "preview" }
     publishing: { text: "Sedang memposting", icon: LoaderCircle, tone: "pendingBadge" },
     published: { text: "Terposting", icon: CheckCircle2, tone: "publishedBadge" },
     failed: { text: "Gagal posting", icon: TriangleAlert, tone: "errorBadge" },
+    cancelled: { text: "Dibatalkan", icon: Ban, tone: "draftBadge" },
+    retracting: { text: "Penarikan diproses", icon: LoaderCircle, tone: "pendingBadge" },
+    retracted: { text: "Ditarik", icon: RotateCcw, tone: "draftBadge" },
+    needs_action: { text: "Perlu tindakan admin", icon: TriangleAlert, tone: "errorBadge" },
   };
   const state = states[status];
   const Icon = state.icon;

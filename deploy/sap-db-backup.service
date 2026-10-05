@@ -1,0 +1,9 @@
+[Unit]
+Description=Back up SAP PostgreSQL database to private R2 storage
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/sap/app/deploy/backup-db.sh
+TimeoutStartSec=15min

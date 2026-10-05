@@ -29,7 +29,7 @@ async function retractAfterConsentRevocation(status: OperationStatus, uncertainP
     return [];
   }, { json: (value: unknown) => value });
 
-  const service = new EvidenceService({} as never, {} as never, {} as never);
+  const service = new EvidenceService({} as never, {} as never, {} as never, {} as never);
   const retract = Reflect.get(service, 'retractMediaUses') as (tx: unknown, mediaId: string) => Promise<void>;
   await retract.call(service, tx, MEDIA_ID);
 

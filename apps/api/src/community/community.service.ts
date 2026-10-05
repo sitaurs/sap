@@ -20,7 +20,7 @@ export class CommunityService {
   private enabled(): void { requireFeature('community'); }
 
   /** Public predicates are reapplied before every projection; never serialize owner Report DTOs. */
-  async publicReport(id: string, tx: Executor = this.store.db, lock = false): Promise<Row> {
+  async publicReport(id: string, tx: Executor = this.store.db, lock: boolean|'share' = false): Promise<Row> {
     const initial = (await tx<Row[]>`SELECT * FROM reports WHERE id=${id}`)[0];
     if (!initial) fail(404, 'NOT_FOUND');
     let report = initial;
@@ -28,7 +28,9 @@ export class CommunityService {
     if (lock) {
       const ids = initial.status === 'duplicate' && initial.duplicate_of_id ? [id, initial.duplicate_of_id] : [id];
       // Moderation locks duplicate/canonical pairs in UUID order as well.
-      locked = await tx<Row[]>`SELECT * FROM reports WHERE id=ANY(${ids}::uuid[]) ORDER BY id FOR UPDATE`;
+      locked = lock==='share'
+        ? await tx<Row[]>`SELECT * FROM reports WHERE id=ANY(${ids}::uuid[]) ORDER BY id FOR SHARE`
+        : await tx<Row[]>`SELECT * FROM reports WHERE id=ANY(${ids}::uuid[]) ORDER BY id FOR UPDATE`;
       report = locked.find(row => row.id === id)!;
       if (!report) fail(404, 'NOT_FOUND');
       if (report.status === 'duplicate' && report.duplicate_of_id && !locked.some(row => row.id === report.duplicate_of_id)) fail(409, 'REVISION_CONFLICT');
@@ -75,26 +77,30 @@ export class CommunityService {
   }
 
   async incident(id: string): Promise<unknown> {
-    this.enabled(); const report = await this.publicReport(id);
-    if (report.redirected_from) return { kind: 'redirect', canonicalId: report.id, canonicalPath: `/incidents/${report.id}` };
-    const counts = await this.store.db<Row[]>`SELECT count(*)::integer AS count FROM incident_supports s JOIN users u ON u.id=s.user_id
-      WHERE s.report_id=${report.id} AND s.supported AND u.deleted_at IS NULL`;
-    const activities = await this.store.db<Row[]>`SELECT id FROM activities WHERE report_id=${report.id} AND status<>'draft' AND public_ever ORDER BY created_at DESC`;
-    return { kind: 'incident', id: report.id, sourceRevision: report.revision,
-      title: report.public_summary || 'Kejadian lingkungan', summary: report.public_summary || '', status: report.status,
-      categoryId: report.category_id, area: { cellId: report.h3_cell, label: `Area ${report.h3_cell}` },
-      occurredAt: iso(report.occurred_at ?? report.created_at), lastObservedAt: iso(report.last_observed_at), updatedAt: iso(report.updated_at),
-      evidence: await this.publicEvidence(report.id), supportCount: counts[0]?.count ?? 0, supportClosed: report.status === 'resolved',
-      relatedActivityIds: activities.map(row => row.id), canonicalPath: `/incidents/${report.id}` };
+    this.enabled(); return this.store.db.begin(async tx=>{
+      const report = await this.publicReport(id,tx,'share');
+      if (report.redirected_from) return { kind: 'redirect', canonicalId: report.id, canonicalPath: `/incidents/${report.id}` };
+      const counts = await tx<Row[]>`SELECT count(*)::integer AS count FROM incident_supports s JOIN users u ON u.id=s.user_id
+        WHERE s.report_id=${report.id} AND s.supported AND u.deleted_at IS NULL`;
+      const activities = await tx<Row[]>`SELECT id FROM activities WHERE report_id=${report.id} AND status<>'draft' AND public_ever ORDER BY created_at DESC`;
+      return { kind: 'incident', id: report.id, sourceRevision: report.revision,
+        title: report.public_summary || 'Kejadian lingkungan', summary: report.public_summary || '', status: report.status,
+        categoryId: report.category_id, area: { cellId: report.h3_cell, label: `Area ${report.h3_cell}` },
+        occurredAt: iso(report.occurred_at ?? report.created_at), lastObservedAt: iso(report.last_observed_at), updatedAt: iso(report.updated_at),
+        evidence: await this.publicEvidence(report.id,undefined,tx), supportCount: counts[0]?.count ?? 0, supportClosed: report.status === 'resolved',
+        relatedActivityIds: activities.map(row => row.id), canonicalPath: `/incidents/${report.id}` };
+    });
   }
 
   async timeline(id: string, query: Record<string, unknown>): Promise<unknown> {
-    this.enabled(); const report = await this.publicReport(id); const page = this.store.cursor(query, { type: 'incident_timeline', id: report.id });
-    const after = page.boundary ? this.store.db`AND (created_at,id)<(${page.boundary.at}::timestamptz,${page.boundary.id}::uuid)` : this.store.db``;
-    const rows = await this.store.db<Row[]>`SELECT * FROM public_incident_events WHERE report_id=${report.id} ${after} ORDER BY created_at DESC,id DESC LIMIT ${page.limit + 1}`;
-    const chosen = rows.slice(0, page.limit);
-    return { items: await Promise.all(chosen.map(async row => ({ id: row.id, kind: row.kind, occurredAt: iso(row.created_at), observedAt: iso(row.observed_at), summary: row.summary,
-      evidence: await this.publicEvidence(report.id, row.evidence_media_ids) }))), nextCursor: rows.length > page.limit ? page.encode(chosen[chosen.length - 1] as {id:string;created_at:Date}) : null };
+    this.enabled(); return this.store.db.begin(async tx=>{
+      const report = await this.publicReport(id,tx,'share'); const page = this.store.cursor(query, { type: 'incident_timeline', id: report.id });
+      const after = page.boundary ? tx`AND (created_at,id)<(${page.boundary.at}::timestamptz,${page.boundary.id}::uuid)` : tx``;
+      const rows = await tx<Row[]>`SELECT * FROM public_incident_events WHERE report_id=${report.id} ${after} ORDER BY created_at DESC,id DESC LIMIT ${page.limit + 1}`;
+      const chosen = rows.slice(0, page.limit);
+      return { items: await Promise.all(chosen.map(async row => ({ id: row.id, kind: row.kind, occurredAt: iso(row.created_at), observedAt: iso(row.observed_at), summary: row.summary,
+        evidence: await this.publicEvidence(report.id, row.evidence_media_ids,tx) }))), nextCursor: rows.length > page.limit ? page.encode(chosen[chosen.length - 1] as {id:string;created_at:Date}) : null };
+    });
   }
 
   async viewer(id: string, actor: Actor): Promise<unknown> {
@@ -129,13 +135,15 @@ export class CommunityService {
       let canonical = id;
       if (following) canonical = (await this.publicReport(id, tx, true)).id;
       else {
-        // A private relationship permits unfollow, never a private incident projection.
-        const rows = await tx<Row[]>`SELECT f.report_id FROM incident_follows f WHERE f.user_id=${actor.id} AND f.report_id=${id} FOR UPDATE`;
-        if (!rows.length) {
-          const aliases = await tx<Row[]>`SELECT f.report_id FROM incident_follows f JOIN reports r ON r.duplicate_of_id=f.report_id WHERE f.user_id=${actor.id} AND r.id=${id}`;
-          canonical = aliases[0]?.report_id ?? id;
-        }
-        await tx`UPDATE incident_follows SET following=false,updated_at=now() WHERE report_id=${canonical} AND user_id=${actor.id}`;
+        // Unfollow remains available after withdrawal, but must serialize with a
+        // canonical merge or the merge can copy `following=true` after this write.
+        const reports = await tx<Row[]>`SELECT id,duplicate_of_id FROM reports
+          WHERE id=${id} OR id=(SELECT duplicate_of_id FROM reports WHERE id=${id}) ORDER BY id FOR UPDATE`;
+        const requested = reports.find(row => row.id === id);
+        canonical = requested?.duplicate_of_id ?? id;
+        const relationshipIds = [...new Set([id,canonical,...reports.map(row => row.id)])];
+        await tx`UPDATE incident_follows SET following=false,updated_at=now()
+          WHERE user_id=${actor.id} AND report_id=ANY(${relationshipIds}::uuid[])`;
         return { incidentId: canonical, following: false };
       }
       await tx`INSERT INTO incident_follows(report_id,user_id,following) VALUES(${canonical},${actor.id},true)
@@ -183,10 +191,11 @@ export class CommunityService {
     this.enabled(); requireVerified(actor); const data=this.updateInput(body);
     return this.store.db.begin(async tx=>{
       const reportIds=await tx<Row[]>`SELECT report_id FROM community_updates WHERE id=${id} AND author_id=${actor.id}`;
-      if(!reportIds[0]) fail(404,'NOT_FOUND');
-      const report=await this.publicReport(reportIds[0].report_id,tx,true);
-      const row=await this.authorUpdate(id,actor,tx,true); input.checkRevision(row.revision,expected);
-      if(!['submitted','needs_evidence'].includes(row.status)) fail(409,'INVALID_TRANSITION');
+       if(!reportIds[0]) fail(404,'NOT_FOUND');
+       const report=await this.publicReport(reportIds[0].report_id,tx,true);
+       const row=await this.authorUpdate(id,actor,tx,true); input.checkRevision(row.revision,expected);
+       await this.rateLimit(tx,actor.id,'community_update',10);
+       if(!['submitted','needs_evidence'].includes(row.status)) fail(409,'INVALID_TRANSITION');
       await this.assertNoPending(tx,actor.id,report.id,data.kind,id);
       await tx`DELETE FROM evidence_links WHERE subject_type='community_update' AND subject_id=${id}`;
       await this.store.attachMedia(tx,actor.id,'community_update',id,data.mediaIds,'community');
@@ -237,6 +246,44 @@ export class CommunityService {
 
   claimDto(row: Row) { return {id:row.id,reportId:row.report_id,sourceType:row.source_type,sourceId:row.source_id,sourceRevision:row.source_revision,
     mediaId:row.media_id,approvedAt:iso(row.approved_at),observedAt:iso(row.observed_at),status:row.status}; }
+
+  private async resolutionReviewRequired(db: Executor, report: Row): Promise<boolean> {
+    if(report.status!=='resolved') return false;
+    const [decision]=await db<Row[]>`SELECT decision_payload FROM moderation_decisions WHERE report_id=${report.id}
+      AND decision_payload->>'nextStatus'='resolved' ORDER BY created_at DESC,id DESC LIMIT 1`;
+    const payload=decision?.decision_payload;
+    const claimIds=Array.isArray(payload?.resolutionEvidenceIds)?payload.resolutionEvidenceIds as string[]:[];
+    const mediaIds=Array.isArray(payload?.resolutionMediaIds)?payload.resolutionMediaIds as string[]:[];
+    if(claimIds.length){
+      const [invalid]=await db<{invalid:boolean}[]>`SELECT EXISTS(
+        SELECT 1 FROM unnest(${claimIds}::uuid[]) AS selected(claim_id)
+        WHERE NOT EXISTS (
+          SELECT 1 FROM approved_resolution_evidence ae
+          JOIN media m ON m.id=ae.media_id
+          LEFT JOIN community_updates cu ON ae.source_type='community_update' AND cu.id=ae.source_id
+          LEFT JOIN activity_results ar ON ae.source_type='activity_result' AND ar.id=ae.source_id
+          WHERE ae.id=selected.claim_id AND ae.report_id=${report.id} AND ae.status='valid'
+            AND m.state='stored' AND m.deleted_at IS NULL
+            AND ae.observed_at>=COALESCE(${report.last_observed_at},${report.occurred_at})
+            AND EXISTS(SELECT 1 FROM media_publication_approvals a JOIN media_consents mc ON mc.media_id=a.media_id
+              WHERE a.report_id=ae.report_id AND a.subject_type=ae.source_type AND a.subject_id=ae.source_id
+                AND a.media_id=ae.media_id AND a.channel='web' AND a.approved AND 'web'=ANY(mc.channels))
+            AND ((cu.status='approved' AND cu.kind='looks_clean' AND cu.revision=ae.source_revision)
+              OR (ar.status='approved' AND ar.verified_outcome='complete' AND ar.revision=ae.source_revision))
+        )
+      ) AS invalid`;
+      if(invalid?.invalid) return true;
+    }
+    if(mediaIds.length){
+      const [invalid]=await db<{invalid:boolean}[]>`SELECT EXISTS(
+        SELECT 1 FROM unnest(${mediaIds}::uuid[]) AS selected(media_id)
+        WHERE NOT EXISTS(SELECT 1 FROM report_media rm JOIN media m ON m.id=rm.media_id
+          WHERE rm.report_id=${report.id} AND rm.media_id=selected.media_id AND m.state='stored' AND m.deleted_at IS NULL)
+      ) AS invalid`;
+      if(invalid?.invalid) return true;
+    }
+    return false;
+  }
 
   async decideUpdate(id: string, actor: Actor, expected: number, body: unknown, key: string): Promise<unknown> {
     this.enabled(); requireAdmin(actor); const data=input.object(body,['action','reason','publicSummary','publicEvidenceApprovals','requestedEvidence']);
@@ -308,11 +355,13 @@ export class CommunityService {
     const milestones=await db<Row[]>`SELECT id,observed_at,public_summary,verified_outcome FROM activity_results WHERE report_id=${id} AND status='approved' ORDER BY approved_at,id`;
     const resolution=await db<Row[]>`SELECT id,created_at AS occurred_at FROM moderation_decisions WHERE report_id=${id}
       AND decision_payload->>'nextStatus'='resolved' ORDER BY created_at,id`;
+    const resolutionReviewRequired=await this.resolutionReviewRequired(db,report);
     const publicAvailable=report.public_visibility==='public'&&eligibleStatuses.includes(report.status)&&!report.duplicate_of_id;
     const hasInstagram=assets.some(a=>(a.channels as string[]).includes('instagram'));
     const instagramEnabled=getConfig().SAP_INSTAGRAM_ENABLED;
     return {reportId:id,sourceRevision:report.revision,publicVisibility:report.public_visibility,instagramAllowed:report.instagram_allowed,
-      latestReview:await this.reviews.latest('report',id,db),approvedResolutionEvidence:claims.map(this.claimDto),
+       latestReview:await this.reviews.latest('report',id,db),approvedResolutionEvidence:claims.map(this.claimDto),
+       resolutionReviewRequired,
       publicationAssets:assets.map(a=>({mediaId:a.media_id,renditionId:a.rendition_id,channels:a.channels,sourceType:a.subject_type,sourceId:a.subject_id})),
       publicationMilestones:[...milestones.map(m=>({id:m.id,type:'activity_result',observedAt:iso(m.observed_at),outcome:m.verified_outcome,summary:m.public_summary})),
         ...resolution.map(m=>({id:m.id,type:'report_resolution',observedAt:iso(m.occurred_at),outcome:'complete',summary:report.public_summary||'Penanganan selesai'}))],

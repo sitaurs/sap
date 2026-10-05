@@ -5,6 +5,8 @@ import {ExtensionStore,fail,requireAdmin,requireFeature,iso,permission,type Acto
 import * as input from '../extensions/input.js';
 import {ObjectStorageService} from '../media/object-storage.service.js';
 import {EvidenceService} from '../evidence/evidence.service.js';
+import {ActivitiesService} from '../activities/activities.service.js';
+import {ReviewService} from '../community/review.service.js';
 import {EMPTY_APPROVAL,INVALID_APPROVAL,POST_STATUSES,REQUIRED_SCOPES,DELETE_SCOPES,type PostStatus} from './publication.types.js';
 import {encryptCredentials,MetaClient,MetaApiError} from './meta-client.js';
 type Row=Record<string,any>;
@@ -12,7 +14,7 @@ type Row=Record<string,any>;
 export class PublicationsService{
  private readonly config=getConfig();
  private readonly logger=new Logger(PublicationsService.name);
- constructor(private readonly store:ExtensionStore,private readonly objects:ObjectStorageService,private readonly evidence:EvidenceService){}
+  constructor(private readonly store:ExtensionStore,private readonly objects:ObjectStorageService,private readonly evidence:EvidenceService,private readonly activities:ActivitiesService,private readonly reviews:ReviewService){}
  private gate(actor:Actor){requireAdmin(actor);requireFeature('instagram');}
  async overview(actor:Actor){
   this.gate(actor);const [account]=await this.store.db`SELECT * FROM instagram_accounts WHERE singleton=true`;if(!account)fail(500,'RESOURCE_STATE_INVALID');
@@ -159,12 +161,12 @@ export class PublicationsService{
   requireAdmin(actor);requireFeature('evidence');input.uuid(id);const b=input.object(raw,['scope','reason']),scope=input.enumeration(b.scope,['all','instagram'] as const),reason=input.text(b.reason,5,1000);
   return this.store.mutate(actor,`report.withdraw:${id}`,key,{rev,scope,reason},async tx=>{
    const report=await this.evidence.subject(tx,'report',id,true);input.checkRevision(report.revision,rev);
-   const [changed]=await tx`UPDATE reports SET public_visibility=${scope==='all'?'withdrawn':report.public_visibility},instagram_allowed=false,revision=revision+1,updated_at=now() WHERE id=${id} RETURNING *`;if(!changed)fail(500,'RESOURCE_STATE_INVALID');
-   if(scope==='all'){
-    await tx`UPDATE activities SET prior_state=CASE WHEN status='on_hold' THEN prior_state ELSE status END,status='on_hold',hold_reason='Sumber kejadian ditarik; menunggu peninjauan admin.',revision=revision+1,updated_at=now() WHERE report_id=${id} AND status NOT IN ('completed','cancelled')`;
-    await tx`UPDATE media SET public_derivative_key=NULL WHERE id IN (SELECT media_id FROM media_publication_approvals WHERE report_id=${id} AND channel='web')`;
-    await this.store.event(tx,'incident.withdrawn',id,changed.revision,{scope});
-   }
+     const [changed]=await tx`UPDATE reports SET public_visibility=${scope==='all'?'withdrawn':report.public_visibility},instagram_allowed=false,revision=revision+1,updated_at=now() WHERE id=${id} RETURNING *`;if(!changed)fail(500,'RESOURCE_STATE_INVALID');
+     await this.reviews.supersedeReport(tx,id);
+     if(scope==='all'){
+     await this.activities.redactForReport(tx,id);
+     await tx`UPDATE media SET public_derivative_key=NULL WHERE id IN (SELECT media_id FROM media_publication_approvals WHERE report_id=${id} AND channel='web')`;
+    }
    await tx`DELETE FROM area_snapshots`;
    const posts=await tx`SELECT * FROM instagram_posts WHERE report_id=${id} AND status NOT IN ('cancelled','retracted') ORDER BY id FOR UPDATE`,operations=[];
    for(const post of posts)operations.push(this.operationDTO(await this.requestRetract(tx,post,scope==='all'?'hidden':'unaffected')));
@@ -178,8 +180,9 @@ export class PublicationsService{
    const report=await this.evidence.subject(tx,'report',id,true);input.checkRevision(report.revision,rev);
    if(!['verified','in_progress','resolved'].includes(report.status)||report.duplicate_of_id||!report.public_summary||(scope==='instagram'&&report.public_visibility!=='public'))fail(409,'SOURCE_NOT_APPROVED');
    if(scope==='all'&&report.public_visibility!=='withdrawn')fail(409,'INVALID_TRANSITION');if(scope==='instagram'&&report.instagram_allowed)fail(409,'INVALID_TRANSITION');
-   const [changed]=await tx`UPDATE reports SET public_visibility=${scope==='all'?'public':report.public_visibility},public_ever=true,instagram_allowed=true,revision=revision+1,updated_at=now() WHERE id=${id} RETURNING revision`;if(!changed)fail(500,'RESOURCE_STATE_INVALID');
-   await tx`DELETE FROM area_snapshots`;
+    const [changed]=await tx`UPDATE reports SET public_visibility=${scope==='all'?'public':report.public_visibility},public_ever=true,instagram_allowed=true,revision=revision+1,updated_at=now() WHERE id=${id} RETURNING revision`;if(!changed)fail(500,'RESOURCE_STATE_INVALID');
+    await this.reviews.supersedeReport(tx,id);
+    await tx`DELETE FROM area_snapshots`;
    await this.store.event(tx,'publication.source.changed',id,changed.revision,{restored:true,suppressAutomaticDraft:true});
    await this.store.audit(tx,actor.id,'report.publication.restored','report',id,{scope,reason});return this.evidence.lifecycle(id,actor,tx);
   });

@@ -160,3 +160,23 @@ test('scan outbox migration is additive, backfills unfinished scans, and adds le
   assert.doesNotMatch(migration.sql, /\b(?:DROP|TRUNCATE)\b|\bDELETE\s+FROM\s+scans\b|\bUPDATE\s+scans\s+SET\s+(?:status|outcome|points_awarded)\b/i,
     'the migration must not rewrite scan outcomes or remove existing domain data');
 });
+
+test('community update decisions have a dedicated notification type', async () => {
+  const files = await loadMigrations();
+  const migration = files.find(file => file.filename === '0019_community_update_notifications.sql');
+  assert.ok(migration, 'expected the community decision notification migration');
+  assert.match(migration.sql, /DROP CONSTRAINT notifications_type_check/i);
+  assert.match(migration.sql, /ADD CONSTRAINT notifications_type_check CHECK[\s\S]*'community_update_decided'/i);
+  assert.doesNotMatch(migration.sql, /\b(?:DELETE|TRUNCATE)\b/i,
+    'the notification enum migration must preserve existing notifications');
+});
+
+test('membership requests have a dedicated notification type without removing existing types', async () => {
+  const files = await loadMigrations();
+  const migration = files.find(file => file.filename === '0020_membership_request_notifications.sql');
+  assert.ok(migration, 'expected the membership request notification migration');
+  assert.match(migration.sql, /ADD CONSTRAINT notifications_type_check CHECK[\s\S]*'membership_requested'/i);
+  assert.match(migration.sql, /'community_update_decided'/i);
+  assert.doesNotMatch(migration.sql, /\b(?:DELETE|TRUNCATE)\b/i,
+    'the additive notification migration must preserve existing notifications');
+});

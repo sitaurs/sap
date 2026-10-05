@@ -12,6 +12,10 @@ const types=['report','community_update','activity_result'] as const;
 export class ReviewService {
   constructor(private readonly store: ExtensionStore) {}
 
+  private requireSubjectFeature(type: SubjectType): void {
+    requireFeature(type==='activity_result'?'activities':'community');
+  }
+
   dto(row: Row) {
     return {id:row.id,subjectType:row.subject_type,subjectId:row.subject_id,subjectRevision:row.subject_revision,
       reportId:row.report_id,sourceReportRevision:row.source_report_revision,snapshotHash:row.snapshot_hash,status:row.status,
@@ -101,7 +105,7 @@ export class ReviewService {
 
   async request(actor: Actor,body: unknown,key: string) {
     requireFeature('hermes'); requireAdmin(actor); const data=input.object(body,['subjectType','subjectId','subjectRevision']);
-    const type=input.enumeration(data.subjectType,types),id=input.uuid(data.subjectId),revision=input.integer(data.subjectRevision);
+    const type=input.enumeration(data.subjectType,types),id=input.uuid(data.subjectId),revision=input.integer(data.subjectRevision);this.requireSubjectFeature(type);
     return this.store.mutate(actor,'review.request',key,{type,id,revision},async tx=>{
       const result=await this.enqueue(tx,type,id,revision,true);
       await this.store.audit(tx,actor.id,'review.requested',type,id,{subjectRevision:revision,reviewId:result?.id}); return result;
@@ -109,13 +113,14 @@ export class ReviewService {
   }
 
   async get(actor: Actor,id: string) {
-    requireFeature('community'); requireAdmin(actor); const rows=await this.store.db<Row[]>`SELECT * FROM review_runs WHERE id=${id}`;
-    if(!rows[0]) fail(404,'NOT_FOUND'); return this.dto(rows[0]);
+    requireAdmin(actor); const rows=await this.store.db<Row[]>`SELECT * FROM review_runs WHERE id=${id}`;
+    if(!rows[0]) fail(404,'NOT_FOUND');this.requireSubjectFeature(rows[0].subject_type);return this.dto(rows[0]);
   }
 
   async list(actor: Actor,query: Record<string,unknown>,reportId?: string) {
-    requireFeature('community'); requireAdmin(actor);
+    requireAdmin(actor);
     const type=reportId?'report':input.enumeration(query.subjectType,types),id=reportId??input.uuid(query.subjectId);
+    this.requireSubjectFeature(type);
     // Verify the subject exists, independently of whether it has any AI runs.
     const exists=type==='report'?await this.store.db`SELECT id FROM reports WHERE id=${id}`:
       type==='community_update'?await this.store.db`SELECT id FROM community_updates WHERE id=${id}`:await this.store.db`SELECT id FROM activity_results WHERE id=${id}`;
@@ -127,13 +132,36 @@ export class ReviewService {
   }
 
   async queue(actor: Actor,query: Record<string,unknown>) {
-    requireFeature('community'); requireAdmin(actor); const type=query.type===undefined?'all':input.enumeration(query.type,['all',...types] as const);
+    requireAdmin(actor); const type=query.type===undefined?'all':input.enumeration(query.type,['all',...types] as const);
+    const config=getConfig();
+    if(type==='all'){
+      requireFeature('evidence');if(!config.SAP_COMMUNITY_ENABLED&&!config.SAP_ACTIVITIES_ENABLED)fail(503,'FEATURE_UNAVAILABLE','Fitur belum diaktifkan.');
+    }else this.requireSubjectFeature(type);
     const page=this.store.cursor(query,{type:'review_queue',subjectType:type});
     const after=page.boundary?this.store.db`AND (q.created_at,q.id)<(${page.boundary.at}::timestamptz,${page.boundary.id}::uuid)`:this.store.db``;
     const rows=await this.store.db<Row[]>`SELECT q.*,to_jsonb(rr) AS review FROM (
-      SELECT 'report'::text AS subject_type,id,revision, id AS report_id,'Laporan perlu ditinjau'::text AS title,created_at,'pending'::text AS review_state FROM reports WHERE status='submitted'
-      UNION ALL SELECT 'community_update',id,revision,report_id,'Pembaruan kondisi',created_at,CASE WHEN status='needs_evidence' THEN 'needs_evidence' ELSE 'pending' END FROM community_updates WHERE status IN ('submitted','needs_evidence')
-      UNION ALL SELECT 'activity_result',id,revision,report_id,'Hasil kegiatan',created_at,CASE WHEN status='needs_evidence' THEN 'needs_evidence' ELSE 'pending' END FROM activity_results WHERE status IN ('submitted','needs_evidence')
+      SELECT 'report'::text AS subject_type,id,revision, id AS report_id,'Laporan perlu ditinjau'::text AS title,created_at,'pending'::text AS review_state FROM reports WHERE ${config.SAP_COMMUNITY_ENABLED} AND status='submitted'
+      UNION ALL SELECT 'report',r.id,r.revision,r.id,'Resolusi perlu ditinjau',r.updated_at,'pending'
+        FROM reports r JOIN LATERAL (SELECT decision_payload FROM moderation_decisions WHERE report_id=r.id
+          AND decision_payload->>'nextStatus'='resolved' ORDER BY created_at DESC,id DESC LIMIT 1) decision ON true
+        WHERE ${config.SAP_COMMUNITY_ENABLED} AND r.status='resolved' AND (
+          EXISTS(SELECT 1 FROM jsonb_array_elements_text(COALESCE(decision.decision_payload->'resolutionEvidenceIds','[]'::jsonb)) AS selected(claim_id)
+            WHERE NOT EXISTS(SELECT 1 FROM approved_resolution_evidence ae JOIN media m ON m.id=ae.media_id
+              LEFT JOIN community_updates cu ON ae.source_type='community_update' AND cu.id=ae.source_id
+              LEFT JOIN activity_results ar ON ae.source_type='activity_result' AND ar.id=ae.source_id
+              WHERE ae.id=selected.claim_id::uuid AND ae.report_id=r.id AND ae.status='valid' AND m.state='stored' AND m.deleted_at IS NULL
+                AND ae.observed_at>=COALESCE(r.last_observed_at,r.occurred_at)
+                AND EXISTS(SELECT 1 FROM media_publication_approvals a JOIN media_consents mc ON mc.media_id=a.media_id
+                  WHERE a.report_id=ae.report_id AND a.subject_type=ae.source_type AND a.subject_id=ae.source_id
+                    AND a.media_id=ae.media_id AND a.channel='web' AND a.approved AND 'web'=ANY(mc.channels))
+                AND ((cu.status='approved' AND cu.kind='looks_clean' AND cu.revision=ae.source_revision)
+                  OR (ar.status='approved' AND ar.verified_outcome='complete' AND ar.revision=ae.source_revision))))
+          OR EXISTS(SELECT 1 FROM jsonb_array_elements_text(COALESCE(decision.decision_payload->'resolutionMediaIds','[]'::jsonb)) AS selected(media_id)
+            WHERE NOT EXISTS(SELECT 1 FROM report_media rm JOIN media m ON m.id=rm.media_id
+              WHERE rm.report_id=r.id AND rm.media_id=selected.media_id::uuid AND m.state='stored' AND m.deleted_at IS NULL))
+        )
+      UNION ALL SELECT 'community_update',id,revision,report_id,'Pembaruan kondisi',created_at,CASE WHEN status='needs_evidence' THEN 'needs_evidence' ELSE 'pending' END FROM community_updates WHERE ${config.SAP_COMMUNITY_ENABLED} AND status IN ('submitted','needs_evidence')
+      UNION ALL SELECT 'activity_result',id,revision,report_id,'Hasil kegiatan',created_at,CASE WHEN status='needs_evidence' THEN 'needs_evidence' ELSE 'pending' END FROM activity_results WHERE ${config.SAP_ACTIVITIES_ENABLED} AND status IN ('submitted','needs_evidence')
       ) q LEFT JOIN LATERAL (SELECT * FROM review_runs WHERE subject_type=q.subject_type AND subject_id=q.id ORDER BY created_at DESC,id DESC LIMIT 1) rr ON true
       WHERE (${type}='all' OR q.subject_type=${type}) ${after} ORDER BY q.created_at DESC,q.id DESC LIMIT ${page.limit+1}`;
     const chosen=rows.slice(0,page.limit);

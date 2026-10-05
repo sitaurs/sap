@@ -51,6 +51,7 @@ interface Stub {
 
 function makeService(opts: {
   ownedMedia?: boolean;
+  mediaPurpose?: 'report' | 'scan';
   ownedScan?: boolean;
   createReplayed?: boolean;
   found?: ReportRecord | null;
@@ -61,7 +62,7 @@ function makeService(opts: {
   const state = { created: 0 };
   const updateArgs: Array<{ reportId: string; revision: number }> = [];
   const media = {
-    findStoredForOwner: async (id: string) => (opts.ownedMedia === false ? null : { id, ownerId: 'u1' }),
+    findStoredForOwner: async (id: string) => (opts.ownedMedia === false ? null : { id, ownerId: 'u1', purpose: opts.mediaPurpose ?? 'report' }),
   };
   const scans = {
     findByIdForOwner: async (id: string) => (opts.ownedScan === false ? null : { id }),
@@ -126,6 +127,11 @@ test('createReport rejects an occurredAt in the future with REPORT_INVALID', asy
 test('createReport rejects media the caller does not own with NOT_FOUND', async () => {
   const { service } = makeService({ ownedMedia: false });
   await assert.rejects(service.createReport('u1', input(), KEY), (e) => errorCode(e) === 'NOT_FOUND');
+});
+
+test('createReport rejects stored media uploaded for another purpose', async () => {
+  const { service } = makeService({ mediaPurpose: 'scan' });
+  await assert.rejects(service.createReport('u1', input(), KEY), (e) => errorCode(e) === 'EVIDENCE_INVALID');
 });
 
 test('createReport rejects a scanId the caller does not own with NOT_FOUND', async () => {

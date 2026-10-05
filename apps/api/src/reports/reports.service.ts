@@ -156,6 +156,9 @@ export class ReportsService {
     if (found.some((m) => m === null)) {
       throw new NotFoundException({ code: 'NOT_FOUND', message: 'Media tidak ditemukan.' });
     }
+    if (found.some((m) => m!.purpose !== 'report')) {
+      throw new UnprocessableEntityException({code:'EVIDENCE_INVALID',message:'Foto harus diunggah untuk laporan.'});
+    }
   }
 
   private async assertOwnedScan(userId: string, scanId: string): Promise<void> {

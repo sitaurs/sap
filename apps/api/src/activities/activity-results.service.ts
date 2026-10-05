@@ -85,9 +85,10 @@ export class ActivityResultsService {
     await this.store.approveEvidence(tx,'activity_result',id,row.report_id,actor.id,approvals);
     if(outcome==='complete')for(const a of approvals.filter(a=>a.channels.includes('web')&&row.data.afterMediaIds.includes(a.mediaId)))await tx`INSERT INTO approved_resolution_evidence(report_id,source_type,source_id,source_revision,media_id,observed_at) VALUES(${row.report_id},'activity_result',${id},${revision},${a.mediaId},${row.observed_at}) ON CONFLICT DO NOTHING`;
     await tx`UPDATE activities SET status='completed',result_outcome=${outcome},prior_state=NULL,hold_reason=NULL,revision=revision+1,updated_at=now() WHERE id=${activity.id}`;
-    await tx`INSERT INTO public_incident_events(report_id,kind,summary,observed_at,evidence_media_ids) VALUES(${row.report_id},'activity_result',${summary!},${row.observed_at},${approvals.filter(a=>a.channels.includes('web')).map(a=>a.mediaId)}::uuid[])`;
-    const [source]=await tx<{revision:number}[]>`UPDATE reports SET last_observed_at=CASE WHEN last_observed_at IS NULL OR last_observed_at<${row.observed_at} THEN ${row.observed_at} ELSE last_observed_at END,revision=revision+1,updated_at=now() WHERE id=${row.report_id} RETURNING revision`;
-    await this.reviews.supersedeReport(tx,row.report_id);await this.store.event(tx,'report.changed',row.report_id,source!.revision,{reason:'activity_result_approved',subjectId:id});
+     await tx`INSERT INTO public_incident_events(report_id,kind,summary,observed_at,evidence_media_ids) VALUES(${row.report_id},'activity_result',${summary!},${row.observed_at},${approvals.filter(a=>a.channels.includes('web')).map(a=>a.mediaId)}::uuid[])`;
+     const [source]=await tx<{revision:number}[]>`UPDATE reports SET last_observed_at=CASE WHEN last_observed_at IS NULL OR last_observed_at<${row.observed_at} THEN ${row.observed_at} ELSE last_observed_at END,revision=revision+1,updated_at=now() WHERE id=${row.report_id} RETURNING revision`;
+     await tx`UPDATE approved_resolution_evidence SET status='revoked' WHERE report_id=${row.report_id} AND status='valid' AND observed_at<${row.observed_at}`;
+     await this.reviews.supersedeReport(tx,row.report_id);await this.store.event(tx,'report.changed',row.report_id,source!.revision,{reason:'activity_result_approved',subjectId:id});
     await this.activities.notifyParticipants(tx,activity.id,`result:${id}:${revision}`,'result_approved');await this.activities.notifyFollowers(tx,row.report_id,`result:${id}:${revision}`,'incident_updated');
    }else await this.activities.notify(tx,[row.author_id],`result:${id}:${revision}`,action==='request_evidence'?'evidence_requested':'activity_changed',`/activities/${activity.id}/manage`);
    await tx`UPDATE activity_results SET status=${next},verified_outcome=${outcome},public_summary=${summary},requested_evidence=${requested},decision_reason=${reason},approved_at=CASE WHEN ${action==='approve'} THEN now() ELSE NULL END,revision=revision+1,updated_at=now() WHERE id=${id}`;
@@ -98,14 +99,29 @@ export class ActivityResultsService {
   requireFeature('activities');uuid(mediaId);const row=await this.result(this.store.db,resultId);if(row.activity_id!==activityId)fail(404,'NOT_FOUND');this.activities.scoped(await this.activities.load(this.store.db,activityId),actor);
   const [media]=await this.store.db<{object_key:string}[]>`SELECT m.object_key FROM media m JOIN evidence_links el ON el.media_id=m.id WHERE el.subject_type='activity_result' AND el.subject_id=${resultId} AND m.id=${mediaId} AND m.state='stored' AND m.deleted_at IS NULL`;if(!media)fail(404,'NOT_FOUND');const signed=await this.objects.createSignedGetUrl(media.object_key);return {url:signed.url,expiresAt:signed.expiresAt.toISOString()};
  }
- async publicResults(activityId:string,query:Record<string,unknown>) {
-  requireFeature('activities');object(query,['limit','cursor']);const activity=await this.activities.load(this.store.db,activityId);if(!activity.public_ever||!this.activities.sourcePublic(activity))fail(404,'NOT_FOUND');const page=this.store.cursor(query,{route:'publicResults',activityId});const rows=await this.store.db<ResultRow[]>`SELECT * FROM activity_results WHERE activity_id=${activityId} AND status='approved' AND (${page.boundary?.at??null}::timestamptz IS NULL OR (created_at,id)<(${page.boundary?.at??null}::timestamptz,${page.boundary?.id??null}::uuid)) ORDER BY created_at DESC,id DESC LIMIT ${page.limit+1}`;const selected=rows.slice(0,page.limit);
-  const items=await Promise.all(selected.map(async row=>{
-   const evidence=await this.store.db<{id:string;object_key:string;media_id:string}[]>`SELECT a.id,er.object_key,a.media_id FROM media_publication_approvals a JOIN evidence_renditions er ON er.id=a.rendition_id JOIN media m ON m.id=a.media_id JOIN media_consents mc ON mc.media_id=a.media_id WHERE a.report_id=${row.report_id} AND a.approved AND a.channel='web' AND (a.id=ANY(${row.data.beforePublicEvidenceIds}::uuid[]) OR (a.subject_type='activity_result' AND a.subject_id=${row.id} AND a.media_id=ANY(${[...row.data.beforeMediaIds,...row.data.afterMediaIds]}::uuid[]))) AND er.media_id=a.media_id AND er.subject_type=a.subject_type AND er.subject_id=a.subject_id AND er.status='ready' AND er.object_key IS NOT NULL AND m.state='stored' AND m.deleted_at IS NULL AND 'web'=ANY(mc.channels) ORDER BY a.id`;
-   const measurement=row.measurement_id?(await this.store.db<MeasurementRow[]>`WITH RECURSIVE chain AS (SELECT * FROM impact_measurements WHERE id=${row.measurement_id} UNION ALL SELECT m.* FROM impact_measurements m JOIN chain c ON m.supersedes_id=c.id) SELECT * FROM chain WHERE status='verified' LIMIT 1`)[0]:undefined;
-   return {id:row.id,activityId,reportId:row.report_id,summary:row.public_summary!,outcome:row.verified_outcome!,observedAt:iso(row.observed_at),evidence:await Promise.all(evidence.map(async e=>{const signed=await this.objects.createSignedGetUrl(e.object_key);return {id:e.id,url:signed.url,expiresAt:signed.expiresAt.toISOString(),observedAt:row.data.afterMediaIds.includes(e.media_id)?iso(row.observed_at):null,caption:'Bukti yang disetujui SAP'};})),verifiedMeasurement:measurement?{valueKg:Number(measurement.value_kg),unit:'kg',stage:measurement.stage}:null};
-  }));return {items,nextCursor:rows.length>page.limit?page.encode(selected[selected.length-1]!):null};
- }
+  async publicResults(activityId:string,query:Record<string,unknown>) {
+   requireFeature('activities');object(query,['limit','cursor']);activityId=uuid(activityId);const page=this.store.cursor(query,{route:'publicResults',activityId});
+   return this.store.db.begin(async tx=>{
+    const [ref]=await tx<{report_id:string}[]>`SELECT report_id FROM activities WHERE id=${activityId}`;if(!ref)fail(404,'NOT_FOUND');
+    // Serialize public reads with source withdrawal, activity edits and consent revocation.
+    const [report]=await tx<{status:string;public_visibility:string;duplicate_of_id:string|null}[]>`SELECT status,public_visibility,duplicate_of_id FROM reports WHERE id=${ref.report_id} FOR SHARE`;
+    const [activity]=await tx<{public_ever:boolean}[]>`SELECT public_ever FROM activities WHERE id=${activityId} FOR SHARE`;
+    if(!activity?.public_ever||!report||report.public_visibility!=='public'||report.duplicate_of_id!==null||!['verified','in_progress','resolved'].includes(report.status))fail(404,'NOT_FOUND');
+    const rows=await tx<ResultRow[]>`SELECT ar.* FROM activity_results ar WHERE ar.activity_id=${activityId} AND ar.report_id=${ref.report_id} AND ar.status='approved'
+      AND (${page.boundary?.at??null}::timestamptz IS NULL OR (ar.created_at,ar.id)<(${page.boundary?.at??null}::timestamptz,${page.boundary?.id??null}::uuid))
+      ORDER BY ar.created_at DESC,ar.id DESC LIMIT ${page.limit+1}`;const selected=rows.slice(0,page.limit);
+    const items=await Promise.all(selected.map(async row=>{
+     const evidence=await tx<{id:string;object_key:string;media_id:string}[]>`SELECT a.id,er.object_key,a.media_id FROM media_publication_approvals a
+      JOIN evidence_renditions er ON er.id=a.rendition_id JOIN media m ON m.id=a.media_id JOIN media_consents mc ON mc.media_id=a.media_id
+      WHERE a.report_id=${row.report_id} AND a.approved AND a.channel='web'
+        AND (a.id=ANY(${row.data.beforePublicEvidenceIds}::uuid[]) OR (a.subject_type='activity_result' AND a.subject_id=${row.id} AND a.media_id=ANY(${[...row.data.beforeMediaIds,...row.data.afterMediaIds]}::uuid[])))
+        AND er.media_id=a.media_id AND er.subject_type=a.subject_type AND er.subject_id=a.subject_id AND er.status='ready' AND er.object_key IS NOT NULL
+        AND m.state='stored' AND m.deleted_at IS NULL AND 'web'=ANY(mc.channels) ORDER BY a.id FOR SHARE OF a,er,m,mc`;
+     const measurement=row.measurement_id?(await tx<MeasurementRow[]>`WITH RECURSIVE chain AS (SELECT * FROM impact_measurements WHERE id=${row.measurement_id} UNION ALL SELECT m.* FROM impact_measurements m JOIN chain c ON m.supersedes_id=c.id) SELECT * FROM chain WHERE status='verified' LIMIT 1`)[0]:undefined;
+     return {id:row.id,activityId,reportId:row.report_id,summary:row.public_summary!,outcome:row.verified_outcome!,observedAt:iso(row.observed_at),evidence:await Promise.all(evidence.map(async e=>{const signed=await this.objects.createSignedGetUrl(e.object_key);return {id:e.id,url:signed.url,expiresAt:signed.expiresAt.toISOString(),observedAt:row.data.afterMediaIds.includes(e.media_id)?iso(row.observed_at):null,caption:'Bukti yang disetujui SAP'};})),verifiedMeasurement:measurement?{valueKg:Number(measurement.value_kg),unit:'kg',stage:measurement.stage}:null};
+    }));return {items,nextCursor:rows.length>page.limit?page.encode(selected[selected.length-1]!):null};
+   });
+  }
  async createMeasurementTx(tx:Tx,actor:Actor,activity:ActivityRow,data:MeasurementInput,resultId?:string):Promise<MeasurementRow> {
   if(!activity.data.startsAt||Date.parse(data.measuredAt)<Date.parse(activity.data.startsAt))fail(422,'EVIDENCE_INVALID');
   if(activity.status==='completed'&&data.physicalBatchId===null)fail(422,'PHYSICAL_BATCH_INVALID','Pengukuran tambahan harus merujuk batch kegiatan yang sudah ada.');

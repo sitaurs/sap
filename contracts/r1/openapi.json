@@ -38858,11 +38858,13 @@
               "incident_resolved",
               "incident_withdrawn",
               "evidence_requested",
+              "membership_requested",
               "membership_decided",
               "coordinator_assigned",
               "activity_changed",
               "activity_cancelled",
-              "result_approved"
+              "result_approved",
+              "community_update_decided"
             ]
           },
           "title": {
@@ -39111,6 +39113,10 @@
               "$ref": "#/components/schemas/ApprovedResolutionEvidence"
             }
           },
+          "resolutionReviewRequired": {
+            "type": "boolean",
+            "description": "True when evidence used by the current resolved decision is revoked, missing, or no longer eligible; a moderator must review the resolution."
+          },
           "publicationAssets": {
             "type": "array",
             "items": {
@@ -39230,6 +39236,7 @@
           "instagramAllowed",
           "latestReview",
           "approvedResolutionEvidence",
+          "resolutionReviewRequired",
           "publicationAssets",
           "publicationMilestones",
           "actions"

@@ -6,6 +6,7 @@ import { DATABASE, type Database } from '../infrastructure/database.module.js';
 import { IdempotencyStore, type Tx } from '../infrastructure/idempotency.store.js';
 import { jakartaToday } from '../gamification/gamification.types.js';
 import { ReportRepository } from '../reports/report.repository.js';
+import { ActivitiesService } from '../activities/activities.service.js';
 import {
   toReportView,
   type ReportRecord,
@@ -77,6 +78,7 @@ export class ModerationRepository {
     private readonly reports: ReportRepository,
     private readonly extensions: ExtensionStore,
     private readonly reviews: ReviewService,
+    private readonly activities: ActivitiesService,
   ) {}
 
   /**
@@ -103,8 +105,8 @@ export class ModerationRepository {
       }
 
       const cur = await tx<
-        { reporter_id: string | null; status: ReportStatus; revision: number; public_summary:string|null }[]
-      >`SELECT reporter_id, status, revision, public_summary FROM reports WHERE id = ${input.reportId} FOR UPDATE`;
+        { reporter_id: string | null; status: ReportStatus; revision: number; public_summary:string|null; public_visibility:string }[]
+      >`SELECT reporter_id, status, revision, public_summary, public_visibility FROM reports WHERE id = ${input.reportId} FOR UPDATE`;
       const row = cur[0];
       if (!row) throw new DecisionAbort('not_found');
       if (row.revision !== input.ifMatchRevision) throw new DecisionAbort('conflict');
@@ -126,6 +128,9 @@ export class ModerationRepository {
           WHERE ae.id = ANY(${claimIds}::uuid[]) AND ae.report_id=${input.reportId} AND ae.status='valid'
             AND m.state='stored' AND m.deleted_at IS NULL
             AND ae.observed_at >= COALESCE(r.last_observed_at,r.occurred_at)
+            AND EXISTS (SELECT 1 FROM media_publication_approvals a JOIN media_consents mc ON mc.media_id=a.media_id
+              WHERE a.report_id=ae.report_id AND a.subject_type=ae.source_type AND a.subject_id=ae.source_id
+                AND a.media_id=ae.media_id AND a.channel='web' AND a.approved AND 'web'=ANY(mc.channels))
             AND ((cu.status='approved' AND cu.kind='looks_clean' AND cu.revision=ae.source_revision)
               OR (ar.status='approved' AND ar.verified_outcome='complete' AND ar.revision=ae.source_revision)) FOR SHARE OF ae,m`;
         if (claims.length!==claimIds.length) throw new DecisionAbort('resolution_media_required');
@@ -169,6 +174,11 @@ export class ModerationRepository {
           revision = revision + 1,
           updated_at = now()
         WHERE id = ${input.reportId}`;
+
+      if (getConfig().SAP_EXTENSION_ENABLED &&
+        (!['verified','in_progress','resolved'].includes(to) || row.public_visibility==='withdrawn')) {
+        await this.activities.redactForReport(tx,input.reportId);
+      }
 
       if (to === 'resolved') {
         for (let i = 0; i < resolutionMediaIds.length; i += 1) {
@@ -237,15 +247,19 @@ export class ModerationRepository {
         }
         if (['verified','in_progress','resolved'].includes(to)) {
           const summary=await tx<{public_summary:string|null;occurred_at:Date|null}[]>`SELECT public_summary,occurred_at FROM reports WHERE id=${input.reportId}`;
+          const timelineEvidenceIds=[...new Set([
+            ...input.publishMediaIds,
+            ...(input.publicEvidenceApprovals??[]).filter(item=>item.channels.includes('web')).map(item=>item.mediaId),
+          ])];
           if (summary[0]?.public_summary) await tx`INSERT INTO public_incident_events(report_id,kind,summary,observed_at,evidence_media_ids)
-          VALUES(${input.reportId},${to==='resolved'?'resolved':to==='in_progress'?'handling_started':'verified'},${summary[0].public_summary},${to==='resolved'?decisionObservedAt:summary[0].occurred_at},${to==='resolved'?resolutionMediaIds:input.publishMediaIds})`;
+            VALUES(${input.reportId},${to==='resolved'?'resolved':to==='in_progress'?'handling_started':'verified'},${summary[0].public_summary},${to==='resolved'?decisionObservedAt:summary[0].occurred_at},${to==='resolved'?resolutionMediaIds:timelineEvidenceIds})`;
         }
         await this.extensions.event(tx,'publication.source.changed',input.reportId,input.ifMatchRevision+1,{reportId:input.reportId});
       }
 
       await tx`
         INSERT INTO outbox_events (topic, aggregate_id, payload_minimal, dedup_key)
-        VALUES ('report.decided', ${input.reportId}, ${tx.json({ reportId: input.reportId, status: to } as never)},
+        VALUES ('report.decided', ${input.reportId}, ${tx.json({ reportId: input.reportId, status: to, aggregateRevision: input.ifMatchRevision + 1 } as never)},
                 ${`report-decided:${input.reportId}:${input.ifMatchRevision + 1}`})
         ON CONFLICT (dedup_key) DO NOTHING`;
 

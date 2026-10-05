@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CommunityModule } from '../community/community.module.js';
+import { ActivitiesModule } from '../activities/activities.module.js';
 import { DatabaseModule } from '../infrastructure/database.module.js';
 import { IdempotencyStore } from '../infrastructure/idempotency.store.js';
 import { MediaRepository } from '../media/media.repository.js';
@@ -16,7 +17,7 @@ import { ScanSettingsService } from './scan-settings.service.js';
 import { ExtensionStore } from '../extensions/extension.store.js';
 
 @Module({
-  imports: [DatabaseModule, CommunityModule],
+  imports: [DatabaseModule, CommunityModule, ActivitiesModule],
   controllers: [AdminController],
   providers: [
     AdminService,

@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily SAP PostgreSQL backup to R2
+
+[Timer]
+OnCalendar=*-*-* 02:15:00 UTC
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

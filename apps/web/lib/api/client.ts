@@ -152,7 +152,7 @@ export const getReport = (id: string, signal?: AbortSignal) => apiGet<SapReport>
 export const updateReport = (id: string, revision: number, body: Schema["ReportUpdateInput"]) => apiMutate<SapReport>("PATCH", `/reports/${encodeURIComponent(id)}`, { body, headers: { "if-match": String(revision) } });
 export const mediaUrl = (id: string, signal?: AbortSignal) => apiGet<SapMediaUrl>(`/media/${encodeURIComponent(id)}/url`, signal);
 
-export async function uploadMedia(file: File, purpose: "scan" | "report" | "avatar", signal?: AbortSignal): Promise<Schema["Media"]> {
+export async function uploadMedia(file: File, purpose: "scan" | "report" | "avatar" | "community" | "resolution" | "activity_evidence", signal?: AbortSignal): Promise<Schema["Media"]> {
   const form = new FormData();
   form.append("file", file);
   form.append("purpose", purpose);

@@ -1,0 +1,97 @@
+services:
+  postgres:
+    build:
+      context: ..
+      dockerfile: deploy/postgres.Dockerfile
+    env_file:
+      - /etc/sap/db.env
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sap -d sap"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - sap
+
+  redis:
+    image: redis:8.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - sap
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    env_file:
+      - /etc/sap/api.env
+    command: ["node", "apps/api/dist/main.js"]
+    expose:
+      - "3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - sap
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    env_file:
+      - /etc/sap/api.env
+    command: ["node", "apps/worker/dist/main.js"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - sap
+      - ml
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    env_file:
+      - /etc/sap/web.env
+    environment:
+      APP_ORIGIN: https://sap.venlab.tech
+    command: ["npm", "run", "start", "-w", "@sap/web", "--", "--hostname", "0.0.0.0", "--port", "3000"]
+    ports:
+      - "127.0.0.1:3200:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - sap
+
+networks:
+  sap:
+    name: sap
+  ml:
+    name: sap-ml-private
+    external: true
+
+volumes:
+  postgres_data:
+    name: sap_postgres_data
+  redis_data:
+    name: sap_redis_data

@@ -246,25 +246,75 @@ export class ExtensionJobs {
       if (['report.changed','report.decided','publication.source.changed','media.consent.changed'].includes(event.topic)) await tx`DELETE FROM area_snapshots`;
       const withdrawn = report.public_visibility !== 'public';
       if (withdrawn) {
-        await tx`UPDATE activities SET prior_state=CASE WHEN status<>'on_hold' THEN status ELSE prior_state END,
+        const held = await tx<{id:string;revision:number}[]>`UPDATE activities SET prior_state=CASE WHEN status<>'on_hold' THEN status ELSE prior_state END,
           status='on_hold',hold_reason='Sumber kejadian sedang ditinjau.',revision=revision+1,updated_at=now()
-          WHERE report_id=${reportId} AND public_ever AND status NOT IN ('completed','cancelled','on_hold')`;
+          WHERE report_id=${reportId} AND public_ever AND status NOT IN ('completed','cancelled')
+            AND (status<>'on_hold' OR hold_reason IS DISTINCT FROM 'Sumber kejadian sedang ditinjau.')
+          RETURNING id,revision`;
         await tx`UPDATE notifications SET title='Informasi kejadian diperbarui',message='Informasi sumber kejadian sedang ditinjau.'
           WHERE target_path=${`/incidents/${reportId}`}`;
+        for (const activity of held) {
+          const eventKey=`activity:${activity.id}:${activity.revision}`;
+          await tx`UPDATE notifications SET title='Informasi kegiatan diperbarui',
+            message='Sumber kejadian sedang ditinjau. Informasi kegiatan sementara dibatasi.',target_path=${`/activities/${activity.id}`}
+            WHERE target_path IN (${`/activities/${activity.id}`},${`/activities/${activity.id}/manage`})`;
+          await tx`INSERT INTO notifications(user_id,event_key,type,title,message,target_path)
+            SELECT recipients.user_id,${eventKey},'activity_changed','Informasi kegiatan diperbarui',
+              'Sumber kejadian sedang ditinjau. Informasi kegiatan sementara dibatasi.',${`/activities/${activity.id}`}
+            FROM (
+              SELECT user_id FROM activity_memberships WHERE activity_id=${activity.id} AND status IN ('requested','accepted','waitlisted')
+              UNION SELECT coordinator_id AS user_id FROM activities WHERE id=${activity.id} AND coordinator_id IS NOT NULL
+            ) recipients JOIN users u ON u.id=recipients.user_id AND u.deleted_at IS NULL
+            ON CONFLICT(user_id,event_key,type) DO NOTHING`;
+          await tx`INSERT INTO outbox_events(topic,aggregate_id,payload_minimal,dedup_key)
+            VALUES('activity.changed',${activity.id},${tx.json({reportId,aggregateRevision:activity.revision})},${`activity.changed:${activity.id}:${activity.revision}`})
+            ON CONFLICT(dedup_key) DO NOTHING`;
+        }
+        const relatedActivities = await tx<{id:string}[]>`SELECT id FROM activities WHERE report_id=${reportId} AND public_ever`;
+        for (const activity of relatedActivities) {
+          await tx`UPDATE notifications SET title='Informasi kegiatan diperbarui',
+            message='Sumber kejadian sedang ditinjau. Informasi kegiatan sementara dibatasi.',target_path=${`/activities/${activity.id}`}
+            WHERE target_path IN (${`/activities/${activity.id}`},${`/activities/${activity.id}/manage`})`;
+        }
       }
-      if (event.topic === 'report.decided' || event.topic === 'report.changed') {
-        const type = withdrawn ? 'incident_withdrawn' : report.status === 'resolved' ? 'incident_resolved' : 'incident_updated';
+      const consentChannels=Array.isArray(event.payload_minimal.channels)?event.payload_minimal.channels.map(String):null;
+      const publicEvidenceChanged=typeof event.payload_minimal.mediaId==='string' &&
+        (event.payload_minimal.channel==='web' || (event.payload_minimal.channel===undefined && (!consentChannels || consentChannels.includes('web'))));
+      const publicConsentChanged=event.payload_minimal.reason==='consent_revoked' &&
+        (!consentChannels || consentChannels.includes('web'));
+      const sourceWithdrew = event.payload_minimal.withdrawn === true && event.payload_minimal.scope !== 'instagram';
+      const sourceRestored = event.payload_minimal.restored === true && event.payload_minimal.scope !== 'instagram';
+      const publicationChanged = event.topic === 'publication.source.changed' &&
+        (sourceWithdrew || sourceRestored || publicConsentChanged || publicEvidenceChanged);
+      if (event.topic === 'report.decided' || event.topic === 'report.changed' || publicationChanged) {
+        const eventRevision=Number(event.payload_minimal.aggregateRevision);
+        const sourceRevision=Number.isSafeInteger(eventRevision)&&eventRevision>0?eventRevision:report.revision;
+        const newlyResolved=event.topic==='report.decided'&&event.payload_minimal.status==='resolved'&&report.status==='resolved'&&sourceRevision===report.revision;
+        const type = withdrawn ? 'incident_withdrawn' : newlyResolved ? 'incident_resolved' : 'incident_updated';
+        const notice=type==='incident_withdrawn'
+          ? {title:'Informasi kejadian ditarik',message:'Informasi ini tidak lagi tersedia untuk publik.'}
+          : type==='incident_resolved'
+            ? {title:'Kejadian telah ditangani',message:'Buka SAP untuk melihat perkembangan penanganan kejadian.'}
+            : {title:'Perkembangan kejadian',message:'Buka SAP untuk melihat informasi terbaru yang tersedia.'};
         await tx`INSERT INTO notifications(user_id,event_key,type,title,message,target_path)
-          SELECT f.user_id,${`report:${reportId}:${report.revision}`},${type},'Perkembangan kejadian',
-            'Buka SAP untuk melihat informasi yang tersedia bagi akun Anda.',${`/incidents/${reportId}`}
+          SELECT f.user_id,${`report:${reportId}:${sourceRevision}`},${type},${notice.title},${notice.message},${`/incidents/${reportId}`}
           FROM incident_follows f JOIN users u ON u.id=f.user_id WHERE f.report_id=${reportId} AND f.following AND u.deleted_at IS NULL
           ON CONFLICT(user_id,event_key,type) DO NOTHING`;
       }
-      if (event.topic === 'community.update.decided' && event.payload_minimal.status === 'needs_evidence') {
-        await tx`INSERT INTO notifications(user_id,event_key,type,title,message,target_path)
-          SELECT id,${`update:${event.aggregate_id}:${event.payload_minimal.aggregateRevision}`},'evidence_requested',
-            'Bukti tambahan diperlukan','Buka SAP untuk melihat kebutuhan bukti.',${`/incidents/${reportId}`}
-          FROM users WHERE id=${String(event.payload_minimal.authorId)} AND deleted_at IS NULL ON CONFLICT DO NOTHING`;
+      if (event.topic === 'community.update.decided') {
+        const status=String(event.payload_minimal.status ?? '');
+        const notice=status==='needs_evidence'
+          ? {title:'Bukti tambahan diperlukan',message:'Tambahkan bukti yang diminta pada pembaruan kondisi Anda.'}
+          : status==='approved'
+            ? {title:'Pembaruan Anda disetujui',message:'Pembaruan kondisi Anda telah disetujui dan dipublikasikan.'}
+            : status==='rejected'
+              ? {title:'Pembaruan Anda belum disetujui',message:'Lihat alasan keputusan pada pembaruan kondisi Anda.'}
+              : null;
+        if (notice) await tx`INSERT INTO notifications(user_id,event_key,type,title,message,target_path)
+          SELECT id,${`update:${event.aggregate_id}:${event.payload_minimal.aggregateRevision}`},'community_update_decided',
+            ${notice.title},${notice.message},${`/community-updates/${event.aggregate_id}`}
+          FROM users WHERE id=${String(event.payload_minimal.authorId)} AND deleted_at IS NULL
+          ON CONFLICT(user_id,event_key,type) DO NOTHING`;
       }
     });
   }

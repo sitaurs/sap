@@ -10,6 +10,7 @@
     "dev:worker": "npm run dev -w @sap/worker",
     "typecheck": "npm run build -w @sap/config && npm run typecheck -w @sap/config && npm run typecheck -w @sap/api && npm run typecheck -w @sap/worker && npm run typecheck -w @sap/web",
     "test": "npm run test --workspaces --if-present && npm run test:hermes",
+    "test:community:e2e": "test -n \"$SAP_TEST_DATABASE_URL\" && npm run test:e2e -w @sap/api",
     "test:hermes": "cd services/hermes-review && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest -v test_server.py",
     "contracts:lint": "node scripts/check-contracts.mjs",
     "contracts:routes": "node scripts/check-routes.mjs",

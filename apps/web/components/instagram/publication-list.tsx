@@ -38,8 +38,8 @@ export default function PublicationList({ overview, available, loadingOverview, 
   const filter = (value: PublicationFilter) => { setStatus(value); setCursors([undefined]); };
   const stats = [
     { label: "Total postingan", value: overview?.stats.total, icon: Layers3, filter: "all" as const },
-    { label: "Draf / belum terposting", value: overview?.stats.draft, icon: FileText, filter: "draft" as const },
-    { label: "Terposting", value: overview?.stats.published, icon: Send, filter: "published" as const },
+    { label: "Draf / perlu ditinjau", value: overview ? overview.stats.byStatus.draft + overview.stats.byStatus.failed : undefined, icon: FileText, filter: "draft" as const },
+    { label: "Terposting", value: overview?.stats.byStatus.published, icon: Send, filter: "published" as const },
   ];
   const pending = loading || loadingOverview;
   const filtered = status !== "all" || !!search || period !== "all";

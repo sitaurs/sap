@@ -11,6 +11,10 @@ export type MapMetadata = { provider: 'openstreetmap'; cellId: string; styleVers
   areaLabel: string; locality: string; locationMode: 'public_area'; };
 export type MapSnapshot = { svg: Buffer; metadata: MapMetadata; data: MapData };
 const STYLE = 'sap-osm-area-v1';
+const MAP_WIDTH = 480;
+const MAP_HEIGHT = 288;
+const MAP_HEADER = 64;
+const MAP_VIEW_HEIGHT = MAP_HEIGHT - MAP_HEADER;
 export const xml = (value: string): string => value.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]!));
 
 /** Only the already-public H3 area is sent to the geographic provider, never exact GPS. */
@@ -26,30 +30,37 @@ export class MapSnapshotService {
     const sourceSha256 = cached?.source_sha256 ?? createHash('sha256').update(JSON.stringify(data)).digest('hex');
     const areas = data.elements.filter(e => e.type==='area' && e.tags?.boundary==='administrative' && e.tags.name)
       .sort((a,b)=>Number(b.tags!.admin_level)-Number(a.tags!.admin_level)||a.id-b.id);
-    const locality = areas.find(e => ['8','9','10'].includes(e.tags!.admin_level!))?.tags?.name;
-    const city = areas.find(e => ['5','6','7'].includes(e.tags!.admin_level!))?.tags?.name;
+    const city = areas.find(e => e.tags!.admin_level==='5')?.tags?.name
+      ?? areas.find(e => e.tags!.admin_level==='6')?.tags?.name;
+    const locality = areas.find(e => ['7','8','9','10'].includes(e.tags!.admin_level!))?.tags?.name
+      ?? areas.find(e => e.tags!.admin_level==='6')?.tags?.name ?? city;
     if (!locality || !city) throw new Error('MAP_LOCATION_UNAVAILABLE');
     const areaLabel = locality===city ? locality : `${locality}, ${city}`;
     if ([...areaLabel].length>120 || [...locality].length>80) throw new Error('MAP_LOCATION_INVALID');
     const geometry = cellToBoundary(cellId).map(([latitude,longitude])=>({lat:latitude,lon:longitude}));
     const cos = Math.cos(lat*Math.PI/180);
-    const spanLon = .010/Math.max(cos,.2), spanLat = .008;
+    const spanLon = .010/Math.max(cos,.2), spanLat = .010*MAP_VIEW_HEIGHT/MAP_WIDTH;
     const west=lon-spanLon/2, north=lat+spanLat/2;
-    const project = (p:Point): [number,number] => [(p.lon-west)/spanLon*480,(north-p.lat)/spanLat*360];
+    const project = (p:Point): [number,number] => [
+      (p.lon-west)/spanLon*MAP_WIDTH,
+      MAP_HEADER+(north-p.lat)/spanLat*MAP_VIEW_HEIGHT,
+    ];
     const path = (points:Point[]): string => points.map((p,i)=>{const [x,y]=project(p);return `${i?'L':'M'}${x.toFixed(2)},${y.toFixed(2)}`;}).join(' ');
     const roads = data.elements.filter(e => e.type==='way' && e.geometry && e.tags?.highway);
     if (!roads.length) throw new Error('MAP_GEOMETRY_UNAVAILABLE');
     const waters=data.elements.filter(e=>e.type==='way'&&e.geometry&&e.tags?.waterway);
-    const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="480" height="400" viewBox="0 0 480 400">
-      <defs><clipPath id="viewport"><rect width="480" height="360" rx="14"/></clipPath></defs>
-      <rect width="480" height="400" fill="#f7f3e6"/><g clip-path="url(#viewport)"><rect width="480" height="360" fill="#247049"/>
+    const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${MAP_WIDTH}" height="${MAP_HEIGHT}" viewBox="0 0 ${MAP_WIDTH} ${MAP_HEIGHT}">
+      <defs><clipPath id="viewport"><rect y="${MAP_HEADER}" width="${MAP_WIDTH}" height="${MAP_VIEW_HEIGHT}" rx="14"/></clipPath></defs>
+      <rect width="${MAP_WIDTH}" height="${MAP_HEIGHT}" fill="#f7f3e6"/>
+      <text x="10" y="18" font-family="sans-serif" font-size="14" font-weight="700" fill="#153c2c">Area laporan</text>
+      <text x="10" y="39" font-family="sans-serif" font-size="13" fill="#153c2c">© OpenStreetMap contributors · ODbL</text>
+      <text x="10" y="56" font-family="sans-serif" font-size="12" fill="#153c2c">openstreetmap.org/copyright</text>
+      <g clip-path="url(#viewport)"><rect y="${MAP_HEADER}" width="${MAP_WIDTH}" height="${MAP_VIEW_HEIGHT}" fill="#247049"/>
       <path d="${path([...geometry,geometry[0]!])}Z" fill="#ffdb57" fill-opacity=".95" stroke="#fff9dd" stroke-width="3"/>
       ${waters.map(e=>`<path d="${path(e.geometry!)}" fill="none" stroke="#a4ded8" stroke-width="6"/>`).join('')}
       ${roads.map(e=>`<path d="${path(e.geometry!)}" fill="none" stroke="${['primary','secondary','tertiary'].includes(e.tags!.highway!)?'#fff8de':'#dae6d1'}" stroke-width="${['primary','secondary'].includes(e.tags!.highway!)?3.6:1.7}" stroke-linejoin="round" stroke-linecap="round"/>`).join('')}
-      <rect x="10" y="10" width="156" height="30" rx="9" fill="#104d35"/><text x="22" y="31" font-family="sans-serif" font-size="17" fill="white">Area laporan</text>
-      <g transform="translate(240,162)"><path d="M0 49C-9 36-23 18-23 3a23 23 0 1 1 46 0C23 18 9 36 0 49Z" fill="#124f38" stroke="white" stroke-width="4"/><circle cy="3" r="7" fill="white"/></g></g>
-      <text x="10" y="378" font-family="sans-serif" font-size="12" fill="#153c2c">© OpenStreetMap contributors · ODbL</text>
-      <text x="10" y="394" font-family="sans-serif" font-size="11" fill="#153c2c">openstreetmap.org/copyright</text></svg>`;
+      <g transform="translate(240,176)"><path d="M0 49C-9 36-23 18-23 3a23 23 0 1 1 46 0C23 18 9 36 0 49Z" fill="#124f38" stroke="white" stroke-width="4"/><circle cy="3" r="7" fill="white"/></g></g>
+      </svg>`;
     return {svg:Buffer.from(svg),data,metadata:{provider:'openstreetmap',cellId,styleVersion:STYLE,sourceSha256,
       fetchedAt:data.fetchedAt,osmTimestamp:data.osmTimestamp,attribution:'© OpenStreetMap contributors · openstreetmap.org/copyright',
       areaLabel,locality,locationMode:'public_area'}};

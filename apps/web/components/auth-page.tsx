@@ -12,6 +12,19 @@ import BrandLogo from "./brand-logo";
 type Mode = "login" | "signup";
 type Stage = "form" | "verify" | "forgot" | "reset" | "mfa";
 
+function postAuthDestination() {
+  const requested = new URLSearchParams(window.location.search).get("next");
+  if (!requested) return "/dashboard";
+  try {
+    const target = new URL(requested, window.location.origin);
+    if (target.origin === window.location.origin && target.pathname.startsWith("/incidents/"))
+      return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    // Malformed or non-local destinations fall back to the regular dashboard.
+  }
+  return "/dashboard";
+}
+
 function Brand() {
   return (
     <Link href="/" className={styles.brand} aria-label="SAP, kembali ke beranda">
@@ -59,10 +72,10 @@ export default function AuthPage({ mode }: { mode: Mode }) {
         setMfaPreauthToken(""); setMfaCode(""); setMfaRecoveryMode(false);
         if (remember) window.localStorage.setItem("sap-remembered-email", email.trim());
         else window.localStorage.removeItem("sap-remembered-email");
-        router.replace("/dashboard"); router.refresh();
+        router.replace(postAuthDestination()); router.refresh();
       } else if (stage === "verify") {
         await verifyEmail(challengeId, code);
-        router.replace("/dashboard"); router.refresh();
+        router.replace(postAuthDestination()); router.refresh();
       } else if (stage === "forgot") {
         const challenge = await forgotPassword(email.trim());
         setChallengeId(challenge.challengeId); setStage("reset");
@@ -85,7 +98,7 @@ export default function AuthPage({ mode }: { mode: Mode }) {
         } else {
           if (remember) window.localStorage.setItem("sap-remembered-email", email.trim());
           else window.localStorage.removeItem("sap-remembered-email");
-          router.replace("/dashboard"); router.refresh();
+          router.replace(postAuthDestination()); router.refresh();
         }
       }
     } catch (cause) {
@@ -165,7 +178,13 @@ export default function AuthPage({ mode }: { mode: Mode }) {
                 {error && <p className={styles.notice} role="alert">{error}</p>}
               </form>
 
-              {stage === "form" && <p className={styles.switch}>{isSignup ? "Sudah punya akun?" : "Belum punya akun?"} <Link href={isSignup ? "/login" : "/signup"}>{isSignup ? "Masuk" : "Daftar"}</Link></p>}
+              {stage === "form" && <p className={styles.switch}>{isSignup ? "Sudah punya akun?" : "Belum punya akun?"} <Link href={isSignup ? "/login" : "/signup"} onClick={(event) => {
+                const destination = postAuthDestination();
+                if (destination !== "/dashboard") {
+                  event.preventDefault();
+                  router.push(`${isSignup ? "/login" : "/signup"}?next=${encodeURIComponent(destination)}`);
+                }
+              }}>{isSignup ? "Masuk" : "Daftar"}</Link></p>}
             </div>
           </div>
 

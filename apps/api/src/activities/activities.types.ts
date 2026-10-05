@@ -32,7 +32,7 @@ export type ResultRow = {
  claimed_outcome:'partial'|'complete';verified_outcome:'partial'|'complete'|null;public_summary:string|null;data:ResultInput;requested_evidence:string[];
  decision_reason:string|null;measurement_id:string|null;approved_at:Date|null;created_at:Date;updated_at:Date;
 };
-export type NotificationType = 'incident_updated'|'incident_resolved'|'incident_withdrawn'|'evidence_requested'|'membership_decided'|'coordinator_assigned'|'activity_changed'|'activity_cancelled'|'result_approved';
+export type NotificationType = 'incident_updated'|'incident_resolved'|'incident_withdrawn'|'evidence_requested'|'membership_requested'|'membership_decided'|'coordinator_assigned'|'activity_changed'|'activity_cancelled'|'result_approved'|'community_update_decided';
 
 export function activityInput(raw:unknown):ActivityInput {
  const b=object(raw,['reportId','title','description','coordinatorId','startsAt','endsAt','registrationClosesAt','timezone','capacity','meetingPoint','equipment','accessibilityNotes','wasteHandoverPlan']);

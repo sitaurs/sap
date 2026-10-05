@@ -50,6 +50,10 @@ export type Rendition = R1["EvidenceRendition"];
 export type PublicationApproval = R1["EvidencePublicationInput"];
 export type ReviewItem = R1["ReviewQueueItem"];
 export type Page<T> = { items: T[]; nextCursor: string | null };
+export type PublicActivity = R1["PublicActivity"];
+export type PublicActivityDetail = R1["PublicActivityDetail"];
+export type ActivityViewer = R1["ActivityViewer"];
+export type MyActivity = R1["MyActivity"];
 
 export const getActivitySourceReport = (id: string, signal?: AbortSignal) =>
   apiGet<SapReport>(`/reports/${encodeURIComponent(id)}`, signal);
@@ -176,6 +180,48 @@ export async function getActivity(id: string, signal?: AbortSignal) {
 }
 export const getPublicActivity = (id: string, signal?: AbortSignal) =>
   apiGet<R1["PublicActivityDetail"]>(`/activities/${enc(id)}`, signal);
+export const listPublicActivities = (cursor?: string, signal?: AbortSignal) =>
+  realApiGet<Page<PublicActivity>>(
+    `/activities?${new URLSearchParams({ limit: "20", ...(cursor ? { cursor } : {}) })}`,
+    signal,
+  );
+export const getActivityViewer = (id: string, signal?: AbortSignal) =>
+  realApiGet<ActivityViewer>(`/activities/${enc(id)}/viewer`, signal);
+export const listMyActivities = (cursor?: string, signal?: AbortSignal) =>
+  realApiGet<Page<MyActivity>>(
+    `/users/me/activities?${new URLSearchParams({ limit: "20", ...(cursor ? { cursor } : {}) })}`,
+    signal,
+  );
+export const listCoordinatorAssignments = (cursor?: string, signal?: AbortSignal) =>
+  realApiGet<Page<Activity>>(
+    `/users/me/coordinator-assignments?${new URLSearchParams({ limit: "20", ...(cursor ? { cursor } : {}) })}`,
+    signal,
+  );
+export const setActivityMembership = (id: string, participating: boolean) =>
+  realApiMutate<R1["Membership"]>("PUT", `/activities/${enc(id)}/membership`, {
+    body: { participating },
+  });
+export const decideCoordinatorAssignment = (
+  current: Activity,
+  accepted: boolean,
+  publishDisplayName: boolean,
+) =>
+  realApiMutate<Activity>(
+    "PUT",
+    `/activities/${enc(current.id)}/coordinator-acceptance`,
+    {
+      body: { accepted, publishDisplayName: accepted && publishDisplayName },
+      headers: { "if-match": String(current.revision) },
+    },
+  );
+export const acknowledgeActivitySchedule = (
+  id: string,
+  scheduleRevision: number,
+  confirmed: boolean,
+) =>
+  realApiMutate<R1["Membership"]>("PUT", `/activities/${enc(id)}/schedule-acknowledgement`, {
+    body: { scheduleRevision, confirmed },
+  });
 export async function createActivity(body: ActivityInput, key: string) {
   return activity(
     await apiMutate<Activity>("POST", "/admin/activities", {

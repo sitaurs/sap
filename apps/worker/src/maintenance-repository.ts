@@ -90,8 +90,10 @@ export class MaintenanceRepository {
         OR r.id IN (SELECT report_id FROM activity_results WHERE author_id=${userId})
         OR r.id IN (SELECT report_id FROM activities WHERE coordinator_id=${userId})`;
       const changedIds=changed.map(r=>r.id);
-      const parents=await tx<{id:string}[]>`SELECT id FROM reports WHERE id=ANY(${changedIds}::uuid[])
-        OR id IN (SELECT a.report_id FROM activities a JOIN activity_memberships am ON am.activity_id=a.id WHERE am.user_id=${userId}) ORDER BY id FOR UPDATE`;
+       const parents=await tx<{id:string}[]>`SELECT id FROM reports WHERE id=ANY(${changedIds}::uuid[])
+         OR id IN (SELECT a.report_id FROM activities a JOIN activity_memberships am ON am.activity_id=a.id WHERE am.user_id=${userId})
+         OR id IN (SELECT report_id FROM incident_supports WHERE user_id=${userId})
+         OR id IN (SELECT report_id FROM incident_follows WHERE user_id=${userId}) ORDER BY id FOR UPDATE`;
       const parentIds=parents.map(r=>r.id);
       await tx`SELECT id FROM activities WHERE report_id=ANY(${parentIds}::uuid[]) ORDER BY id FOR UPDATE`;
       const owned=await tx<{id:string;object_key:string;public_derivative_key:string|null}[]>`SELECT id,object_key,public_derivative_key FROM media WHERE owner_id=${userId} ORDER BY id FOR UPDATE`;

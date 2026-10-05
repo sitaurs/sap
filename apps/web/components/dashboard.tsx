@@ -47,6 +47,12 @@ const InstagramPublication = dynamic(() => import("./instagram/publication-page"
 const ActivitiesPage = dynamic(() => import("./activities/activities-page"), {
   loading: () => <div role="status" style={{ padding: 32, color: "#647e98" }}>Memuat kegiatan relawan…</div>,
 });
+const VolunteerActivitiesPage = dynamic(() => import("./activities/volunteer-activities-page"), {
+  loading: () => <div role="status" style={{ padding: 32, color: "#647e98" }}>Memuat ruang relawan…</div>,
+});
+const CommunityReviewPage = dynamic(() => import("./community/admin-community-review"), {
+  loading: () => <div role="status" style={{ padding: 32, color: "#647e98" }}>Memuat tinjauan komunitas…</div>,
+});
 const ImpactPage = dynamic(() => import("./impact/impact-page"), {
   loading: () => <div role="status" style={{ padding: 32, color: "#647e98" }}>Memuat dampak…</div>,
 });
@@ -297,10 +303,11 @@ export default function Dashboard() {
           </div>
         </>}
 
-        {activeTab !== "dashboard" && activeTab !== "account" && activeTab !== "admin-menu" && !isAdminTab(activeTab) && <DashboardViews key={activeTab} tab={activeTab} scans={scans} reports={reports} stats={stats} achievements={achievements} categories={categories} email={user?.email || ""} displayName={displayName} avatarMediaId={user?.avatarMediaId ?? null} onNavigate={openTab} onScanFinished={() => void refreshData()} onScanActivity={setPetActivity} onOpenReport={openReportFromScan} reportComposerRequested={reportComposerRequested} onReportSubmitted={reportSubmitted} onReportsChanged={() => void refreshData()} onReportWizardChange={setReportWizardOpen} onSaveProfile={saveProfile} onAvatarChanged={avatarChanged} onSignOut={signOut} onAccountDeleted={() => { setUser(null); setStats(null); setScans([]); setReports([]); router.replace("/login"); }} sapaEnabled={sapaEnabled} sapaSaving={sapaSaving} onToggleSapa={toggleSapa} />}
+        {activeTab === "activities" && <VolunteerActivitiesPage categories={categories} />}
+        {activeTab !== "dashboard" && activeTab !== "account" && activeTab !== "admin-menu" && activeTab !== "activities" && !isAdminTab(activeTab) && <DashboardViews key={activeTab} tab={activeTab} scans={scans} reports={reports} stats={stats} achievements={achievements} categories={categories} email={user?.email || ""} displayName={displayName} avatarMediaId={user?.avatarMediaId ?? null} onNavigate={openTab} onScanFinished={() => void refreshData()} onScanActivity={setPetActivity} onOpenReport={openReportFromScan} reportComposerRequested={reportComposerRequested} onReportSubmitted={reportSubmitted} onReportsChanged={() => void refreshData()} onReportWizardChange={setReportWizardOpen} onSaveProfile={saveProfile} onAvatarChanged={avatarChanged} onSignOut={signOut} onAccountDeleted={() => { setUser(null); setStats(null); setScans([]); setReports([]); router.replace("/login"); }} sapaEnabled={sapaEnabled} sapaSaving={sapaSaving} onToggleSapa={toggleSapa} />}
 
         {isAdminTab(activeTab) && (user?.role === "admin"
-          ? activeTab === "admin-instagram" ? <InstagramPublication categories={categories} onModeration={() => openTab("admin-moderation")} /> : activeTab === "admin-activities" ? <ActivitiesPage categories={categories} /> : activeTab === "admin-impact" ? <ImpactPage /> : <div className={`${styles.subPage} ${styles.referenceView}`}>
+          ? activeTab === "admin-instagram" ? <InstagramPublication categories={categories} onModeration={() => openTab("admin-moderation")} /> : activeTab === "admin-activities" ? <ActivitiesPage categories={categories} /> : activeTab === "admin-community" ? <CommunityReviewPage /> : activeTab === "admin-impact" ? <ImpactPage /> : <div className={`${styles.subPage} ${styles.referenceView}`}>
               <div className={styles.referenceHeading}>
                 <h1>{activeTab === "admin-settings" ? "Pengaturan scan" : "Moderasi laporan"}</h1>
                 <p>{activeTab === "admin-settings" ? "Atur strategi deteksi hybrid ML → vision LLM." : "Periksa, verifikasi, dan tindak lanjuti laporan warga."}</p>
@@ -312,7 +319,7 @@ export default function Dashboard() {
       </main>
     </div>
     {!reportWizardOpen && <MobileBottomNav tab={tab} sapaEnabled={sapaEnabled} onNavigate={openTab} />}
-    {sapaEnabled && !reportWizardOpen && <SapaPet tab={isAdminTab(activeTab) || isMobileMenuTab(activeTab) ? "dashboard" : (activeTab satisfies SapaDashboardTab)} backendLinked activity={sapaActivity} onNavigate={openTab} mobileDock />}
+    {sapaEnabled && !reportWizardOpen && <SapaPet tab={isAdminTab(activeTab) || isMobileMenuTab(activeTab) || activeTab === "activities" ? "dashboard" : (activeTab satisfies SapaDashboardTab)} backendLinked activity={sapaActivity} onNavigate={openTab} mobileDock />}
     {toast && <div className={styles.toast} role="status"><Sparkles size={18} /><span>{toast}</span><button type="button" onClick={() => setToast("")} aria-label="Tutup pesan"><X size={16} /></button></div>}
   </div>;
 }

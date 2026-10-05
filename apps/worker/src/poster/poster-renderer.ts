@@ -60,8 +60,8 @@ export class PosterRenderer {
       <path d="M0 867L89 850L250 878L558 855L1080 818V1107L539 1137L141 1173L0 1118Z" fill="${GREEN}"/>
       <path d="M68 975H537M68 1062H537" stroke="#d5e5d5" stroke-width="2"/>
       ${this.icons()}
-      <g transform="rotate(-7 812 936)"><rect x="555" y="750" width="496" height="418" rx="32" fill="${CREAM}"/>
-      <image x="563" y="759" width="480" height="400" xlink:href="data:image/png;base64,${mapPng.toString('base64')}"/></g>
+      <g transform="rotate(-7 805 936)"><rect x="570" y="792" width="470" height="288" rx="30" fill="${CREAM}"/>
+      <image x="578" y="800" width="454" height="272" xlink:href="data:image/png;base64,${mapPng.toString('base64')}"/></g>
       <g transform="rotate(-9 813 1113)"><rect x="641" y="1064" width="365" height="99" rx="29" fill="${CREAM}" stroke="${GREEN}" stroke-width="5"/>
         <rect x="648" y="1071" width="351" height="85" rx="23" fill="none" stroke="${GREEN}" stroke-width="2" stroke-dasharray="3 4"/>
         <circle cx="689" cy="1112" r="29" fill="${GREEN}"/><path d="M674 1112l10 11 23-27" fill="none" stroke="white" stroke-width="7" stroke-linecap="round"/>

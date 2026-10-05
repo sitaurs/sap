@@ -2,7 +2,7 @@
 
 Instruksi Zamani, 3 Oktober 2026. [Referensi visual](research/assets/sap-instagram-post-reference.png). Melengkapi [kontrak](CONTRACT_ZAKA_ZAMANI.md) dan [rencana backend](BACKEND_EXECUTION_PLAN.md). Ketentuan ini mengatur poster, bukan layout dashboard Zaka.
 
-**Status: implementasi dilanjutkan atas instruksi Zamani.** Template backend ada di `apps/worker/src/poster`; pemeriksaan visual dengan foto laporan nyata dan layanan peta belum dilakukan. Kemiripan final belum dinyatakan terverifikasi.
+**Status: implementasi dilanjutkan atas instruksi Zamani.** Pada 5 Oktober 2026, render QA lokal sudah diperiksa memakai media fixture yang diberi label simulasi dan satu query OSM nyata untuk area H3 publik. QA menemukan lalu memperbaiki pemilihan nama wilayah (level administrasi OSM 7/5), ukuran/posisi inset peta, dan visibilitas atribusi. Output lolos format 1080 × 1350 sRGB JPEG. Pemeriksaan dengan foto laporan yang benar-benar berizin/di-approve, data lokasi sumber laporan, dan preview Meta belum dilakukan; kesesuaian final belum dinyatakan terverifikasi.
 
 ## Tampilan
 

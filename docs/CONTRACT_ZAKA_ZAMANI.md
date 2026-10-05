@@ -272,7 +272,7 @@ type EvidencePublicationInput = {
 type ReportLifecycle = {
   reportId: string; sourceRevision: number; publicVisibility: 'hidden'|'public'|'withdrawn';
   instagramAllowed: boolean; latestReview: ReviewRun | null;
-  approvedResolutionEvidence: ApprovedResolutionEvidence[];
+  approvedResolutionEvidence: ApprovedResolutionEvidence[]; resolutionReviewRequired: boolean;
   publicationAssets: {
     mediaId: string; renditionId: string; channels: ('web'|'instagram')[];
     sourceType: 'report'|'community_update'|'activity_result'; sourceId: string;
@@ -298,6 +298,8 @@ Pada approval media, `channel='web'|'instagram'`, `approved` boolean, `rendition
 Consent owner dan keputusan reviewer merupakan dua syarat berbeda. Legacy `publishedMediaIds` tidak dipakai sebagai consent Instagram. Legacy public key yang menunjuk object asli tidak dianggap bukti sudah disamarkan. Foto dapat tetap dipakai untuk review privat sesuai hak akses sementara pemakaian publik ditahan.
 
 Lifecycle menyediakan pilihan aset/milestone yang sudah sah untuk admin membuat draf; alasan createInstagramDraft menjelaskan sumber/bahan/izin yang kurang. PublicationAssets mencakup lampiran report dan bukti update/result approved yang terkait. Endpoint report/media harus memeriksa hubungan tersebut, bukan memberi akses global ke media hanya karena pemohon admin.
+
+Jika bukti yang digunakan pada keputusan `resolved` dicabut, hilang, atau tidak lagi memenuhi syarat, `resolutionReviewRequired` menjadi `true`. Moderator harus meninjau dan mengambil keputusan eksplisit; riwayat keputusan tidak diubah diam-diam.
 
 Rendition request memakai subjectType report/community_update/activity_result, subjectId yang mempunyai relasi dengan media, dan IM revisi subjek. Redactions 0–20 persegi panjang normalized 0..1, width/height positif dan seluruh rectangle berada dalam gambar; server melakukan penyamaran deterministik lalu membuat kandidat privat. Ready mempunyai url/expiresAt valid; queued/failed keduanya null. Daftar kandidat bukan izin tampil publik. Admin memilih rendition pada approval/decision. Bila belum ada foto yang aman, minta bukti pengganti atau tahan publikasi; jangan membuat gambar bukti generatif.
 
@@ -396,7 +398,7 @@ Body POST reviews subjectType adalah enum di atas. Revision yang tidak sesuai �
 
 Completed membutuhkan result valid, ID/revisi/hash yang cocok dan errorCode=null. Failed memiliki errorCode aman, result=null, finishedAt terisi; tetap bisa ditinjau manual. Superseded berarti tidak boleh menjadi dasar approval. Nilai modelVersion untuk job queued berasal konfigurasi yang dipin, bukan dipilih browser.
 
-Antrean berdasarkan kontribusi yang perlu keputusan manusia, bukan hanya ReviewRun gagal. Laporan submitted masuk antrean meskipun AI belum dipanggil. Hal ini menjaga fallback saat feature AI mati atau budget habis.
+Antrean berdasarkan kontribusi yang perlu keputusan manusia, bukan hanya ReviewRun gagal. Laporan submitted masuk antrean meskipun AI belum dipanggil. Laporan resolved yang bukti keputusan resolusinya dicabut/tidak lagi sah juga masuk sebagai `Resolusi perlu ditinjau` dengan `reviewState='pending'`. Hal ini menjaga fallback saat feature AI mati atau budget habis.
 
 ## 11. API kegiatan dan peserta
 
@@ -571,7 +573,7 @@ Approve update/result yang memenuhi syarat menghasilkan klaim bukti yang dapat d
 ```ts
 type Notification = {
   id: string; type: 'incident_updated'|'incident_resolved'|'incident_withdrawn'|
-    'evidence_requested'|'membership_decided'|'coordinator_assigned'|'activity_changed'|'activity_cancelled'|'result_approved';
+    'evidence_requested'|'membership_requested'|'membership_decided'|'coordinator_assigned'|'activity_changed'|'activity_cancelled'|'result_approved'|'community_update_decided';
   title: string; message: string; targetPath: string; read: boolean; createdAt: string;
 };
 type ImpactSummary = {
@@ -587,9 +589,9 @@ type ImpactSummary = {
 
 Range from<to, maksimal 366 hari. Count keputusan selesai menggunakan resolvedAt dalam periode dan canonical yang publik; waktu penyelesaian dari createdAt laporan sampai keputusan resolved yang berlaku. Kegiatan dihitung saat hasil approved dalam periode; kehadiran hanya present pada kegiatan yang dihitung. UniqueVolunteers adalah pengguna unik, volunteerAttendances adalah jumlah kehadiran lintas kegiatan. Deletion akun memerlukan identitas statistik yang tidak dapat dipakai untuk menghubungi/mengidentifikasi pengguna; kebijakan retensi dikonfigurasi sebelum produksi.
 
-Kg per stage hanya pengukuran verified pada measuredAt dalam periode dengan source publik yang masih eligible. Tidak ada pengukuran verified untuk suatu stage → null; pengukuran sah bernilai 0 →0. Coverage memakai jumlah approved result dengan sekurangnya satu pengukuran collected terverifikasi; kg penyerahan tidak dihitung sebagai kg terkumpul lagi. Koreksi/withdrawal sumber menyebabkan query/aggregate diperbarui, dengan histori tetap pada audit privat. Snapshot ringkasan selalu mencantumkan asOf/metode.
+Kg per stage hanya pengukuran verified pada measuredAt dalam periode yang kegiatannya mempunyai sekurangnya satu hasil kegiatan approved dan source report-nya masih publik/eligible. Keputusan measurement dan result tetap independen: measurement boleh diverifikasi sebelum result, tetapi belum masuk dampak publik sampai result approved. Pengukuran tambahan setelah result approved tetap boleh dihitung setelah diverifikasi. Tidak ada pengukuran eligible untuk suatu stage → null; pengukuran sah bernilai 0 → 0. Coverage memakai jumlah approved result dengan sekurangnya satu pengukuran collected terverifikasi; kg penyerahan/daur ulang adalah tahap batch yang sama dan tidak boleh dijumlahkan lagi sebagai kg terkumpul. Koreksi/withdrawal sumber menyebabkan query/aggregate diperbarui, dengan histori tetap pada audit privat. Snapshot ringkasan selalu mencantumkan asOf/metode.
 
-Notifikasi hanya untuk pengguna yang berhak atau mengikuti kejadian. Payload tidak menyimpan salinan konten publik yang telah ditarik; link lama menuju pemberitahuan aman. TargetPath berasal allowlist route internal. Event+penerima unik, sehingga retry tidak menggandakan notifikasi.
+Notifikasi hanya untuk pengguna yang berhak atau mengikuti kejadian. Keputusan pembaruan kondisi memberi notifikasi kepada pengirim (`community_update_decided`) dengan tautan ke kontribusinya; permintaan bergabung memberi notifikasi kepada koordinator (`membership_requested`), sedangkan keputusan peserta memakai `membership_decided`. Keputusan minta-bukti, setuju, dan tolak memakai judul/pesan yang sesuai. Saat sumber kejadian ditarik, peserta/koordinator kegiatan aktif mendapat `activity_changed` dan tautan aman ke pemberitahuan kegiatan. Payload tidak menyimpan salinan konten publik yang telah ditarik; link lama menuju pemberitahuan aman. TargetPath berasal allowlist route internal. Event+penerima unik, sehingga retry tidak menggandakan notifikasi.
 
 ## 14. Instagram: DTO dan API pengendalian
 

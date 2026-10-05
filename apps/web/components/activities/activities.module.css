@@ -86,6 +86,36 @@
   color: var(--green) !important;
   margin: 0;
 }
+.activityGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:13px}
+.activityCard,.assignmentCard{display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-width:0;border:1px solid #dce8ed;border-radius:12px;background:#fff;padding:16px;color:#24435a;text-align:left}
+button.activityCard{cursor:pointer;transition:border-color .16s,background .16s}
+button.activityCard:hover{border-color:#8fc2a6;background:#f8fcf9}
+.activityCard>strong,.assignmentCard strong{font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.activityCard>span,.activityCard>small,.assignmentCard p{margin:0;color:#6d8290;font-size:11px;line-height:1.55}
+.activityCard .secondary,.assignmentCard .secondary{margin-top:2px}
+.memberStatus{color:#176d4e;font-size:11px;font-weight:700;line-height:1.55}
+.assignmentList{display:flex;flex-direction:column;gap:12px}
+.assignmentCard{gap:12px}
+.assignmentCard>div:first-child{display:flex;flex-direction:column;gap:4px}
+.consentRow{display:flex;align-items:flex-start;gap:8px;color:#637b8b;font-size:11px;line-height:1.6}
+.consentRow input{width:16px;height:16px;flex:none;margin-top:1px;accent-color:#08785a}
+.buttonRow{display:flex;gap:9px;flex-wrap:wrap}
+.activityOverlay{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:18px;background:#0b233c80;backdrop-filter:blur(3px)}
+.activityDialog{position:relative;width:min(720px,100%);max-height:min(90vh,900px);overflow:auto;display:flex;flex-direction:column;gap:14px;padding:28px;border:1px solid #dce9ed;border-radius:17px;background:white;box-shadow:0 22px 70px #08192a40}
+.activityDialog h2{margin:0;color:#123752;font-size:25px;line-height:1.3;letter-spacing:-.035em}
+.activityDialog>p{margin:0;color:#526d7f;font-size:13px;line-height:1.7;white-space:pre-wrap}
+.activityDialog dl{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0}
+.activityDialog dl>div{padding:12px;border:1px solid #e1e9ed;border-radius:9px;background:#fafcfc}
+.activityDialog dt{color:#788c98;font-size:10px}
+.activityDialog dd{margin:4px 0 0;color:#304f63;font-size:12px;line-height:1.55}
+.dialogClose{align-self:flex-end;border:0;background:transparent;color:#537184;font:700 12px/1.4 var(--font-body),Arial,sans-serif;cursor:pointer}
+.meeting,.warning{display:flex;flex-direction:column;gap:7px;padding:14px;border:1px solid #dcebe2;border-radius:10px;background:#f4faf6;color:#345747;font-size:12px;line-height:1.6}
+.meeting p,.warning p{margin:0;color:#60796c}
+.meeting small{color:#758c7d;font-size:10px}
+.warning{border-color:#eedebc;background:#fff9ec;color:#755f2d}
+.warning strong{color:#705a28}
+.warning p{color:#827348}
+.helper{margin:0;color:#758b99;font-size:11px;line-height:1.65}
 .subtitle {
   font-size: 17px;
   line-height: 1.65;

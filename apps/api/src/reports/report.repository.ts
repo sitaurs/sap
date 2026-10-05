@@ -245,9 +245,9 @@ export class ReportRepository {
   }
 
   private async assertEvidence(tx: Tx, ownerId: string, mediaIds: string[]): Promise<void> {
-    const rows = await tx`SELECT id FROM media WHERE id=ANY(${mediaIds}::uuid[]) AND owner_id=${ownerId}
+    const rows = await tx`SELECT id FROM media WHERE id=ANY(${mediaIds}::uuid[]) AND owner_id=${ownerId} AND purpose='report'
       AND state='stored' AND deleted_at IS NULL ORDER BY id FOR SHARE`;
-    if (rows.length !== new Set(mediaIds).size) fail(422, 'EVIDENCE_INVALID', 'Foto laporan tidak tersedia atau bukan milik pelapor.');
+    if (rows.length !== new Set(mediaIds).size) fail(422, 'EVIDENCE_INVALID', 'Foto harus tersedia, milik pelapor, dan diunggah untuk laporan.');
   }
 
   /** Assemble a full report record (row + media + timeline) using any executor. */
