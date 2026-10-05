@@ -4,10 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import type { Map as LeafletMap, LayerGroup } from "leaflet";
 import type { SapAreas } from "../lib/api/client";
 import { MALANG_CENTER, MALANG_DEFAULT_ZOOM } from "../lib/malang";
+import { useI18n } from "../lib/i18n/provider";
+
 
 type Props = { areas: SapAreas | null; onBoundsChange: (bbox: string) => void; onSelect: (cellId: string) => void };
 
 export default function AreaMap({ areas, onBoundsChange, onSelect }: Props) {
+  const { t } = useI18n();
   const node = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(0);
   const map = useRef<LeafletMap | null>(null);
@@ -56,11 +59,11 @@ export default function AreaMap({ areas, onBoundsChange, onSelect }: Props) {
           color: colors[feature.properties.riskLevel], fillColor: colors[feature.properties.riskLevel],
           fillOpacity: .42, weight: 2,
         }).addTo(group);
-        shape.bindTooltip(`${feature.properties.incidentCount} laporan · ${feature.properties.riskLevel}`);
+        shape.bindTooltip(t("{0} laporan · {1}", { "0": feature.properties.incidentCount, "1": feature.properties.riskLevel }));
         shape.on("click", () => selectCallback.current(feature.properties.cellId));
       }
     });
-  }, [areas, ready]);
+  }, [areas, ready, t]);
 
-  return <div ref={node} style={{ position: "absolute", inset: 0, zIndex: 0 }} role="application" aria-label="Peta area interaktif; geser atau perbesar untuk melihat laporan terverifikasi" />;
+  return <div ref={node} style={{ position: "absolute", inset: 0, zIndex: 0 }} role="application" aria-label={t("Peta area interaktif; geser atau perbesar untuk melihat laporan terverifikasi")} />;
 }

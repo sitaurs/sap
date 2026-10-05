@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Camera, Save, Trash2, Upload } from "lucide-react";
 import {
-  getActivityResult,
-  submitActivityResult,
-  uploadActivityPhoto,
+  getActivityResult as defaultGetActivityResult,
+  submitActivityResult as defaultSubmitActivityResult,
+  uploadActivityPhoto as defaultUploadActivityPhoto,
   type Activity,
   type ActivityResult,
   type Measurement,
@@ -20,20 +20,41 @@ import {
 import { Busy, Notice, PageHead, useIntentKey } from "./activity-ui";
 import { MeasurementPhoto, ResultPhoto } from "./activity-photo";
 import s from "./activities.module.css";
+import { getConsents, setConsents } from "../../lib/api/community";
+import { useI18n } from "../../lib/i18n/provider";
 
-type Slot = { id?: string; file?: File };
+
+type Slot = { id?: string; file?: File; channels?: ("web" | "instagram")[] };
 export default function ActivityResultForm({
   activity,
   resultId,
   onBack,
   onSaved,
+  gateway,
+  kicker,
 }: {
   activity: Activity;
   resultId?: string;
   onBack: () => void;
   onChanged: (a: Activity) => void;
   onSaved: (r: ActivityResult) => void;
+  gateway?: {
+    getActivityResult: (
+      id: string,
+      signal?: AbortSignal,
+    ) => Promise<ActivityResult>;
+    submitActivityResult: typeof defaultSubmitActivityResult;
+    uploadActivityPhoto: typeof defaultUploadActivityPhoto;
+  };
+  kicker?: string;
 }) {
+  const { t } = useI18n();
+  const { getActivityResult, submitActivityResult, uploadActivityPhoto } =
+    gateway ?? {
+      getActivityResult: defaultGetActivityResult,
+      submitActivityResult: defaultSubmitActivityResult,
+      uploadActivityPhoto: defaultUploadActivityPhoto,
+    };
   const [previous, setPrevious] = useState<ActivityResult | undefined>(),
     [observed, setObserved] = useState(""),
     [description, setDescription] = useState(""),
@@ -56,6 +77,7 @@ export default function ActivityResultForm({
     [conflict, setConflict] = useState(false);
   const uploaded = useRef(new Map<File, string>()),
     intentKey = useIntentKey();
+  const [latestResult, setLatestResult] = useState<ActivityResult | null>(null);
   useEffect(() => {
     if (!resultId) {
       setObserved(localDate(new Date().toISOString()));
@@ -95,7 +117,7 @@ export default function ActivityResultForm({
         if (!c.signal.aborted) setLoading(false);
       });
     return () => c.abort();
-  }, [resultId, activity.id, activity.reportId]);
+  }, [resultId, activity.id, activity.reportId, getActivityResult]);
   async function mediaIds(slots: Slot[]) {
     const ids: string[] = [];
     for (const slot of slots) {
@@ -108,6 +130,15 @@ export default function ActivityResultForm({
       if (!id) {
         id = (await uploadActivityPhoto(slot.file)).id;
         uploaded.current.set(slot.file, id);
+      }
+      if (gateway && slot.channels) {
+        const consent = await getConsents(id);
+        if (
+          JSON.stringify([...consent.channels].sort()) !==
+          JSON.stringify([...slot.channels].sort())
+        ) {
+          await setConsents(id, consent.revision, slot.channels);
+        }
       }
       ids.push(id);
     }
@@ -122,7 +153,7 @@ export default function ActivityResultForm({
     if (!files) return;
     const next = Array.from(files);
     if (slots.length + next.length > max) {
-      setError(`Tambahkan maksimal ${max} foto pada bagian ini.`);
+      setError(t("Tambahkan maksimal {0} foto pada bagian ini.", { "0": max }));
       return;
     }
     if (
@@ -136,7 +167,13 @@ export default function ActivityResultForm({
       return;
     }
     setError("");
-    set([...slots, ...next.map((file) => ({ file }))]);
+    set([
+      ...slots,
+      ...next.map((file) => ({
+        file,
+        ...(gateway ? { channels: [] as ("web" | "instagram")[] } : {}),
+      })),
+    ]);
   }
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -234,8 +271,7 @@ export default function ActivityResultForm({
         throw new Error(
           "Hasil ini tidak terhubung dengan kegiatan yang dipilih.",
         );
-      setPrevious(latestResult);
-      setConflict(false);
+      setLatestResult(latestResult);
       setError(
         "Versi terbaru dimuat. Input dipertahankan; periksa bukti dan catatan sebelum mengirim ulang.",
       );
@@ -253,7 +289,8 @@ export default function ActivityResultForm({
   return (
     <>
       <PageHead
-        title={resultId ? "Lengkapi hasil kegiatan" : "Kirim hasil kegiatan"}
+        kicker={kicker}
+        title={resultId ? t("Lengkapi hasil kegiatan") : t("Kirim hasil kegiatan")}
         subtitle={activity.title}
         onBack={onBack}
       />
@@ -263,15 +300,24 @@ export default function ActivityResultForm({
         <form className={s.formLayout} onSubmit={(e) => void submit(e)}>
           <div className={s.formStack}>
             <section className={s.card}>
-              <h2>Bukti kegiatan</h2>
+              <h2>{t("Bukti kegiatan")}</h2>
               <p className={s.hint}>
-                Foto diunggah saat Anda mengirim hasil. Foto asli digunakan
-                untuk pemeriksaan dan tidak langsung dipublikasikan.
-              </p>
+                {t("Foto diunggah saat Anda mengirim hasil. Foto asli digunakan untuk pemeriksaan dan tidak langsung dipublikasikan.")}</p>
               <div className={s.evidenceGrid}>
                 <PhotoInput
-                  label="Sebelum kegiatan"
+                  real={!!gateway}
+                  label={t("Sebelum kegiatan")}
                   slots={before}
+                  onConsent={
+                    gateway
+                      ? (i, channels) =>
+                          setBefore((old) =>
+                            old.map((slot, j) =>
+                              i === j ? { ...slot, channels } : slot,
+                            ),
+                          )
+                      : undefined
+                  }
                   previous={previous}
                   onRemove={(i) =>
                     setBefore((old) => old.filter((_, x) => x !== i))
@@ -282,8 +328,19 @@ export default function ActivityResultForm({
                   disabled={busy || !editable}
                 />{" "}
                 <PhotoInput
-                  label="Sesudah kegiatan"
+                  real={!!gateway}
+                  label={t("Sesudah kegiatan")}
                   slots={after}
+                  onConsent={
+                    gateway
+                      ? (i, channels) =>
+                          setAfter((old) =>
+                            old.map((slot, j) =>
+                              i === j ? { ...slot, channels } : slot,
+                            ),
+                          )
+                      : undefined
+                  }
                   previous={previous}
                   onRemove={(i) =>
                     setAfter((old) => old.filter((_, x) => x !== i))
@@ -294,16 +351,13 @@ export default function ActivityResultForm({
               </div>
               {publicBefore.length > 0 && (
                 <Notice>
-                  {publicBefore.length} bukti publik sebelumnya tetap disertakan
-                  sebagai bukti sebelum.
-                </Notice>
+                  {publicBefore.length} {" "}{t("bukti publik sebelumnya tetap disertakan sebagai bukti sebelum.")}</Notice>
               )}
             </section>
             <section className={s.card}>
-              <h2>Hasil yang diamati</h2>
+              <h2>{t("Hasil yang diamati")}</h2>
               <label className={s.field}>
-                Waktu pengamatan
-                <input
+                {t("Waktu pengamatan")}<input
                   disabled={busy || !editable}
                   type="datetime-local"
                   required
@@ -314,22 +368,20 @@ export default function ActivityResultForm({
                   value={observed}
                   onChange={(e) => setObserved(e.target.value)}
                 />
-                <small>Menggunakan WIB, tidak boleh di masa depan.</small>
+                <small>{t("Menggunakan WIB, tidak boleh di masa depan.")}</small>
               </label>
               <label className={s.field}>
-                Kondisi sesudah kegiatan
-                <select
+                {t("Kondisi sesudah kegiatan")}<select
                   disabled={busy || !editable}
                   value={outcome}
                   onChange={(e) => setOutcome(e.target.value as typeof outcome)}
                 >
-                  <option value="partial">Area dibersihkan sebagian</option>
-                  <option value="complete">Pembersihan selesai</option>
+                  <option value="partial">{t("Area dibersihkan sebagian")}</option>
+                  <option value="complete">{t("Pembersihan selesai")}</option>
                 </select>
               </label>
               <label className={s.field}>
-                Catatan hasil
-                <textarea
+                {t("Catatan hasil")}<textarea
                   disabled={busy || !editable}
                   required
                   rows={6}
@@ -337,13 +389,13 @@ export default function ActivityResultForm({
                   maxLength={2000}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Jelaskan pekerjaan yang dilakukan, kondisi sesudah, dan area yang masih perlu ditangani."
+                  placeholder={t("Jelaskan pekerjaan yang dilakukan, kondisi sesudah, dan area yang masih perlu ditangani.")}
                 />
-                <small>{description.length}/2000 karakter</small>
+                <small>{description.length}{t("/2000 karakter")}</small>
               </label>
             </section>
             <section className={s.card}>
-              <h2>Pengukuran berat (opsional)</h2>
+              <h2>{t("Pengukuran berat (opsional)")}</h2>
               <label className={s.checkbox}>
                 <input
                   disabled={busy || !editable}
@@ -351,14 +403,12 @@ export default function ActivityResultForm({
                   checked={measure}
                   onChange={(e) => setMeasure(e.target.checked)}
                 />
-                Saya memiliki hasil penimbangan dan bukti timbangan.
-              </label>
+                {t("Saya memiliki hasil penimbangan dan bukti timbangan.")}</label>
               {measure && (
                 <>
                   <div className={s.fieldGrid}>
                     <label className={s.field}>
-                      Berat sampah (kg)
-                      <input
+                      {t("Berat sampah (kg)")}<input
                         disabled={busy || !editable}
                         type="number"
                         min={0}
@@ -370,22 +420,20 @@ export default function ActivityResultForm({
                       />
                     </label>
                     <label className={s.field}>
-                      Tahap pengukuran
-                      <select
+                      {t("Tahap pengukuran")}<select
                         disabled={busy || !editable}
                         value={stage}
                         onChange={(e) =>
                           setStage(e.target.value as typeof stage)
                         }
                       >
-                        <option value="collected">Dikumpulkan</option>
-                        <option value="handed_over">Diserahkan</option>
-                        <option value="recycled">Didaur ulang</option>
+                        <option value="collected">{t("Dikumpulkan")}</option>
+                        <option value="handed_over">{t("Diserahkan")}</option>
+                        <option value="recycled">{t("Didaur ulang")}</option>
                       </select>
                     </label>
                     <label className={s.field}>
-                      Waktu penimbangan
-                      <input
+                      {t("Waktu penimbangan")}<input
                         disabled={busy || !editable}
                         type="datetime-local"
                         required
@@ -400,20 +448,20 @@ export default function ActivityResultForm({
                       />
                     </label>
                     <label className={s.field}>
-                      Referensi penimbangan
-                      <input
+                      {t("Referensi penimbangan")}<input
                         disabled={busy || !editable}
                         required
                         minLength={1}
                         maxLength={150}
                         value={reference}
                         onChange={(e) => setReference(e.target.value)}
-                        placeholder="Contoh: catatan timbangan posko"
+                        placeholder={t("Contoh: catatan timbangan posko")}
                       />
                     </label>
                   </div>
                   <PhotoInput
-                    label="Bukti timbangan"
+                    real={!!gateway}
+                    label={t("Bukti timbangan")}
                     measurement={previous?.measurement ?? undefined}
                     slots={evidence}
                     onRemove={(i) =>
@@ -429,22 +477,20 @@ export default function ActivityResultForm({
           <aside className={s.sideStack}>
             <section className={`${s.card} ${s.softCard}`}>
               <Camera size={29} />
-              <h2>Bukti yang jelas</h2>
+              <h2>{t("Bukti yang jelas")}</h2>
               <ul className={s.checklist}>
                 <li>
-                  Ambil foto sebelum dan sesudah dari sudut yang sebanding.
-                </li>
-                <li>Gunakan cahaya yang cukup dan foto yang tidak buram.</li>
-                <li>Catat pekerjaan yang tersisa secara jujur.</li>
-                <li>Berat perlu ditinjau secara terpisah oleh admin.</li>
+                  {t("Ambil foto sebelum dan sesudah dari sudut yang sebanding.")}</li>
+                <li>{t("Gunakan cahaya yang cukup dan foto yang tidak buram.")}</li>
+                <li>{t("Catat pekerjaan yang tersisa secara jujur.")}</li>
+                <li>{t("Berat perlu ditinjau secara terpisah oleh admin.")}</li>
               </ul>
               <Notice>
-                Hasil kegiatan akan ditinjau sebelum dipublikasikan.
-              </Notice>
+                {t("Hasil kegiatan akan ditinjau sebelum dipublikasikan.")}</Notice>
             </section>
           </aside>
           <footer className={s.formFooter}>
-            {error && <Notice error>{error}</Notice>}
+            {error && <Notice error>{t(error)}</Notice>}
             {conflict && (
               <button
                 className={s.secondary}
@@ -452,17 +498,37 @@ export default function ActivityResultForm({
                 onClick={() => void latest()}
                 disabled={busy}
               >
-                Muat versi terbaru
-              </button>
+                {t("Muat versi terbaru")}</button>
+            )}
+            {latestResult && (
+              <Notice>
+                <strong>{t("Versi terbaru · revisi")}{" "}{latestResult.revision}</strong>
+                <p>{latestResult.description}</p>
+                <p>
+                  {t("Status:")}{" "}{latestResult.status} {" "}{t("· pengamatan:")}{" "}
+                  {localDate(latestResult.observedAt)} WIB
+                </p>
+                <p>{latestResult.requestedEvidence.join("; ")}</p>
+                <button
+                  type="button"
+                  className={s.secondary}
+                  disabled={busy}
+                  onClick={() => {
+                    setPrevious(latestResult);
+                    setLatestResult(null);
+                    setConflict(false);
+                    setError("");
+                  }}
+                >
+                  {t("Saya sudah meninjau, pertahankan input saya")}</button>
+              </Notice>
             )}
             {!editable && (
               <Notice>
-                Tidak dapat mengirim hasil pada status kegiatan atau hasil saat
-                ini.
-              </Notice>
+                {t("Tidak dapat mengirim hasil pada status kegiatan atau hasil saat ini.")}</Notice>
             )}
             <div>
-              <p>JPEG, PNG, WebP · maksimal 10 MB per foto</p>
+              <p>{t("JPEG, PNG, WebP · maksimal 10 MB per foto")}</p>
               <div className={s.actions}>
                 <button
                   className={s.secondary}
@@ -470,8 +536,7 @@ export default function ActivityResultForm({
                   onClick={onBack}
                   disabled={busy}
                 >
-                  Kembali
-                </button>
+                  {t("Kembali")}</button>
                 <button
                   className={s.primary}
                   type="submit"
@@ -483,7 +548,7 @@ export default function ActivityResultForm({
                   }
                 >
                   <Save size={18} />
-                  {busy ? "Mengunggah & mengirim…" : "Kirim untuk ditinjau"}
+                  {busy ? t("Mengunggah & mengirim…") : t("Kirim untuk ditinjau")}
                 </button>
               </div>
             </div>
@@ -501,6 +566,8 @@ function PhotoInput({
   onAdd,
   onRemove,
   disabled,
+  real = false,
+  onConsent,
 }: {
   label: string;
   slots: Slot[];
@@ -509,10 +576,13 @@ function PhotoInput({
   onAdd: (files: FileList | null) => void;
   onRemove: (i: number) => void;
   disabled: boolean;
+  real?: boolean;
+  onConsent?: (i: number, channels: ("web" | "instagram")[]) => void;
 }) {
+  const { t } = useI18n();
   return (
     <section className={s.photoInput}>
-      <h3>{label}</h3>
+      <h3>{t(label)}</h3>
       <div className={s.photoStack}>
         {slots.map((slot, i) => (
           <div
@@ -522,33 +592,62 @@ function PhotoInput({
             {slot.file ? (
               <LocalPreview file={slot.file} />
             ) : measurement && slot.id ? (
-              <MeasurementPhoto measurement={measurement} mediaId={slot.id} />
+              <MeasurementPhoto
+                measurement={measurement}
+                mediaId={slot.id}
+                real={real}
+              />
             ) : previous && slot.id ? (
-              <ResultPhoto result={previous} mediaId={slot.id} />
+              <ResultPhoto result={previous} mediaId={slot.id} real={real} />
             ) : (
               <div className={s.uploadedPlaceholder}>
                 <Camera size={25} />
-                <span>Bukti tersimpan</span>
+                <span>{t("Bukti tersimpan")}</span>
               </div>
             )}
             <div className={s.photoCaption}>
-              <small>{slot.file?.name || `Bukti ${i + 1}`}</small>
+              <small>{slot.file?.name || t("Bukti {0}", { "0": i + 1 })}</small>
               <button
                 type="button"
                 className={s.iconButton}
                 onClick={() => onRemove(i)}
                 disabled={disabled}
-                aria-label={`Hapus ${label.toLowerCase()} ${i + 1}`}
+                aria-label={t("Hapus {0} {1}", { "0": label.toLowerCase(), "1": i + 1 })}
               >
                 <Trash2 size={17} />
               </button>
             </div>
+            {slot.file && onConsent && (
+              <div className={s.field}>
+                {(["web", "instagram"] as const).map((channel) => (
+                  <label key={channel} className={s.checkbox}>
+                    <input
+                      type="checkbox"
+                      disabled={disabled}
+                      checked={slot.channels?.includes(channel) ?? false}
+                      onChange={(event) =>
+                        onConsent(
+                          i,
+                          event.target.checked
+                            ? [...(slot.channels ?? []), channel]
+                            : (slot.channels ?? []).filter(
+                                (c) => c !== channel,
+                              ),
+                        )
+                      }
+                    />
+                    {t("Izinkan foto ini untuk")}{" "}
+                    {channel === "web" ? t("halaman publik SAP") : "Instagram SAP"}{" "}
+                    {t("setelah ditinjau.")}</label>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
       <label className={`${s.uploadButton} ${disabled ? s.disabled : ""}`}>
         <Upload size={20} />
-        <span>Tambah foto</span>
+        <span>{t("Tambah foto")}</span>
         <input
           type="file"
           accept="image/jpeg,image/png,image/webp"
@@ -560,11 +659,12 @@ function PhotoInput({
           }}
         />
       </label>
-      <small>1–3 foto · JPEG, PNG, WebP</small>
+      <small>{t("1–3 foto · JPEG, PNG, WebP")}</small>
     </section>
   );
 }
 function LocalPreview({ file }: { file: File }) {
+  const { t } = useI18n();
   const [url, setUrl] = useState("");
   useEffect(() => {
     const source = URL.createObjectURL(file);
@@ -572,6 +672,6 @@ function LocalPreview({ file }: { file: File }) {
     return () => URL.revokeObjectURL(source);
   }, [file]);
   return url ? (
-    <img className={s.localPreview} src={url} alt={`Pratinjau ${file.name}`} />
+    <img className={s.localPreview} src={url} alt={t("Pratinjau {0}", { "0": file.name })} />
   ) : null;
 }

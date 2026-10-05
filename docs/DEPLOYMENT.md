@@ -6,7 +6,7 @@ v1.0 · Pemilik API/data/worker: backend; build frontend: frontend. Target awal 
 
 Default development memakai layanan managed khusus development: Neon PostgreSQL/PostGIS, Upstash Redis native TLS, Cloudflare R2 private via S3 API, Resend HTTPS API, dan Gradio self-hosted di VPS. Emulator/container lokal opsional, bukan syarat bootstrap. Browser memakai Next.js:3000 dan rewrite `/api/v1/*` ke NestJS:3001 bila lokal.
 
-Dev, staging dan production wajib memiliki database, queue, bucket, Resend API key, ML credential dan application secret terpisah. Jangan mengirim email nyata dari fixture/seed.
+Dev, staging dan production wajib memiliki database, queue, bucket, credential email, ML credential dan application secret terpisah. Jangan mengirim email nyata dari fixture/seed. Resend tetap default dan wajib untuk production. Development dapat memakai credential SMTP lama secara eksplisit dengan `MAIL_TRANSPORT=smtp`; mode ini membutuhkan keempat field `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, dan `SMTP_PASSWORD`, tanpa `RESEND_API_KEY`. SMTP memakai TLS, timeout terbatas, dan tidak menulis isi email atau credential ke log. Tidak ada fallback email palsu ketika pengiriman gagal.
 
 Produksi: reverse proxy membagi `/api/v1` ke NestJS dan route lain ke Next.js; worker adalah process/container terpisah. Neon, Upstash, R2 dan Resend berada di luar private network VPS sehingga wajib TLS, timeout, retry terbatas dan monitoring. Cookie host-only dan same-origin API harus konsisten. Rujukan [Next.js rewrites](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites).
 
@@ -23,7 +23,9 @@ Status aktual ada di [ENVIRONMENT_READINESS.md](ENVIRONMENT_READINESS.md); smoke
 | `REDIS_URL` | API/worker | Upstash native TLS `rediss://`; bukan REST URL/token |
 | `SESSION_SECRET` | API | Secret signing security/session |
 | `CSRF_SECRET` | API | Secret signed double-submit token |
-| `RESEND_API_KEY`, `MAIL_FROM` | API/worker | Resend HTTPS; API key server-only |
+| `MAIL_TRANSPORT` | API/worker config | `resend` default; `smtp` hanya nonproduction dan harus dipilih eksplisit |
+| `RESEND_API_KEY`, `MAIL_FROM` | API/worker config | Resend HTTPS; API key server-only; key wajib ketika transport Resend |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | API | Credential SMTP lama untuk mode development; password server-only; port 465 implicit TLS atau STARTTLS untuk port lain |
 | `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | API/worker | R2 private via S3 API |
 | `ML_INFERENCE_URL` | Worker | Base URL Gradio, bukan raw call endpoint |
 | `ML_API_NAME` | Worker | `/predict_gradio` |

@@ -1,12 +1,12 @@
 import type { SapReport } from "../../lib/api/client";
 import type { PublicationSettings, PublicationSource } from "./types";
 
-export function publicationDate(value: string) {
+export function publicationDate(value: string, locale = "id-ID") {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return { day: "Waktu tidak tersedia", time: "" };
   return {
-    day: new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", weekday: "long", day: "numeric", month: "short", year: "numeric" }).format(date),
-    time: `${new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date).replace(".", ":")} WIB`,
+    day: new Intl.DateTimeFormat(locale, { timeZone: "Asia/Jakarta", weekday: "long", day: "numeric", month: "short", year: "numeric" }).format(date),
+    time: `${new Intl.DateTimeFormat(locale, { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date).replace(".", ":")} WIB`,
   };
 }
 export function shortId(id: string) { return id.slice(0, 8); }

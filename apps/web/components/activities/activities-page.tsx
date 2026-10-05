@@ -44,6 +44,8 @@ import ActivityResultReview from "./activity-result";
 import ActivityResultForm from "./activity-result-form";
 import s from "./activities.module.css";
 import { activitiesMockEnabled } from "../../lib/api/activities-mode";
+import { useI18n } from "../../lib/i18n/provider";
+
 
 type Route = { screen: string; activity: string; result: string };
 export default function ActivitiesPage({
@@ -51,6 +53,7 @@ export default function ActivitiesPage({
 }: {
   categories: SapCategory[];
 }) {
+  const { t } = useI18n();
   const [resetKey, setResetKey] = useState(0);
   const [resetBusy, setResetBusy] = useState(false);
   const [resetError, setResetError] = useState("");
@@ -74,16 +77,14 @@ export default function ActivitiesPage({
     return <ActivitiesPageContent categories={categories} />;
   return (
     <div className={s.page} data-mode="activities-mock">
-      <section className={s.mockBanner} aria-label="Mode mock kegiatan relawan">
+      <section className={s.mockBanner} aria-label={t("Mode mock kegiatan relawan")}>
         <span className={s.iconCircle}>
           <FlaskConical size={23} />
         </span>
         <div>
-          <strong>Mode mock · Kegiatan relawan</strong>
+          <strong>{t("Mode mock · Kegiatan relawan")}</strong>
           <p>
-            Data dan foto contoh untuk mencoba frontend. Perubahan disimpan di
-            browser ini; tidak dikirim ke backend atau Instagram.
-          </p>
+            {t("Data dan foto contoh untuk mencoba frontend. Perubahan disimpan di browser ini; tidak dikirim ke backend atau Instagram.")}</p>
         </div>
         <button
           type="button"
@@ -91,8 +92,7 @@ export default function ActivitiesPage({
           onClick={() => void resetMock()}
           disabled={resetBusy}
         >
-          <RefreshCw size={17} /> Reset data contoh
-        </button>
+          <RefreshCw size={17} /> {" "}{t("Reset data contoh")}</button>
       </section>
       {resetError && <Notice error>{resetError}</Notice>}
       <ActivitiesPageContent key={resetKey} categories={categories} />
@@ -108,6 +108,7 @@ function readRoute(): Route {
   };
 }
 function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
+  const { t, intlLocale } = useI18n();
   const [route, setRoute] = useState<Route>({
     screen: "list",
     activity: "",
@@ -313,8 +314,8 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
       return (
         <div className={s.page}>
           <PageHead
-            title="Kegiatan relawan"
-            subtitle="Menyiapkan informasi kegiatan."
+            title={t("Kegiatan relawan")}
+            subtitle={t("Menyiapkan informasi kegiatan.")}
             onBack={() => go("list")}
           />
           <Busy />
@@ -324,14 +325,13 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
       return (
         <div className={s.page}>
           <PageHead
-            title="Kegiatan relawan"
-            subtitle="Informasi kegiatan belum dapat ditampilkan."
+            title={t("Kegiatan relawan")}
+            subtitle={t("Informasi kegiatan belum dapat ditampilkan.")}
             onBack={() => go("list")}
           />
-          <Notice error>{detailError || "Pilih kegiatan dari daftar."}</Notice>
+          <Notice error>{detailError || t("Pilih kegiatan dari daftar.")}</Notice>
           <button className={s.secondary} onClick={refresh}>
-            Muat ulang
-          </button>
+            {t("Muat ulang")}</button>
         </div>
       );
     const common = {
@@ -396,8 +396,8 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
   return (
     <div className={s.page}>
       <PageHead
-        title="Kegiatan relawan"
-        subtitle="Kelola kegiatan, koordinator, dan peserta dalam satu tempat."
+        title={t("Kegiatan relawan")}
+        subtitle={t("Kelola kegiatan, koordinator, dan peserta dalam satu tempat.")}
         action={
           <>
             <button
@@ -405,31 +405,27 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
               onClick={refresh}
               disabled={loading}
             >
-              <RefreshCw size={18} /> Muat ulang
-            </button>
+              <RefreshCw size={18} /> {" "}{t("Muat ulang")}</button>
             <button
               className={s.primary}
               onClick={() => go("create")}
               disabled={unavailable || loading}
             >
-              <Plus size={20} /> Buat kegiatan
-            </button>
+              <Plus size={20} /> {" "}{t("Buat kegiatan")}</button>
           </>
         }
       />
-      {error && <Notice error>{error}</Notice>}
+      {error && <Notice error>{t(error)}</Notice>}
       {unavailable ? (
         <section className={s.card}>
-          <Empty title="Kegiatan relawan belum diaktifkan">
-            Pengelola perlu menyiapkan layanan R1 dan mengaktifkan fitur
-            kegiatan pada backend. Setelah tersedia, muat ulang halaman ini.
-          </Empty>
+          <Empty title={t("Kegiatan relawan belum diaktifkan")}>
+            {t("Pengelola perlu menyiapkan layanan R1 dan mengaktifkan fitur kegiatan pada backend. Setelah tersedia, muat ulang halaman ini.")}</Empty>
         </section>
       ) : (
         <>
           <div className={s.sectionHeading}>
-            <h2>Ringkasan kegiatan yang dimuat</h2>
-            <small>{items.length} kegiatan · angka mengikuti filter</small>
+            <h2>{t("Ringkasan kegiatan yang dimuat")}</h2>
+            <small>{items.length} {" "}{t("kegiatan · angka mengikuti filter")}</small>
           </div>
           <div className={s.stats}>
             {cards.map((c) => (
@@ -450,7 +446,7 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
                       ? "—"
                       : items.filter((a) => a.status === c.status).length}
                   </strong>
-                    {c.label}
+                    {t(c.label)}
                 </span>
               </button>
             ))}
@@ -459,43 +455,43 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
             <section className={`${s.card} ${s.listCard}`}>
               <div className={s.sectionHeading}>
                 <div>
-                  <h2>Daftar kegiatan</h2>
-                  <p>{items.length} kegiatan dimuat</p>
+                  <h2>{t("Daftar kegiatan")}</h2>
+                  <p>{items.length} {" "}{t("kegiatan dimuat")}</p>
                 </div>
               </div>
               <div className={s.filters}>
                 <label className={s.search}>
                   <Search size={19} />
                   <input
-                    aria-label="Cari kegiatan yang dimuat"
-                    placeholder="Cari kegiatan yang dimuat…"
+                    aria-label={t("Cari kegiatan yang dimuat")}
+                    placeholder={t("Cari kegiatan yang dimuat…")}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </label>
                 <select
-                  aria-label="Filter status kegiatan"
+                  aria-label={t("Filter status kegiatan")}
                   value={status}
                   onChange={(e) =>
                     setStatus(e.target.value as ActivityStatus | "")
                   }
                 >
-                  <option value="">Semua status</option>
+                  <option value="">{t("Semua status")}</option>
                   {activityStatuses.map((x) => (
                     <option key={x} value={x}>
-                      {statusLabels[x]}
+                      {t(statusLabels[x])}
                     </option>
                   ))}
                 </select>
                 <select
-                  aria-label="Filter laporan sumber"
+                  aria-label={t("Filter laporan sumber")}
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
                 >
-                  <option value="">Semua laporan sumber</option>
+                  <option value="">{t("Semua laporan sumber")}</option>
                   {sources.map((id) => (
                     <option key={id} value={id}>
-                      Laporan #{shortId(id)}
+                      {t("Laporan #")}{shortId(id)}
                     </option>
                   ))}
                 </select>
@@ -505,16 +501,16 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
               ) : !visible.length ? (
                 <Empty
                   title={
-                    search ? "Kegiatan tidak ditemukan" : "Belum ada kegiatan"
+                    search ? t("Kegiatan tidak ditemukan") : t("Belum ada kegiatan")
                   }
                 >
                   {search
-                    ? "Coba kata kunci lain pada kegiatan yang sudah dimuat."
-                    : "Buat kegiatan dari laporan sumber untuk mulai mengajak relawan."}
+                    ? t("Coba kata kunci lain pada kegiatan yang sudah dimuat.")
+                    : t("Buat kegiatan dari laporan sumber untuk mulai mengajak relawan.")}
                 </Empty>
               ) : (
                 <div className={s.activityRows}>
-                  <div className={s.activityTableHead} aria-hidden="true"><span>Kegiatan</span><span>Jadwal</span><span>Koordinator</span><span>Peserta</span><span>Status</span><span /></div>
+                  <div className={s.activityTableHead} aria-hidden="true"><span>{t("Kegiatan")}</span><span>{t("Jadwal")}</span><span>{t("Koordinator")}</span><span>{t("Peserta")}</span><span>{t("Status")}</span><span /></div>
                   {visible.map((a) => (
                     <button
                       key={a.id}
@@ -526,12 +522,12 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
                         <SourcePhoto reportId={a.reportId} />
                         <span className={s.rowMain}>
                           <strong>{a.title}</strong>
-                          <small>Laporan #{shortId(a.reportId)}</small>
+                          <small>{t("Laporan #")}{shortId(a.reportId)}</small>
                         </span>
                       </span>
-                      <span className={s.rowSchedule}><small className={s.mobileRowLabel}>Jadwal</small><span>{dateLabel(a.startsAt)}</span><small>{timeRange(a.startsAt, a.endsAt)}</small></span>
+                      <span className={s.rowSchedule}><small className={s.mobileRowLabel}>{t("Jadwal")}</small><span>{t(dateLabel(a.startsAt, false, intlLocale))}</span><small>{timeRange(a.startsAt, a.endsAt, intlLocale)}</small></span>
                       <CoordinatorSummary activity={a} compact />
-                      <span className={s.rowQuota}><strong>{a.acceptedCount} / {a.capacity ?? "—"}</strong><small>Diterima</small></span>
+                      <span className={s.rowQuota}><strong>{a.acceptedCount} / {a.capacity ?? "—"}</strong><small>{t("Diterima")}</small></span>
                       <span className={s.rowStatus}><Status status={a.status} /></span>
                       <ChevronRight size={18} />
                     </button>
@@ -540,97 +536,90 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
               )}
               <footer className={s.listFooter}>
                 <small>
-                  {visible.length} kegiatan ditampilkan dari {items.length} yang
-                  dimuat
-                </small>
-                {!!visible.length && <small className={s.mobileListHint}>Pilih kegiatan untuk melihat ringkasannya di bawah.</small>}
+                  {visible.length} {" "}{t("kegiatan ditampilkan dari")}{" "}{items.length} {" "}{t("yang dimuat")}</small>
+                {!!visible.length && <small className={s.mobileListHint}>{t("Pilih kegiatan untuk melihat ringkasannya di bawah.")}</small>}
                 {cursor && (
                   <button
                     className={s.secondary}
                     onClick={() => void loadMore()}
                     disabled={more || loading}
                   >
-                    {more ? "Memuat…" : "Muat berikutnya"}
+                    {more ? t("Memuat…") : t("Muat berikutnya")}
                   </button>
                 )}
               </footer>
             </section>
             <aside className={`${s.card} ${s.preview}`}>
               <div className={s.sectionHeading}>
-                <h2>Kegiatan terpilih</h2>
+                <h2>{t("Kegiatan terpilih")}</h2>
               </div>
               {preview ? (
                 <>
-                  <div className={s.sourceFrame}><SourcePhoto reportId={preview.reportId} large /><span>Foto laporan sumber</span></div>
+                  <div className={s.sourceFrame}><SourcePhoto reportId={preview.reportId} large /><span>{t("Foto laporan sumber")}</span></div>
                   <div className={s.previewTitle}><h3>{preview.title}</h3><Status status={preview.status} /></div>
-                  <div className={s.infoLine}><Link2 size={19} /><span><small>Terhubung ke laporan</small>Laporan #{shortId(preview.reportId)}</span></div>
+                  <div className={s.infoLine}><Link2 size={19} /><span><small>{t("Terhubung ke laporan")}</small>{t("Laporan #")}{shortId(preview.reportId)}</span></div>
                   <div className={s.infoLine}>
                     <Clock3 size={19} />
                     <span>
-                      <small>Jadwal kegiatan</small>
-                      {dateLabel(preview.startsAt, true)}
+                      <small>{t("Jadwal kegiatan")}</small>
+                      {t(dateLabel(preview.startsAt, true, intlLocale))}
                     </span>
                   </div>
                   <div className={s.infoLine}>
                     <CalendarDays size={19} />
                     <span>
-                      <small>Batas pendaftaran</small>
-                      {dateLabel(preview.registrationClosesAt, true)}
+                      <small>{t("Batas pendaftaran")}</small>
+                      {t(dateLabel(preview.registrationClosesAt, true, intlLocale))}
                     </span>
                   </div>
                   <CoordinatorSummary activity={preview} />
                   <div className={s.capacity}>
                     <div>
-                      <strong>Peserta diterima<br /><b>{preview.acceptedCount} / {preview.capacity ?? "—"}</b></strong>
+                      <strong>{t("Peserta diterima")}<br /><b>{preview.acceptedCount} / {preview.capacity ?? "—"}</b></strong>
                       <small>
                         {preview.capacity == null
-                          ? "Kuota belum ditentukan"
-                          : `${preview.availableSeats} tempat tersedia`}
+                          ? t("Kuota belum ditentukan")
+                          : t("{0} tempat tersedia", { "0": preview.availableSeats })}
                       </small>
                     </div>
                     <progress
                       max={preview.capacity || 1}
                       value={preview.acceptedCount}
-                      aria-label="Kuota peserta"
+                      aria-label={t("Kuota peserta")}
                     />
                   </div>
                   <button
                     className={s.primary}
                     onClick={() => go("detail", preview.id)}
                   >
-                    Lihat detail kegiatan <ArrowRight size={18} />
+                    {t("Lihat detail kegiatan")}{" "}<ArrowRight size={18} />
                   </button>
                   <button
                     className={s.secondary}
                     onClick={() => go("members", preview.id)}
                   >
-                    <UsersRound size={18} /> Kelola peserta
-                  </button>
+                    <UsersRound size={18} /> {" "}{t("Kelola peserta")}</button>
                 </>
               ) : (
-                <Empty title="Pilih kegiatan">
-                  Ringkasan dan foto laporan akan muncul di sini.
-                </Empty>
+                <Empty title={t("Pilih kegiatan")}>
+                  {t("Ringkasan dan foto laporan akan muncul di sini.")}</Empty>
               )}
             </aside>
           <section className={`${s.card} ${s.queueCard}`}>
             <div className={s.sectionHeading}>
               <div>
                 <h2>
-                  <ClipboardCheck size={22} /> Hasil perlu ditinjau
-                </h2>
+                  <ClipboardCheck size={22} /> {" "}{t("Hasil perlu ditinjau")}</h2>
               </div>
-              <small>{queue.length} hasil dimuat</small>
+              <small>{queue.length} {" "}{t("hasil dimuat")}</small>
             </div>
             {queueError ? (
               <Notice error>{queueError}</Notice>
             ) : queueLoading && !queue.length ? (
               <Busy />
             ) : !queue.length ? (
-              <Empty title="Tidak ada hasil dalam antrean yang dimuat">
-                Hasil baru akan muncul setelah koordinator mengirim bukti
-                kegiatan.
-              </Empty>
+              <Empty title={t("Tidak ada hasil dalam antrean yang dimuat")}>
+                {t("Hasil baru akan muncul setelah koordinator mengirim bukti kegiatan.")}</Empty>
             ) : (
               <div className={s.queue}>
                 {queue.map((q) => (
@@ -643,17 +632,17 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
                     <span>
                       <strong>{q.title}</strong>
                       <small>
-                        Foto sebelum & sesudah ·{" "}
-                        {dateLabel(q.submittedAt, true)}
+                        {t("Foto sebelum & sesudah ·")}{" "}
+                        {t(dateLabel(q.submittedAt, true, intlLocale))}
                       </small>
-                      <small>Periksa bukti sebelum menyatakan laporan selesai.</small>
+                      <small>{t("Periksa bukti sebelum menyatakan laporan selesai.")}</small>
                     </span>
                     <span className={`${s.badge} ${s.amber}`}>
                       {q.reviewState === "needs_evidence"
-                        ? "Perlu bukti tambahan"
-                        : "Menunggu tinjauan"}
+                        ? t("Perlu bukti tambahan")
+                        : t("Menunggu tinjauan")}
                     </span>
-                    <span className={s.reviewAction}>Tinjau hasil <ArrowRight size={17} /></span>
+                    <span className={s.reviewAction}>{t("Tinjau hasil")}{" "}<ArrowRight size={17} /></span>
                   </button>
                 ))}
               </div>
@@ -665,8 +654,7 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
                 onClick={() => void moreQueue()}
                 disabled={queueLoading}
               >
-                Muat hasil berikutnya
-              </button>
+                {t("Muat hasil berikutnya")}</button>
             )}
           </section>
           </div>
@@ -675,12 +663,13 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
     </div>
   );
 }
-function timeRange(starts: string | null, ends: string | null) {
+function timeRange(starts: string | null, ends: string | null, locale = "id-ID") {
   if (!starts) return "Belum ditentukan";
-  const format = (value: string) => new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+  const format = (value: string) => new Intl.DateTimeFormat(locale, { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
   return `${format(starts)}${ends ? ` – ${format(ends)}` : ""} WIB`;
 }
 function CoordinatorSummary({ activity, compact = false }: { activity: Activity; compact?: boolean }) {
+  const { t } = useI18n();
   const [name, setName] = useState("Koordinator SAP");
   useEffect(() => {
     const c = new AbortController();
@@ -696,11 +685,11 @@ function CoordinatorSummary({ activity, compact = false }: { activity: Activity;
   }, [activity.id, activity.status, activity.revision]);
   return (
     <span className={compact ? s.rowCoordinator : s.infoLine}>
-      {compact && <small className={s.mobileRowLabel}>Koordinator</small>}
+      {compact && <small className={s.mobileRowLabel}>{t("Koordinator")}</small>}
       {compact ? <span className={s.coordinatorInitials}>{activity.coordinatorId ? initials(name) : "—"}</span> : <UsersRound size={19} />}
       <span>
-        {!compact && <small>Koordinator kegiatan</small>}
-        {activity.coordinatorId ? name : "Belum ditugaskan"}
+        {!compact && <small>{t("Koordinator kegiatan")}</small>}
+        {activity.coordinatorId ? name : t("Belum ditugaskan")}
       </span>
     </span>
   );

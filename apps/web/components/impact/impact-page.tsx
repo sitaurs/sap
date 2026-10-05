@@ -7,6 +7,8 @@ import { getImpactSummary, impactMockEnabled, validateImpactQuery, type ImpactQu
 import ImpactSummaryCards from "./impact-summary";
 import { dayAt, periodLabel, queryForDays, todayJakarta, updatedLabel } from "./impact-utils";
 import s from "./impact.module.css";
+import { useI18n } from "../../lib/i18n/provider";
+
 
 type Period = { id: string; start: string; end: string; label: string };
 function periods(): Period[] {
@@ -30,6 +32,7 @@ function messageForError(error: unknown): string {
 }
 
 export default function ImpactPage() {
+  const { t, intlLocale } = useI18n();
   const [options] = useState(periods);
   const [period, setPeriod] = useState(options[0].id);
   const [start, setStart] = useState(options[0].start);
@@ -73,30 +76,30 @@ export default function ImpactPage() {
   }
 
   return <div className={s.page}>
-    <header className={s.pageHeading}><div><p className={s.eyebrow}>ADMIN SAP · DAMPAK</p><h1>Dampak</h1><p className={s.subtitle}>Pantau hasil aksi lingkungan dari bukti yang telah disetujui.</p></div><span className={`${s.modeBadge} ${impactMockEnabled ? "" : s.liveBadge}`}>{impactMockEnabled ? "Mockup · data contoh" : "Ringkasan terverifikasi"}</span></header>
+    <header className={s.pageHeading}><div><p className={s.eyebrow}>{t("ADMIN SAP · DAMPAK")}</p><h1>{t("Dampak")}</h1><p className={s.subtitle}>{t("Pantau hasil aksi lingkungan dari bukti yang telah disetujui.")}</p></div><span className={`${s.modeBadge} ${impactMockEnabled ? "" : s.liveBadge}`}>{impactMockEnabled ? t("Mockup · data contoh") : t("Ringkasan terverifikasi")}</span></header>
 
-    <form className={`${s.card} ${s.filters}`} onSubmit={apply} aria-label="Filter dampak">
+    <form className={`${s.card} ${s.filters}`} onSubmit={apply} aria-label={t("Filter dampak")}>
       <div className={s.filterRow}>
-        <label className={s.filterField} htmlFor="impact-period"><CalendarDays size={24} aria-hidden="true" /><span>Periode</span><div className={s.selectWrap}><select id="impact-period" value={period} onChange={e => changePeriod(e.target.value)}>{options.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}<option value="custom">Pilih tanggal sendiri</option></select><ChevronDown size={18} aria-hidden="true" /></div></label>
+        <label className={s.filterField} htmlFor="impact-period"><CalendarDays size={24} aria-hidden="true" /><span>{t("Periode")}</span><div className={s.selectWrap}><select id="impact-period" value={period} onChange={e => changePeriod(e.target.value)}>{options.map(p => <option key={p.id} value={p.id}>{t(periodLabel(p.start, p.end, intlLocale))}</option>)}<option value="custom">{t("Pilih tanggal sendiri")}</option></select><ChevronDown size={18} aria-hidden="true" /></div></label>
         <span className={s.filterDivider} aria-hidden="true" />
-        <label className={s.filterField} htmlFor="impact-scope"><MapPin size={24} aria-hidden="true" /><span>Cakupan</span><div className={s.selectWrap}><select id="impact-scope" value={scope} onChange={e => { setScope(e.target.value); setValidation(""); }}><option value="">Semua area</option>{impactMockEnabled && <><option value="8928308280fffff">Area contoh 1</option><option value="8928308280bffff">Area contoh 2</option></>}<option value="custom">Area tertentu (ID H3)</option></select><ChevronDown size={18} aria-hidden="true" /></div></label>
-        <button type="submit" className={s.primary} disabled={loading}>{loading ? <><LoaderCircle size={17} className={s.spin} />Memuat…</> : "Terapkan"}</button>
+        <label className={s.filterField} htmlFor="impact-scope"><MapPin size={24} aria-hidden="true" /><span>{t("Cakupan")}</span><div className={s.selectWrap}><select id="impact-scope" value={scope} onChange={e => { setScope(e.target.value); setValidation(""); }}><option value="">{t("Semua area")}</option>{impactMockEnabled && <><option value="8928308280fffff">{t("Area contoh 1")}</option><option value="8928308280bffff">{t("Area contoh 2")}</option></>}<option value="custom">{t("Area tertentu (ID H3)")}</option></select><ChevronDown size={18} aria-hidden="true" /></div></label>
+        <button type="submit" className={s.primary} disabled={loading}>{loading ? <><LoaderCircle size={17} className={s.spin} />{t("Memuat…")}</> : t("Terapkan")}</button>
       </div>
       {(period === "custom" || scope === "custom") && <div className={s.customFilters}>
-        {period === "custom" && <><label>Dari tanggal<input type="date" value={start} onChange={e => setStart(e.target.value)} required /></label><label>Sampai tanggal<input type="date" value={end} onChange={e => setEnd(e.target.value)} required /></label></>}
-        {scope === "custom" && <label className={s.cellField}>ID sel area H3<input value={cellId} onChange={e => setCellId(e.target.value)} placeholder="Contoh: 8928308280fffff" maxLength={15} required aria-describedby="impact-area-help" /><small id="impact-area-help">Gunakan ID sel dari peta area SAP.</small></label>}
+        {period === "custom" && <><label>{t("Dari tanggal")}<input type="date" value={start} onChange={e => setStart(e.target.value)} required /></label><label>{t("Sampai tanggal")}<input type="date" value={end} onChange={e => setEnd(e.target.value)} required /></label></>}
+        {scope === "custom" && <label className={s.cellField}>{t("ID sel area H3")}<input value={cellId} onChange={e => setCellId(e.target.value)} placeholder={t("Contoh: 8928308280fffff")} maxLength={15} required aria-describedby="impact-area-help" /><small id="impact-area-help">{t("Gunakan ID sel dari peta area SAP.")}</small></label>}
       </div>}
-      {validation && <p className={s.validation} role="alert">{validation}</p>}
+      {validation && <p className={s.validation} role="alert">{t(validation)}</p>}
     </form>
 
     <div aria-busy={loading}>
-      {loading && <div className={s.loadingState} role="status"><LoaderCircle size={26} className={s.spin} />Memuat ringkasan dampak…</div>}
-      {error && <section className={`${s.card} ${s.errorState}`} role="alert"><Info size={30} /><h2>Ringkasan belum tersedia</h2><p>{error}</p><button type="button" className={s.secondary} onClick={() => setRequest(current => ({ ...current, revision: current.revision + 1 }))}><RefreshCw size={18} />Muat ulang</button></section>}
+      {loading && <div className={s.loadingState} role="status"><LoaderCircle size={26} className={s.spin} />{t("Memuat ringkasan dampak…")}</div>}
+      {error && <section className={`${s.card} ${s.errorState}`} role="alert"><Info size={30} /><h2>{t("Ringkasan belum tersedia")}</h2><p>{t(error)}</p><button type="button" className={s.secondary} onClick={() => setRequest(current => ({ ...current, revision: current.revision + 1 }))}><RefreshCw size={18} />{t("Muat ulang")}</button></section>}
       {summary && <>
-        <p className={s.srOnly} role="status">Ringkasan diperbarui untuk periode {new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).formatRange(new Date(summary.from), new Date(Date.parse(summary.to) - 1))}.</p>
-        {summary.resolvedIncidents === 0 && summary.approvedActivities === 0 && Object.values(summary.verifiedKg).every(v => v === null) && <p className={s.emptyNotice}><Info size={19} />Belum ada sumber publik yang disetujui dalam periode dan area ini. Pilih filter lain untuk melihat data.</p>}
+        <p className={s.srOnly} role="status">{t("Ringkasan diperbarui untuk periode")}{" "}{new Intl.DateTimeFormat(intlLocale, { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).formatRange(new Date(summary.from), new Date(Date.parse(summary.to) - 1))}.</p>
+        {summary.resolvedIncidents === 0 && summary.approvedActivities === 0 && Object.values(summary.verifiedKg).every(v => v === null) && <p className={s.emptyNotice}><Info size={19} />{t("Belum ada sumber publik yang disetujui dalam periode dan area ini. Pilih filter lain untuk melihat data.")}</p>}
         <ImpactSummaryCards data={summary} onMethod={() => setMethodOpen(true)} />
-        <p className={s.footerNote}>{impactMockEnabled ? "Angka contoh untuk pratinjau desain · tidak berasal dari data produksi." : "Ringkasan hanya mencakup sumber publik yang disetujui."}</p>
+        <p className={s.footerNote}>{impactMockEnabled ? t("Angka contoh untuk pratinjau desain · tidak berasal dari data produksi.") : t("Ringkasan hanya mencakup sumber publik yang disetujui.")}</p>
       </>}
     </div>
     {methodOpen && summary && <MethodDialog data={summary} onClose={() => setMethodOpen(false)} />}
@@ -104,6 +107,7 @@ export default function ImpactPage() {
 }
 
 function MethodDialog({ data, onClose }: { data: ImpactSummary; onClose: () => void }) {
+  const { t, intlLocale } = useI18n();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -118,48 +122,48 @@ function MethodDialog({ data, onClose }: { data: ImpactSummary; onClose: () => v
     <div className={s.dialogBody}>
       <header>
         <span className={s.dialogIcon}><ShieldCheck size={26} aria-hidden="true" /></span>
-        <div><p className={s.eyebrow}>METODE DAMPAK SAP</p><h2 id="impact-method-dialog-title">Angka yang dapat ditelusuri</h2></div>
-        <button type="button" className={s.close} onClick={onClose} aria-label="Tutup metode perhitungan"><X size={22} /></button>
+        <div><p className={s.eyebrow}>{t("METODE DAMPAK SAP")}</p><h2 id="impact-method-dialog-title">{t("Angka yang dapat ditelusuri")}</h2></div>
+        <button type="button" className={s.close} onClick={onClose} aria-label={t("Tutup metode perhitungan")}><X size={22} /></button>
       </header>
-      <p className={s.dialogIntro}>Ringkasan mengikuti periode dan area yang dipilih. Hanya sumber publik yang memenuhi ketentuan SAP yang dihitung.</p>
+      <p className={s.dialogIntro}>{t("Ringkasan mengikuti periode dan area yang dipilih. Hanya sumber publik yang memenuhi ketentuan SAP yang dihitung.")}</p>
       <dl className={s.methodDefinitions}>
-        <div><dt>Laporan terselesaikan</dt><dd>Laporan publik yang bukan duplikat dan berstatus selesai dalam periode terpilih.</dd></div>
+        <div><dt>{t("Laporan terselesaikan")}</dt><dd>{t("Laporan publik yang bukan duplikat dan berstatus selesai dalam periode terpilih.")}</dd></div>
         <div>
-          <dt>Kegiatan, relawan, dan kehadiran</dt>
+          <dt>{t("Kegiatan, relawan, dan kehadiran")}</dt>
           <dd>
-            <p>Kegiatan dihitung jika hasilnya disetujui dalam periode terpilih.</p>
+            <p>{t("Kegiatan dihitung jika hasilnya disetujui dalam periode terpilih.")}</p>
             <ul>
-              <li><strong>Relawan unik:</strong> setiap orang dihitung satu kali.</li>
-              <li><strong>Total kehadiran:</strong> dihitung pada setiap kegiatan yang diikuti.</li>
+              <li><strong>{t("Relawan unik:")}</strong> {" "}{t("setiap orang dihitung satu kali.")}</li>
+              <li><strong>{t("Total kehadiran:")}</strong> {" "}{t("dihitung pada setiap kegiatan yang diikuti.")}</li>
             </ul>
           </dd>
         </div>
         <div>
-          <dt>Berat sampah</dt>
+          <dt>{t("Berat sampah")}</dt>
           <dd>
-            <p>Hanya pengukuran terverifikasi yang dilakukan dalam periode terpilih yang dihitung.</p>
-            <p>Berat terkumpul, diserahkan, dan didaur ulang dicatat <strong>terpisah dan tidak dijumlahkan</strong>. Panjang batang membandingkan setiap tahap terhadap berat terbesar.</p>
+            <p>{t("Hanya pengukuran terverifikasi yang dilakukan dalam periode terpilih yang dihitung.")}</p>
+            <p>{t("Berat terkumpul, diserahkan, dan didaur ulang dicatat")}{" "}<strong>{t("terpisah dan tidak dijumlahkan")}</strong>{t(". Panjang batang membandingkan setiap tahap terhadap berat terbesar.")}</p>
           </dd>
         </div>
         <div>
-          <dt>Cakupan bukti</dt>
+          <dt>{t("Cakupan bukti")}</dt>
           <dd>
-            <p>Persentase hasil kegiatan yang disetujui dan memiliki setidaknya satu pengukuran berat terkumpul terverifikasi, dibandingkan seluruh hasil kegiatan yang disetujui.</p>
-            <p>Jika belum ada hasil kegiatan yang disetujui, persentase belum tersedia.</p>
+            <p>{t("Persentase hasil kegiatan yang disetujui dan memiliki setidaknya satu pengukuran berat terkumpul terverifikasi, dibandingkan seluruh hasil kegiatan yang disetujui.")}</p>
+            <p>{t("Jika belum ada hasil kegiatan yang disetujui, persentase belum tersedia.")}</p>
           </dd>
         </div>
-        <div><dt>Respons penanganan</dt><dd>Nilai tengah (median) waktu sejak laporan dibuat hingga selesai, untuk laporan yang masuk dalam ringkasan.</dd></div>
+        <div><dt>{t("Respons penanganan")}</dt><dd>{t("Nilai tengah (median) waktu sejak laporan dibuat hingga selesai, untuk laporan yang masuk dalam ringkasan.")}</dd></div>
       </dl>
       <div className={s.methodNote}>
         <CheckCircle2 size={20} aria-hidden="true" />
-        <p><strong>Berat yang belum diketahui berbeda dari 0 kg.</strong><br />Berat dan emisi tidak diperkirakan dari foto.</p>
+        <p><strong>{t("Berat yang belum diketahui berbeda dari 0 kg.")}</strong><br />{t("Berat dan emisi tidak diperkirakan dari foto.")}</p>
       </div>
       <footer>
         <div className={s.methodMetadata}>
-          <span>Versi metode <code>{data.methodologyVersion}</code></span>
-          <span>Waktu ringkasan: <time dateTime={data.asOf}>{updatedLabel(data.asOf)}</time>{impactMockEnabled ? " · Data contoh" : ""}</span>
+          <span>{t("Versi metode")}{" "}<code>{data.methodologyVersion}</code></span>
+          <span>{t("Waktu ringkasan:")}{" "}<time dateTime={data.asOf}>{t(updatedLabel(data.asOf, intlLocale))}</time>{impactMockEnabled ? t(" · Data contoh") : ""}</span>
         </div>
-        <button type="button" className={s.primary} onClick={onClose}>Mengerti</button>
+        <button type="button" className={s.primary} onClick={onClose}>{t("Mengerti")}</button>
       </footer>
     </div>
   </dialog>;

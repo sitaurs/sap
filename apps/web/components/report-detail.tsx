@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { CalendarDays, FileText, MapPin, X } from "lucide-react";
 import { ApiError, getReport, mediaUrl, updateReport, type SapCategory, type SapReport } from "../lib/api/client";
 import styles from "./report-detail.module.css";
+import { useI18n } from "../lib/i18n/provider";
+
 
 const statusLabels: Record<SapReport["status"], string> = {
   submitted: "Menunggu pemeriksaan", verified: "Terverifikasi", in_progress: "Dalam penanganan",
@@ -11,6 +13,7 @@ const statusLabels: Record<SapReport["status"], string> = {
 };
 
 export default function ReportDetail({ id, categories, onClose, onUpdated }: { id: string; categories: SapCategory[]; onClose: () => void; onUpdated: () => void }) {
+  const { t, intlLocale } = useI18n();
   const [report, setReport] = useState<SapReport | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [description, setDescription] = useState("");
@@ -45,15 +48,15 @@ export default function ReportDetail({ id, categories, onClose, onUpdated }: { i
 
   return <div className={styles.backdrop} role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
     <section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="report-detail-title">
-      <div className={styles.heading}><div><span>DETAIL LAPORAN</span><h2 id="report-detail-title">Laporan saya</h2></div><button type="button" onClick={onClose} aria-label="Tutup detail laporan"><X size={22} /></button></div>
-      {error && <p className={styles.error} role="alert">{error}</p>}
-      {!report ? <p className={styles.loading}>Memuat laporan…</p> : <>
-         <div className={styles.status}>{statusLabels[report.status]} <small>Revisi {report.revision}</small></div>
-         {report.publicSummary && report.publishedMediaIds.length > 0 && ["verified", "in_progress", "resolved"].includes(report.status) && <a className={styles.publicLink} href={`/incidents/${encodeURIComponent(report.id)}`}>Buka kronologi publik dan kirim pembaruan warga ↗</a>}
-        <div className={styles.facts}><span><CalendarDays size={18} />{new Date(report.occurredAt).toLocaleString("id-ID")}</span><span><MapPin size={18} />{report.location.latitude.toFixed(5)}, {report.location.longitude.toFixed(5)}</span><span><FileText size={18} />{categories.find(item => item.id === report.categoryId)?.name || "Tanpa kategori"} · Tumpukan {report.reportedSeverity}</span></div>
-        {photos.length > 0 && <div className={styles.photos}>{photos.map((url, index) => <img key={url} src={url} alt={`Bukti laporan ${index + 1}`} />)}</div>}
-        <div className={styles.description}><div><h3>Keterangan</h3>{report.status === "submitted" && !editing && <button type="button" onClick={() => setEditing(true)}>Ubah</button>}</div>{editing ? <><textarea value={description} maxLength={2000} onChange={event => setDescription(event.target.value)} aria-label="Ubah keterangan laporan" /><div className={styles.actions}><button type="button" onClick={() => { setEditing(false); setDescription(report.description); }}>Batal</button><button type="button" onClick={save} disabled={busy}>{busy ? "Menyimpan…" : "Simpan perubahan"}</button></div></> : <p>{report.description}</p>}</div>
-        <div className={styles.timeline}><h3>Riwayat status</h3>{report.timeline.map(event => <div key={event.id}><strong>{statusLabels[event.status]}</strong><time>{new Date(event.createdAt).toLocaleString("id-ID")}</time>{event.note && <p>{event.note}</p>}</div>)}</div>
+      <div className={styles.heading}><div><span>{t("DETAIL LAPORAN")}</span><h2 id="report-detail-title">{t("Laporan saya")}</h2></div><button type="button" onClick={onClose} aria-label={t("Tutup detail laporan")}><X size={22} /></button></div>
+      {error && <p className={styles.error} role="alert">{t(error)}</p>}
+      {!report ? <p className={styles.loading}>{t("Memuat laporan…")}</p> : <>
+        <div className={styles.status}>{t(statusLabels[report.status])} <small>{t("Revisi")}{" "}{report.revision}</small></div>
+        {report.publicSummary && report.publishedMediaIds.length > 0 && ["verified", "in_progress", "resolved"].includes(report.status) && <a className={styles.publicLink} href={`/incidents/${encodeURIComponent(report.id)}`}>{t("Buka kronologi publik dan kirim pembaruan warga")} ↗</a>}
+        <div className={styles.facts}><span><CalendarDays size={18} />{new Date(report.occurredAt).toLocaleString(intlLocale)}</span><span><MapPin size={18} />{report.location.latitude.toFixed(5)}, {report.location.longitude.toFixed(5)}</span><span><FileText size={18} />{categories.find(item => item.id === report.categoryId)?.name || t("Tanpa kategori")} {" "}{t("· Tumpukan")}{" "}{report.reportedSeverity}</span></div>
+        {photos.length > 0 && <div className={styles.photos}>{photos.map((url, index) => <img key={url} src={url} alt={t("Bukti laporan {0}", { "0": index + 1 })} />)}</div>}
+        <div className={styles.description}><div><h3>{t("Keterangan")}</h3>{report.status === "submitted" && !editing && <button type="button" onClick={() => setEditing(true)}>{t("Ubah")}</button>}</div>{editing ? <><textarea value={description} maxLength={2000} onChange={event => setDescription(event.target.value)} aria-label={t("Ubah keterangan laporan")} /><div className={styles.actions}><button type="button" onClick={() => { setEditing(false); setDescription(report.description); }}>{t("Batal")}</button><button type="button" onClick={save} disabled={busy}>{busy ? t("Menyimpan…") : t("Simpan perubahan")}</button></div></> : <p>{report.description}</p>}</div>
+        <div className={styles.timeline}><h3>{t("Riwayat status")}</h3>{report.timeline.map(event => <div key={event.id}><strong>{t(statusLabels[event.status])}</strong><time>{new Date(event.createdAt).toLocaleString(intlLocale)}</time>{event.note && <p>{event.note}</p>}</div>)}</div>
       </>}
     </section>
   </div>;

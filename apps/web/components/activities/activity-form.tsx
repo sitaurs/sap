@@ -34,6 +34,8 @@ import { Busy, Empty, Notice, PageHead, useIntentKey } from "./activity-ui";
 import { SourcePhoto } from "./activity-photo";
 import DialogShell from "../instagram/dialog-shell";
 import s from "./activities.module.css";
+import { useI18n } from "../../lib/i18n/provider";
+
 
 export default function ActivityForm({
   activity,
@@ -46,6 +48,7 @@ export default function ActivityForm({
   onBack: () => void;
   onSaved: (a: Activity) => void;
 }) {
+  const { t, intlLocale } = useI18n();
   const [current, setCurrent] = useState(activity),
     [reportId, setReportId] = useState(activity?.reportId || "");
   const [title, setTitle] = useState(activity?.title || ""),
@@ -275,8 +278,8 @@ export default function ActivityForm({
   return (
     <>
       <PageHead
-        title={activity ? "Edit kegiatan" : "Buat kegiatan relawan"}
-        subtitle="Susun aksi yang jelas: sumber laporan, jadwal, koordinator, dan kebutuhan relawan."
+        title={activity ? t("Edit kegiatan") : t("Buat kegiatan relawan")}
+        subtitle={t("Susun aksi yang jelas: sumber laporan, jadwal, koordinator, dan kebutuhan relawan.")}
         onBack={() => setExit(true)}
       />
       <form onSubmit={(e) => void submit(e)} className={s.formLayout}>
@@ -285,9 +288,8 @@ export default function ActivityForm({
             <div className={s.sectionHeading}>
               <div>
                 <h2>
-                  <FileText size={23} /> Laporan sumber
-                </h2>
-                <p>Kegiatan selalu terhubung dengan satu laporan utama.</p>
+                  <FileText size={23} /> {" "}{t("Laporan sumber")}</h2>
+                <p>{t("Kegiatan selalu terhubung dengan satu laporan utama.")}</p>
               </div>
               <span className={s.step}>1</span>
             </div>
@@ -295,10 +297,9 @@ export default function ActivityForm({
               <div className={s.selectedSource}>
                 <SourcePhoto reportId={activity.reportId} />
                 <div>
-                  <strong>Laporan #{shortId(activity.reportId)}</strong>
+                  <strong>{t("Laporan #")}{shortId(activity.reportId)}</strong>
                   <small>
-                    Sumber kegiatan tidak dapat diganti setelah kegiatan dibuat.
-                  </small>
+                    {t("Sumber kegiatan tidak dapat diganti setelah kegiatan dibuat.")}</small>
                 </div>
               </div>
             ) : (
@@ -307,16 +308,16 @@ export default function ActivityForm({
                 <label className={s.search}>
                   <Search size={19} />
                   <input
-                    aria-label="Cari laporan sumber yang dimuat"
+                    aria-label={t("Cari laporan sumber yang dimuat")}
                     value={reportSearch}
                     onChange={(e) => setReportSearch(e.target.value)}
-                    placeholder="Cari laporan yang dimuat…"
+                    placeholder={t("Cari laporan yang dimuat…")}
                   />
                 </label>
                 <div
                   className={s.reportPicker}
                   role="radiogroup"
-                  aria-label="Pilih laporan sumber"
+                  aria-label={t("Pilih laporan sumber")}
                 >
                   {reportOptions.map((r) => (
                     <label
@@ -335,12 +336,12 @@ export default function ActivityForm({
                       <span>
                         <strong>
                           {categories.find((c) => c.id === r.categoryId)
-                            ?.name || "Laporan sampah"}{" "}
+                            ?.name || t("Laporan sampah")}{" "}
                           · #{shortId(r.id)}
                         </strong>
                         <small>{r.description}</small>
                         <small>
-                          {dateLabel(r.occurredAt, true)} · {r.status}
+                          {t(dateLabel(r.occurredAt, true, intlLocale))} · {r.status}
                         </small>
                       </span>
                       {reportId === r.id && <Check size={18} />}
@@ -349,9 +350,8 @@ export default function ActivityForm({
                 </div>
                 {sourceBusy && <Busy />}
                 {!sourceBusy && !reportOptions.length && (
-                  <Empty title="Laporan tidak ditemukan">
-                    Muat laporan berikutnya atau ubah kata kunci pencarian.
-                  </Empty>
+                  <Empty title={t("Laporan tidak ditemukan")}>
+                    {t("Muat laporan berikutnya atau ubah kata kunci pencarian.")}</Empty>
                 )}
                 {reportsCursor && (
                   <button
@@ -360,35 +360,32 @@ export default function ActivityForm({
                     disabled={sourceBusy}
                     onClick={() => void moreReports()}
                   >
-                    Muat laporan berikutnya
-                  </button>
+                    {t("Muat laporan berikutnya")}</button>
                 )}
               </>
             )}
             <p className={s.hint}>
-              Draf dapat disusun terlebih dahulu. Publikasi memerlukan laporan
-              utama yang terbuka untuk publik serta memenuhi persyaratan SAP.
-            </p>
+              {t("Draf dapat disusun terlebih dahulu. Publikasi memerlukan laporan utama yang terbuka untuk publik serta memenuhi persyaratan SAP.")}</p>
           </section>
           <section className={s.card}>
             <div className={s.sectionHeading}>
-              <h2>Informasi kegiatan</h2>
+              <h2>{t("Informasi kegiatan")}</h2>
               <span className={s.step}>2</span>
             </div>
             <label className={s.field}>
-              Nama kegiatan <span>*</span>
+              {t("Nama kegiatan")}{" "}<span>*</span>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
                 minLength={5}
                 maxLength={150}
-                placeholder="Contoh: Aksi bersih bantaran sungai"
+                placeholder={t("Contoh: Aksi bersih bantaran sungai")}
               />
-              <small>{title.length}/150 karakter</small>
+              <small>{title.length}{t("/150 karakter")}</small>
             </label>
             <label className={s.field}>
-              Deskripsi kegiatan <span>*</span>
+              {t("Deskripsi kegiatan")}{" "}<span>*</span>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -396,34 +393,29 @@ export default function ActivityForm({
                 minLength={20}
                 maxLength={2000}
                 rows={5}
-                placeholder="Jelaskan tujuan, area kegiatan, dan apa yang akan dilakukan relawan."
+                placeholder={t("Jelaskan tujuan, area kegiatan, dan apa yang akan dilakukan relawan.")}
               />
-              <small>{description.length}/2000 karakter</small>
+              <small>{description.length}{t("/2000 karakter")}</small>
             </label>
           </section>
           <section className={s.card}>
             <div className={s.sectionHeading}>
               <h2>
-                <CalendarDays size={23} /> Jadwal & kuota
-              </h2>
+                <CalendarDays size={23} /> {" "}{t("Jadwal & kuota")}</h2>
               <span className={s.step}>3</span>
             </div>
             <p className={s.hint}>
-              Semua waktu menggunakan WIB. Jadwal dan kuota boleh dilengkapi
-              kemudian saat masih draf.
-            </p>
+              {t("Semua waktu menggunakan WIB. Jadwal dan kuota boleh dilengkapi kemudian saat masih draf.")}</p>
             <div className={s.fieldGrid}>
               <label className={s.field}>
-                Mulai kegiatan
-                <input
+                {t("Mulai kegiatan")}<input
                   type="datetime-local"
                   value={starts}
                   onChange={(e) => setStarts(e.target.value)}
                 />
               </label>
               <label className={s.field}>
-                Selesai kegiatan
-                <input
+                {t("Selesai kegiatan")}<input
                   type="datetime-local"
                   value={ends}
                   min={starts || undefined}
@@ -431,8 +423,7 @@ export default function ActivityForm({
                 />
               </label>
               <label className={s.field}>
-                Batas pendaftaran
-                <input
+                {t("Batas pendaftaran")}<input
                   type="datetime-local"
                   value={closes}
                   max={starts || undefined}
@@ -440,43 +431,38 @@ export default function ActivityForm({
                 />
               </label>
               <label className={s.field}>
-                Kuota peserta
-                <input
+                {t("Kuota peserta")}<input
                   type="number"
                   min={Math.max(1, current?.acceptedCount || 1)}
                   max={200}
                   step={1}
                   value={capacity}
                   onChange={(e) => setCapacity(e.target.value)}
-                  placeholder="1–200 peserta"
+                  placeholder={t("1–200 peserta")}
                 />
                 <small>
-                  Kuota tidak boleh di bawah jumlah peserta yang diterima.
-                </small>
+                  {t("Kuota tidak boleh di bawah jumlah peserta yang diterima.")}</small>
               </label>
             </div>
           </section>
           <section className={s.card}>
             <div className={s.sectionHeading}>
               <h2>
-                <MapPin size={23} /> Titik kumpul & kebutuhan
-              </h2>
+                <MapPin size={23} /> {" "}{t("Titik kumpul & kebutuhan")}</h2>
               <span className={s.step}>4</span>
             </div>
             <label className={s.field}>
-              Petunjuk titik kumpul
-              <textarea
+              {t("Petunjuk titik kumpul")}<textarea
                 rows={3}
                 maxLength={1000}
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
-                placeholder="Patokan lokasi dan petunjuk akses bagi peserta."
+                placeholder={t("Patokan lokasi dan petunjuk akses bagi peserta.")}
               />
             </label>
             <div className={s.fieldGrid}>
               <label className={s.field}>
-                Latitude (opsional)
-                <input
+                {t("Latitude (opsional)")}<input
                   type="number"
                   step="any"
                   min={-90}
@@ -486,8 +472,7 @@ export default function ActivityForm({
                 />
               </label>
               <label className={s.field}>
-                Longitude (opsional)
-                <input
+                {t("Longitude (opsional)")}<input
                   type="number"
                   step="any"
                   min={-180}
@@ -498,53 +483,47 @@ export default function ActivityForm({
               </label>
             </div>
             <label className={s.field}>
-              Perlengkapan
-              <textarea
+              {t("Perlengkapan")}<textarea
                 rows={3}
                 value={equipment}
                 onChange={(e) => setEquipment(e.target.value)}
                 placeholder={"Sarung tangan\nBotol minum pribadi"}
               />
-              <small>Satu perlengkapan per baris, maksimal 15.</small>
+              <small>{t("Satu perlengkapan per baris, maksimal 15.")}</small>
             </label>
             <label className={s.field}>
-              Catatan aksesibilitas
-              <textarea
+              {t("Catatan aksesibilitas")}<textarea
                 rows={3}
                 maxLength={1000}
                 value={accessibility}
                 onChange={(e) => setAccessibility(e.target.value)}
-                placeholder="Kondisi jalur, fasilitas, dan kebutuhan akses khusus."
+                placeholder={t("Kondisi jalur, fasilitas, dan kebutuhan akses khusus.")}
               />
             </label>
             <label className={s.field}>
-              Rencana penyerahan sampah
-              <textarea
+              {t("Rencana penyerahan sampah")}<textarea
                 rows={3}
                 maxLength={1000}
                 value={handover}
                 onChange={(e) => setHandover(e.target.value)}
-                placeholder="Jelaskan tujuan penyerahan dan cara pengangkutan sampah."
+                placeholder={t("Jelaskan tujuan penyerahan dan cara pengangkutan sampah.")}
               />
-              <small>Wajib dilengkapi sebelum publikasi.</small>
+              <small>{t("Wajib dilengkapi sebelum publikasi.")}</small>
             </label>
           </section>
         </div>
         <aside className={s.sideStack}>
           <section className={s.card}>
             <h2>
-              <UsersRound size={23} /> Koordinator kegiatan
-            </h2>
+              <UsersRound size={23} /> {" "}{t("Koordinator kegiatan")}</h2>
             <p className={s.muted}>
-              Cari pengguna aktif yang telah memverifikasi email.
-            </p>
+              {t("Cari pengguna aktif yang telah memverifikasi email.")}</p>
             <label className={s.field}>
-              Cari koordinator
-              <input
+              {t("Cari koordinator")}<input
                 value={candidateSearch}
                 onChange={(e) => setCandidateSearch(e.target.value)}
                 maxLength={100}
-                placeholder="Ketik minimal 3 karakter nama…"
+                placeholder={t("Ketik minimal 3 karakter nama…")}
               />
             </label>
             {coordinatorId && (
@@ -557,8 +536,8 @@ export default function ActivityForm({
                   <small>
                     {current?.coordinatorId === coordinatorId &&
                     current.coordinatorAcceptedAt
-                      ? "Penugasan telah diterima"
-                      : "Menunggu penerimaan penugasan"}
+                      ? t("Penugasan telah diterima")
+                      : t("Menunggu penerimaan penugasan")}
                   </small>
                 </span>
                 <button
@@ -569,8 +548,7 @@ export default function ActivityForm({
                     setCoordinatorName("");
                   }}
                 >
-                  Hapus
-                </button>
+                  {t("Hapus")}</button>
               </div>
             )}
             {candidateError && <Notice error>{candidateError}</Notice>}
@@ -596,8 +574,7 @@ export default function ActivityForm({
               !candidateError &&
               !candidates.length && (
                 <p className={s.hint}>
-                  Tidak ada kandidat pada hasil yang dimuat.
-                </p>
+                  {t("Tidak ada kandidat pada hasil yang dimuat.")}</p>
               )}
             {candidateCursor && (
               <button
@@ -606,37 +583,32 @@ export default function ActivityForm({
                 disabled={candidateBusy}
                 onClick={() => void moreCandidates()}
               >
-                Muat kandidat berikutnya
-              </button>
+                {t("Muat kandidat berikutnya")}</button>
             )}
             <Notice>
-              Koordinator harus menerima penugasan melalui akunnya sebelum
-              kegiatan dapat dipublikasikan.
-            </Notice>
+              {t("Koordinator harus menerima penugasan melalui akunnya sebelum kegiatan dapat dipublikasikan.")}</Notice>
           </section>
           <section className={`${s.card} ${s.softCard}`}>
-            <h2>Sebelum publikasi</h2>
+            <h2>{t("Sebelum publikasi")}</h2>
             <ul className={s.checklist}>
-              <li>Laporan sumber memenuhi syarat publikasi.</li>
-              <li>Jadwal, kuota, dan rencana penyerahan lengkap.</li>
-              <li>Koordinator menerima penugasan.</li>
-              <li>Waktu mulai dan batas pendaftaran masih mendatang.</li>
+              <li>{t("Laporan sumber memenuhi syarat publikasi.")}</li>
+              <li>{t("Jadwal, kuota, dan rencana penyerahan lengkap.")}</li>
+              <li>{t("Koordinator menerima penugasan.")}</li>
+              <li>{t("Waktu mulai dan batas pendaftaran masih mendatang.")}</li>
             </ul>
             <p className={s.hint}>
-              Simpan kegiatan terlebih dahulu. Tombol publikasi tersedia pada
-              detail saat semua syarat terpenuhi.
-            </p>
+              {t("Simpan kegiatan terlebih dahulu. Tombol publikasi tersedia pada detail saat semua syarat terpenuhi.")}</p>
           </section>
           {source && (
             <section className={s.card}>
               <SourcePhoto reportId={source.id} large />
-              <small>Laporan #{shortId(source.id)}</small>
+              <small>{t("Laporan #")}{shortId(source.id)}</small>
               <p className={s.clamp}>{source.description}</p>
             </section>
           )}
         </aside>
         <footer className={s.formFooter}>
-          {error && <Notice error>{error}</Notice>}
+          {error && <Notice error>{t(error)}</Notice>}
           {conflict && (
             <button
               type="button"
@@ -644,14 +616,13 @@ export default function ActivityForm({
               disabled={busy}
               onClick={() => void loadLatest()}
             >
-              Muat versi terbaru
-            </button>
+              {t("Muat versi terbaru")}</button>
           )}
           <div>
             <p>
               {current?.status === "draft" || !current
-                ? "Draf belum ditampilkan kepada publik."
-                : "Perubahan mengikuti izin pada status kegiatan saat ini."}
+                ? t("Draf belum ditampilkan kepada publik.")
+                : t("Perubahan mengikuti izin pada status kegiatan saat ini.")}
             </p>
             <div className={s.actions}>
               <button
@@ -660,8 +631,7 @@ export default function ActivityForm({
                 onClick={() => setExit(true)}
                 disabled={busy}
               >
-                Kembali
-              </button>
+                {t("Kembali")}</button>
               <button
                 type="submit"
                 className={s.primary}
@@ -674,10 +644,10 @@ export default function ActivityForm({
               >
                 <Save size={19} />
                 {busy
-                  ? "Menyimpan…"
+                  ? t("Menyimpan…")
                   : current?.status === "draft" || !current
-                    ? "Simpan draf kegiatan"
-                    : "Simpan perubahan"}
+                    ? t("Simpan draf kegiatan")
+                    : t("Simpan perubahan")}
               </button>
             </div>
           </div>
@@ -685,21 +655,19 @@ export default function ActivityForm({
       </form>
       {exit && (
         <DialogShell
-          title="Kembali dari form?"
-          subtitle="Perubahan yang belum disimpan akan hilang."
+          title={t("Kembali dari form?")}
+          subtitle={t("Perubahan yang belum disimpan akan hilang.")}
           onClose={() => setExit(false)}
           footer={
             <div className={s.actions}>
               <button className={s.secondary} onClick={() => setExit(false)}>
-                Tetap di form
-              </button>
+                {t("Tetap di form")}</button>
               <button className={s.secondary} onClick={onBack}>
-                Kembali tanpa menyimpan
-              </button>
+                {t("Kembali tanpa menyimpan")}</button>
             </div>
           }
         >
-          <p>Pastikan perubahan yang diperlukan sudah tersimpan.</p>
+          <p>{t("Pastikan perubahan yang diperlukan sudah tersimpan.")}</p>
         </DialogShell>
       )}
     </>

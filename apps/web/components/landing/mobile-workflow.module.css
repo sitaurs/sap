@@ -1,0 +1,45 @@
+.mobileOnly { display: none; }
+@media (max-width: 760px) {
+  .mobileOnly { display: block; width: min(560px, calc(100% - 48px)); margin: 28px auto 0; }
+  .steps { display: grid; gap: 28px; margin: 0; padding: 0; list-style: none; }
+  .steps > li { position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 14px; scroll-margin-top: 96px; }
+  .steps > li:not(:last-child)::before { content: ""; position: absolute; left: 15px; top: 42px; bottom: -18px; width: 2px; background: #dceeff; }
+  .number { display: grid; place-items: center; width: 32px; height: 32px; margin-top: 2px; border-radius: 50%; color: #0869f8; background: #e1f1ff; font: 800 18px/1 var(--font-display), sans-serif; }
+  .step { min-width: 0; }
+  .step h3 { margin: 0; font: 800 20px/1.3 var(--font-display), sans-serif; letter-spacing: -.045em; }
+  .step > p { margin: 7px 0 14px; color: #627493; font-size: 14px; line-height: 1.5; }
+  .card { min-width: 0; padding: 12px; border: 1px solid #e0edf9; border-radius: 16px; background: #fff; box-shadow: 0 7px 22px #317db80b; }
+  .scanPhoto { display: block; width: 100%; height: auto; border-radius: 12px; }
+  .result { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+  .result > svg { flex: none; width: 24px; height: 24px; color: #089767; }
+  .result > span { flex: 1; min-width: 0; }
+  .result strong, .review strong { display: block; font-size: 15px; font-weight: 750; line-height: 1.4; }
+  .result small, .review small { display: block; color: #627493; font-size: 13px; line-height: 1.5; }
+  .upload { display: flex; flex: 1 1 100%; justify-content: center; align-items: center; min-height: 44px; margin-top: 2px; border: 1px solid #0869f8; border-radius: 10px; color: #0869f8; font-size: 14px; font-weight: 650; }
+  .form { padding: 14px; }
+  .example { display: inline-flex; padding: 5px 10px; border-radius: 999px; color: #42669b; background: #edf6ff; font-size: 12px; line-height: 1.4; }
+  .fields { display: grid; gap: 10px; margin: 12px 0; }
+  .fields > div { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 3px 10px; padding: 12px; border: 1px solid #dbe8f7; border-radius: 10px; }
+  .fields svg { grid-column: 1; grid-row: 1 / 3; width: 20px; height: 20px; color: #36587f; }
+  .fields dt { font-size: 12px; color: #627493; }
+  .fields dd { grid-column: 2; margin: 0; color: #263b5e; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+  .primary, .secondary { display: flex; justify-content: center; align-items: center; gap: 7px; min-height: 48px; padding: 12px; border-radius: 11px; font-size: 14px; font-weight: 750; line-height: 1.4; text-align: center; }
+  .primary { color: #fff; background: #0869f8; }
+  .secondary { border: 1px solid #0869f8; background: #fff; color: #0869f8; }
+  .review { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .review > img { flex: none; width: 66px; height: 72px; object-fit: cover; border-radius: 10px; }
+  .review > span { min-width: 0; }
+  .review small { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
+  .review small svg { width: 13px; height: 13px; flex: none; }
+  .reviewActions { display: grid; grid-template-columns: .8fr 1.3fr; gap: 10px; }
+  .reviewActions svg { width: 16px; height: 16px; flex: none; }
+  .signoff { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 24px 0 0; padding: 16px; border-radius: 14px; background: #eaf8f1; color: #08825c; font-size: 13px; font-weight: 650; line-height: 1.5; }
+  .signoff svg { flex: none; width: 20px; height: 20px; }
+}
+@media (max-width: 349px) {
+  .mobileOnly { width: calc(100% - 40px); }
+  .steps > li { gap: 10px; }
+  .form { padding: 12px; }
+  .reviewActions { grid-template-columns: 1fr; }
+  .review > img { width: 54px; height: 64px; }
+}

@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
 import styles from "./report-wizard.module.css";
 import { MALANG_CENTER } from "../lib/malang";
+import { useI18n } from "../lib/i18n/provider";
+
 
 export type ReportPoint = { latitude: number; longitude: number };
 
@@ -14,6 +16,7 @@ export default function ReportMap({ point, onPick, readOnly = false }: {
   onPick?: (point: ReportPoint) => void;
   readOnly?: boolean;
 }) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markerRef = useRef<LeafletMarker | null>(null);
@@ -72,5 +75,5 @@ export default function ReportMap({ point, onPick, readOnly = false }: {
     mapRef.current.panTo([point.latitude, point.longitude], { animate: !readOnly && !reducedMotion });
   }, [point, readOnly]);
 
-  return <div ref={containerRef} className={styles.map} role="application" aria-label={readOnly ? "Peta lokasi laporan" : "Peta interaktif. Klik atau geser pin untuk menentukan lokasi temuan."} />;
+  return <div ref={containerRef} className={styles.map} role="application" aria-label={readOnly ? t("Peta lokasi laporan") : t("Peta interaktif. Klik atau geser pin untuk menentukan lokasi temuan.")} />;
 }

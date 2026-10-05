@@ -180,6 +180,7 @@
 @media(max-width:490px){.helpCardCopy{max-width:45%}.helpCard>img{width:48%}}
 
 /* Mobile navigation is a separate surface; desktop declarations above stay intact. */
+.mobileAdminBack{display:none}
 @media(max-width:760px){
   .shell{--sap-mobile-dock-bottom:calc(10px + env(safe-area-inset-bottom,0px));background:#f6fbf8;min-width:0}
   .sidebar,.mobileShade,.menuButton,.headerTools{display:none}
@@ -188,6 +189,11 @@
   .searchBox.mobileSearchVisible{display:flex}.searchBox input{font-size:16px}.searchBox>svg{width:21px;height:21px}.searchResults{top:52px;max-height:min(420px,60dvh);overflow-y:auto}
   .content{padding:22px max(18px,env(safe-area-inset-right,0px)) calc(155px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px));scroll-margin-bottom:150px}
   .content button,.content a,.content input,.content select{scroll-margin-bottom:150px}
+  .mobileAdminBack{display:inline-flex;align-items:center;gap:9px;max-width:100%;min-height:44px;margin:0 0 16px;padding:10px 14px;border:1px solid #d2e8dc;border-radius:12px;background:#fff;color:#08765b;font:600 14px/1.4 var(--font-body),Arial,sans-serif;text-align:left;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  .mobileAdminBack>svg{flex:none}
+  .mobileAdminBack:hover{background:#edf8f2;border-color:#aad6c0}
+  .mobileAdminBack:active{background:#e2f3e9}
+  .mobileAdminBack:focus-visible{outline:2px solid #08765b;outline-offset:3px}
   .toast{right:12px;bottom:calc(142px + env(safe-area-inset-bottom,0px));font-size:12px}
 }
 @media(max-width:360px){.content{padding-left:14px;padding-right:14px}.topbar{padding-inline:14px}}

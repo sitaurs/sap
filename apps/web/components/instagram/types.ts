@@ -1,15 +1,14 @@
-import type { components } from "../../lib/api/r1-schema";
-
-type R1 = components["schemas"];
+import type { R1 } from "../../lib/api/r1";
+/** R1 types stay isolated from the published 1.1 client; runtime readiness is separate. */
 export type PublicationStatus = R1["PublicationStatus"];
-export type PublicationFilter = "all" | "draft" | "published";
 export type InstagramPost = R1["InstagramPost"];
-export type PublicationSource = Pick<InstagramPost["source"], "reportId" | "scanId" | "title" | "categoryName" | "mediaId" | "publicSummary"> &
-  Partial<Pick<InstagramPost["source"], "sourceRevision" | "status" | "occurredAt" | "area">>;
-export type InstagramAccount = R1["InstagramOverview"]["account"];
-export type PublicationSettings = R1["PublicationSettings"];
+export type PublicationSource = InstagramPost["source"];
 export type InstagramOverview = R1["InstagramOverview"];
+export type InstagramAccount = InstagramOverview["account"];
+export type PublicationSettings = R1["PublicationSettings"];
+export type PublicationOperation = R1["PublicationOperation"];
 export type PublicationPage = R1["PublicationPage"];
+export type PublicationFilter = "all" | PublicationStatus;
 export type PublicationQuery = {
   status: PublicationFilter;
   search: string;
@@ -19,10 +18,20 @@ export type PublicationQuery = {
 export type PostPreview = {
   source: PublicationSource;
   caption: string;
-  altText: string;
+  kind: "initial" | "resolution";
+  milestoneId: string | null;
+  replacesPostId: string | null;
 };
-
-/** Preview-only defaults; never presented as saved account preferences. */
+export const publicationLabels: Record<PublicationStatus, string> = {
+  draft: "Draf",
+  publishing: "Sedang memposting",
+  published: "Terposting",
+  failed: "Gagal",
+  cancelled: "Dibatalkan",
+  retracting: "Sedang ditarik",
+  retracted: "Ditarik",
+  needs_action: "Perlu tindakan",
+};
 export const PREVIEW_SETTINGS: PublicationSettings = {
   revision: 0,
   source: "reports",

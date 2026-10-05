@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "source": "SAP mobile landing mockups, 2026-10-05; deterministic crops and recovered 12ui raster layers",
+  "assets": [
+    {
+      "file": "bottle-scan.webp",
+      "width": 338,
+      "height": 164,
+      "bytes": 16428,
+      "alpha": false
+    },
+    {
+      "file": "footer-leaves.webp",
+      "width": 144,
+      "height": 134,
+      "bytes": 3344,
+      "alpha": true
+    },
+    {
+      "file": "hero-camera.webp",
+      "width": 441,
+      "height": 396,
+      "bytes": 46030,
+      "alpha": false
+    },
+    {
+      "file": "leaf-soft.webp",
+      "width": 88,
+      "height": 120,
+      "bytes": 1580,
+      "alpha": true
+    },
+    {
+      "file": "menu-foliage.webp",
+      "width": 326,
+      "height": 562,
+      "bytes": 9454,
+      "alpha": true
+    },
+    {
+      "file": "report-photo.webp",
+      "width": 136,
+      "height": 158,
+      "bytes": 9490,
+      "alpha": false
+    },
+    {
+      "file": "review-illustration.webp",
+      "width": 664,
+      "height": 362,
+      "bytes": 22860,
+      "alpha": true
+    },
+    {
+      "file": "verified-area.webp",
+      "width": 322,
+      "height": 167,
+      "bytes": 6410,
+      "alpha": false
+    }
+  ]
+}

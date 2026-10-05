@@ -8,6 +8,8 @@
     linear-gradient(115deg, #f9fdff 0%, #edf8ff 52%, #f7fcff 100%);
 }
 
+.mobileEyebrow, .mobileActionIcon { display: none; }
+
 .frame {
   position: relative;
   width: min(100%, 2170px);
@@ -82,9 +84,13 @@
 .bottleCopy { display: flex; flex-direction: column; min-width: 0; gap: 12px; }
 
 .center { position: absolute; z-index: 3; top: 24%; left: 50%; width: 44%; max-width: 950px; text-align: center; transform: translateX(-50%); animation: copy-in 850ms cubic-bezier(.22, 1, .36, 1) both; }
-.center h1 { margin: 0; font: 800 clamp(43px, 3.42vw, 74px)/.98 var(--font-display), Arial, sans-serif; letter-spacing: -.067em; white-space: nowrap; }
+.center h1 { max-width: 100%; margin: 0; font: 800 clamp(43px, 3.42vw, 74px)/.98 var(--font-display), Arial, sans-serif; letter-spacing: -.067em; white-space: normal; text-wrap: balance; }
 .center h1 span { color: #086cf1; }
 .center p { margin: clamp(15px, 1.1vw, 25px) 0 clamp(27px, 1.85vw, 40px); color: #596b91; font-size: clamp(19px, 1.52vw, 33px); line-height: 1.24; }
+/* Longer English copy stays inside the clear space between the floating cards. */
+.englishCopy { top: 21%; width: 38%; max-width: 825px; }
+.englishCopy h1 { font-size: clamp(40px, 2.85vw, 62px); line-height: 1.08; letter-spacing: -.05em; }
+.englishCopy p { font-size: clamp(18px, 1.35vw, 29px); line-height: 1.4; }
 .actions { display: flex; justify-content: center; gap: clamp(14px, 1vw, 23px); }
 .button { display: inline-flex; align-items: center; justify-content: center; min-width: clamp(220px, 14vw, 305px); height: clamp(59px, 3.7vw, 80px); padding: 0 22px; border-radius: 12px; font-size: clamp(20px, 1.45vw, 31px); font-weight: 750; white-space: nowrap; transition: transform 220ms cubic-bezier(.22, 1, .36, 1), box-shadow 220ms ease, background 220ms ease; }
 .button:hover { transform: translateY(-4px); box-shadow: 0 13px 25px #086deb2c; }
@@ -120,6 +126,7 @@
 @media (max-width: 1350px) {
   .frame { height: auto; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; padding: 58px 5% 72px; }
   .center { position: relative; left: auto; top: auto; grid-column: 1 / -1; grid-row: 1; width: 100%; max-width: none; margin: 0 auto 17px; transform: none; animation-name: copy-in-small; }
+  .englishCopy { max-width: 900px; }
   .center h1 { font-size: clamp(46px, 5vw, 66px); }
   .center p { font-size: clamp(20px, 2.2vw, 27px); }
   .card { position: relative; top: auto; right: auto; left: auto; width: 100%; height: 185px; }
@@ -175,4 +182,28 @@
 @media (prefers-reduced-motion: reduce) {
   .card, .center, .leaf { animation: none; }
   .card, .cardArrow, .button { transition: none; }
+}
+
+@media (max-width: 760px) {
+  .frame { display: grid; grid-template-columns: minmax(0, 1fr); width: min(100%, 608px); margin-inline: auto; gap: 24px; padding: 30px max(24px, env(safe-area-inset-right)) 34px max(24px, env(safe-area-inset-left)); }
+  .center { position: relative; inset: auto; grid-column: 1; grid-row: 1; width: 100%; margin: 0; transform: none; }
+  .center .mobileEyebrow { display: block; margin: 0 0 20px; color: #0869f8; font-size: 12px; font-weight: 750; letter-spacing: .1em; line-height: 1.5; text-transform: uppercase; }
+  .center h1 { font-size: clamp(31px, 8.8vw, 43px); line-height: 1.12; letter-spacing: -.055em; white-space: normal; }
+  .center h1 br, .desktopBreak { display: none; }
+  .center p:not(.mobileEyebrow) { margin: 18px 0 26px; font-size: 16px; line-height: 1.55; }
+  .actions { gap: 12px; }
+  .button { display: flex; flex: 1; min-width: 0; height: auto; min-height: 52px; gap: 8px; padding: 14px 10px; border-radius: 14px; font-size: 15px; line-height: 1.35; white-space: normal; }
+  .mobileActionIcon { display: block; flex: none; width: 21px; height: 21px; }
+  .card, .shape, .bottomRim { display: none; }
+  .leaf { width: 46px; height: 64px; opacity: .5; border-radius: 0; box-shadow: none; background: url('/images/landing-mobile/leaf-soft.webp') center / contain no-repeat; animation: none; }
+  .leaf::after { display: none; }
+  .leafLeft { left: -15px; top: 4%; }
+  .leafRight { right: -18px; top: 2%; }
+}
+
+@media (max-width: 349px) {
+  .frame { padding-right: 20px; padding-left: 20px; }
+  .center h1 { font-size: 31px; }
+  .button { gap: 6px; font-size: 14px; }
+  .mobileActionIcon { width: 18px; height: 18px; }
 }

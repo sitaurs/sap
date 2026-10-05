@@ -1,0 +1,35 @@
+.mobileOnly { display: none; }
+@media (max-width: 760px) {
+  .mobileOnly { display: block; width: min(560px, calc(100% - 48px)); margin: 0 auto; padding: 46px 0 40px; }
+  .eyebrow { margin: 0 0 14px; color: #0869f8; font-size: 12px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+  .mobileOnly h2 { margin: 0 0 18px; font: 800 clamp(28px, 7.7vw, 34px)/1.2 var(--font-display), sans-serif; letter-spacing: -.05em; }
+  .mobileOnly h2 span { color: #0869f8; }
+  .example { display: inline-flex; padding: 6px 11px; border-radius: 999px; color: #42669b; background: #e7f3ff; font-size: 12px; }
+  .track { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 100%; gap: 16px; margin-top: 16px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 18px; }
+  .track::-webkit-scrollbar { display: none; }
+  .slide { min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
+  .story { display: flex; flex-direction: column; width: 100%; min-height: 300px; height: 100%; padding: 24px; border: 1px solid #e3edf8; border-radius: 18px; background: #fff; color: #141c38; text-align: left; }
+  .quoteIcon { width: 30px; height: 30px; margin-bottom: 16px; color: #0869f8; fill: #0869f8; stroke-width: 1.5; }
+  .quote { margin-bottom: 28px; font-size: 18px; line-height: 1.55; }
+  .person { display: flex; align-items: center; gap: 14px; margin-top: auto; }
+  .person > img { flex: none; width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
+  .person > span { min-width: 0; font-size: 13px; line-height: 1.5; color: #627493; }
+  .person strong, .person > span > span { display: block; }
+  .person strong { color: #141c38; font-size: 15px; font-weight: 750; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
+  .dots { display: flex; margin-right: auto; }
+  .dots button { display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: transparent; }
+  .dots span { width: 9px; height: 9px; border-radius: 50%; background: #bfd0e3; }
+  .dots button[aria-pressed="true"] span { background: #0869f8; }
+  .counter { margin-right: 6px; color: #627493; font-size: 14px; }
+  .arrow { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border: 1px solid #dce9f8; border-radius: 50%; background: #fff; color: #2d578a; }
+  .arrow svg { width: 20px; height: 20px; }
+  .arrow:disabled { opacity: .35; cursor: default; }
+  .caption { margin: 10px 0 22px; color: #627493; font-size: 13px; line-height: 1.5; }
+  .invitation { padding: 24px 20px; border-radius: 18px; background: #e7f4ff; }
+  .invitation h3 { display: flex; align-items: center; gap: 12px; margin: 0; font: 800 21px/1.3 var(--font-display), sans-serif; letter-spacing: -.035em; }
+  .invitation h3 svg { flex: none; color: #08a878; }
+  .invitation p { margin: 12px 0 18px; color: #627493; font-size: 14px; line-height: 1.6; }
+  .invitation a { display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 14px 18px; border-radius: 12px; background: #0869f8; color: #fff; font-size: 16px; font-weight: 750; }
+}
+@media (max-width: 349px) { .mobileOnly { width: calc(100% - 40px); } .story { padding: 20px; } .quote { font-size: 17px; } .counter { flex-basis: calc(100% - 140px); margin-right: 0; text-align: right; } .arrow:first-of-type { margin-left: auto; } }

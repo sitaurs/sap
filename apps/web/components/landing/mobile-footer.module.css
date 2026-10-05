@@ -1,0 +1,20 @@
+.mobileOnly { display: none; }
+@media (max-width: 760px) {
+  .mobileOnly { display: block; position: relative; isolation: isolate; width: min(560px, calc(100% - 48px)); margin: auto; padding: 30px 0 max(30px, env(safe-area-inset-bottom)); }
+  .mobileOnly::after { content: ""; position: absolute; z-index: -1; right: -12px; bottom: 22px; width: 110px; height: 104px; background: url("/images/landing-mobile/footer-leaves.webp") center / contain no-repeat; opacity: .14; pointer-events: none; }
+  .tagline { margin: 14px 0 20px; color: #627493; font-size: 14px; line-height: 1.6; }
+  .groups { border-top: 1px solid #e4edf7; }
+  .groups details { border-bottom: 1px solid #e4edf7; }
+  .groups summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 56px; padding: 14px 0; list-style: none; color: #141c38; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .groups summary::-webkit-details-marker { display: none; }
+  .groups summary:focus-visible { outline: 3px solid #1380ff; outline-offset: 3px; border-radius: 5px; }
+  .groups summary svg { width: 20px; height: 20px; color: #557299; }
+  .groups details[open] summary svg { transform: rotate(180deg); }
+  .links { display: grid; gap: 0; padding-bottom: 12px; }
+  .links a, .links button { display: flex; align-items: center; min-height: 44px; padding: 8px 12px; border: 0; background: transparent; color: #627493; font-size: 14px; line-height: 1.5; text-align: left; }
+  .links a:hover, .links button:hover { color: #0869f8; background: #f1f8ff; border-radius: 8px; }
+  .legal { display: flex; flex-wrap: wrap; gap: 0 16px; margin-top: 20px; }
+  .legal button { min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: #627493; font-size: 13px; line-height: 1.5; text-align: left; }
+  .copyright { margin: 14px 0 0; color: #627493; font-size: 12px; line-height: 1.6; }
+}
+@media (max-width: 349px) { .mobileOnly { width: calc(100% - 40px); } }

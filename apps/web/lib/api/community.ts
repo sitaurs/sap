@@ -1,7 +1,169 @@
+import { enc, query, r1Get, r1Mutate, type R1, type Page } from "./r1";
 import { ApiError, apiGet, apiMutate } from "./client";
-import type { components } from "./r1-schema";
+export const getIncident = (id: string, signal?: AbortSignal) =>
+  r1Get<R1["PublicIncidentResult"]>(`/public/incidents/${enc(id)}`, signal);
+export const incidentTimeline = (
+  id: string,
+  cursor?: string,
+  signal?: AbortSignal,
+) =>
+  r1Get<R1["PublicIncidentTimelinePage"]>(
+    `/public/incidents/${enc(id)}/timeline?${query({ limit: 20, cursor })}`,
+    signal,
+  );
+export const incidentViewer = (id: string, signal?: AbortSignal) =>
+  r1Get<R1["IncidentViewer"]>(`/public/incidents/${enc(id)}/viewer`, signal);
+export const supportIncident = (id: string, supported: boolean) =>
+  r1Mutate<R1["SupportState"]>("PUT", `/public/incidents/${enc(id)}/support`, {
+    supported,
+  });
+export const followIncident = (id: string, following: boolean) =>
+  r1Mutate<R1["FollowState"]>("PUT", `/public/incidents/${enc(id)}/follow`, {
+    following,
+  });
+export const followedIncidents = (cursor?: string, signal?: AbortSignal) =>
+  r1Get<R1["FollowedIncidentPage"]>(
+    `/users/me/followed-incidents?${query({ limit: 20, cursor })}`,
+    signal,
+  );
+export const myUpdates = (cursor?: string, signal?: AbortSignal) =>
+  r1Get<R1["CommunityUpdatePage"]>(
+    `/users/me/community-updates?${query({ limit: 20, cursor })}`,
+    signal,
+  );
+export const getUpdate = (id: string, signal?: AbortSignal) =>
+  r1Get<R1["CommunityUpdate"]>(`/community-updates/${enc(id)}`, signal);
+export const saveUpdate = (
+  incidentId: string,
+  body: R1["CommunityUpdateInput"],
+  key: string,
+  previous?: R1["CommunityUpdate"],
+) =>
+  previous
+    ? r1Mutate<R1["CommunityUpdate"]>(
+        "PATCH",
+        `/community-updates/${enc(previous.id)}`,
+        body,
+        previous.revision,
+      )
+    : r1Mutate<R1["CommunityUpdate"]>(
+        "POST",
+        `/public/incidents/${enc(incidentId)}/updates`,
+        body,
+        undefined,
+        key,
+      );
+export const getConsents = (id: string, signal?: AbortSignal) =>
+  r1Get<R1["MediaConsents"]>(`/media/${enc(id)}/consents`, signal);
+export const setConsents = (
+  id: string,
+  revision: number,
+  channels: R1["MediaConsents"]["channels"],
+) =>
+  r1Mutate<R1["MediaConsents"]>(
+    "PUT",
+    `/media/${enc(id)}/consents`,
+    { channels },
+    revision,
+  );
+export function uploadEvidence(
+  file: File,
+  purpose: "community" | "activity_evidence" | "resolution",
+) {
+  const body = new FormData();
+  body.append("file", file);
+  body.append("purpose", purpose);
+  return r1Mutate<R1["Media"]>("POST", "/media", body);
+}
+export const notifications = (cursor?: string, signal?: AbortSignal) =>
+  r1Get<R1["NotificationPage"]>(
+    `/users/me/notifications?${query({ limit: 20, cursor })}`,
+    signal,
+  );
+export const readNotification = (id: string, read: boolean) =>
+  r1Mutate<R1["Notification"]>(
+    "PUT",
+    `/users/me/notifications/${enc(id)}/read`,
+    { read },
+  );
+export const publicActivities = (
+  filters: {
+    cursor?: string;
+    availableOnly?: boolean;
+    from?: string;
+    to?: string;
+    cellId?: string;
+  },
+  signal?: AbortSignal,
+) =>
+  r1Get<R1["PublicActivityPage"]>(
+    `/activities?${query({ limit: 20, ...filters })}`,
+    signal,
+  );
+export const publicActivity = (id: string, signal?: AbortSignal) =>
+  r1Get<R1["PublicActivityDetail"]>(`/activities/${enc(id)}`, signal);
+export const activityViewer = (id: string, signal?: AbortSignal) =>
+  r1Get<R1["ActivityViewer"]>(`/activities/${enc(id)}/viewer`, signal);
+export const joinActivity = (id: string, participating: boolean) =>
+  r1Mutate<R1["Membership"]>("PUT", `/activities/${enc(id)}/membership`, {
+    participating,
+  });
+export const acknowledgeSchedule = (
+  id: string,
+  scheduleRevision: number,
+  confirmed: boolean,
+) =>
+  r1Mutate<R1["Membership"]>(
+    "PUT",
+    `/activities/${enc(id)}/schedule-acknowledgement`,
+    { scheduleRevision, confirmed },
+  );
+export const myActivities = (cursor?: string, signal?: AbortSignal) =>
+  r1Get<R1["MyActivityPage"]>(
+    `/users/me/activities?${query({ limit: 20, cursor })}`,
+    signal,
+  );
+export const coordinatorAssignments = (cursor?: string, signal?: AbortSignal) =>
+  r1Get<R1["ManagedActivityPage"]>(
+    `/users/me/coordinator-assignments?${query({ limit: 20, cursor })}`,
+    signal,
+  );
+export const acceptAssignment = (
+  id: string,
+  revision: number,
+  accepted: boolean,
+  publishDisplayName: boolean,
+) =>
+  r1Mutate<R1["ManagedActivity"]>(
+    "PUT",
+    `/activities/${enc(id)}/coordinator-acceptance`,
+    { accepted, publishDisplayName },
+    revision,
+  );
+export const publicResults = (
+  id: string,
+  cursor?: string,
+  signal?: AbortSignal,
+) =>
+  r1Get<R1["PublicActivityResultPage"]>(
+    `/activities/${enc(id)}/public-results?${query({ limit: 20, cursor })}`,
+    signal,
+  );
+export const areaIncidents = (
+  cellId: string,
+  from: string,
+  to: string,
+  categoryId?: string,
+  cursor?: string,
+  signal?: AbortSignal,
+) =>
+  r1Get<Page<R1["PublicReport"]>>(
+    `/areas/${enc(cellId)}/reports?${query({ limit: 20, from, to, categoryId, cursor })}`,
+    signal,
+  );
 
-type R1 = components["schemas"];
+// Compatibility exports for components supplied by the latest backend handoff.
+
 export type PublicIncidentResult = R1["PublicIncidentResult"];
 export type PublicIncident = R1["PublicIncident"];
 export type PublicIncidentTimelinePage = R1["PublicIncidentTimelinePage"];
@@ -16,7 +178,6 @@ export type EvidencePublicationInput = R1["EvidencePublicationInput"];
 export type ReviewRecommendation = NonNullable<ReviewRun["result"]>;
 export type CursorPage<T> = { items: T[]; nextCursor: string | null };
 
-const enc = encodeURIComponent;
 
 function invalid(): never {
   throw new ApiError(

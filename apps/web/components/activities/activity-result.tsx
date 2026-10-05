@@ -35,6 +35,8 @@ import { Busy, Empty, Notice, PageHead, useIntentKey } from "./activity-ui";
 import { MeasurementPhoto, ResultPhoto } from "./activity-photo";
 import DialogShell from "../instagram/dialog-shell";
 import s from "./activities.module.css";
+import { useI18n } from "../../lib/i18n/provider";
+
 
 export default function ActivityResultReview({
   activity,
@@ -49,6 +51,7 @@ export default function ActivityResultReview({
   onChanged: (a: Activity) => void;
   onEdit: () => void;
 }) {
+  const { t, intlLocale } = useI18n();
   const [result, setResult] = useState<AdminActivityResult | null>(null),
     [loading, setLoading] = useState(true),
     [busy, setBusy] = useState(false),
@@ -66,6 +69,9 @@ export default function ActivityResultReview({
     [measurementOpen, setMeasurementOpen] = useState(false),
     [measureReason, setMeasureReason] = useState("");
   const intentKey = useIntentKey();
+  const [latestResult, setLatestResult] = useState<AdminActivityResult | null>(
+    null,
+  );
   useEffect(() => {
     const c = new AbortController();
     setLoading(true);
@@ -95,10 +101,7 @@ export default function ActivityResultReview({
     setBusy(true);
     try {
       const latest = await getActivityResult(resultId);
-      setResult(latest);
-      setConflict(false);
-      setApprovals([]);
-      setEpoch((x) => x + 1);
+      setLatestResult(latest);
       setMessage(
         "Versi terbaru dimuat. Periksa keputusan dan pilih kembali versi foto publik sebelum menyimpan.",
       );
@@ -207,7 +210,7 @@ export default function ActivityResultReview({
   return (
     <>
       <PageHead
-        title="Tinjau hasil kegiatan"
+        title={t("Tinjau hasil kegiatan")}
         subtitle={activity.title}
         onBack={onBack}
         action={
@@ -216,59 +219,79 @@ export default function ActivityResultReview({
             onClick={() => void reload()}
             disabled={busy || loading}
           >
-            <RefreshCw size={18} /> Muat ulang
-          </button>
+            <RefreshCw size={18} /> {" "}{t("Muat ulang")}</button>
         }
       />
       {loading ? (
         <Busy />
       ) : !result ? (
-        <Notice error>{error || "Hasil tidak tersedia."}</Notice>
+        <Notice error>{error || t("Hasil tidak tersedia.")}</Notice>
       ) : (
         <>
-          {message && <Notice>{message}</Notice>}
-          {error && <Notice error>{error}</Notice>}
+          {message && <Notice>{t(message)}</Notice>}
+          {error && <Notice error>{t(error)}</Notice>}
           {conflict && (
             <button
               className={s.secondary}
               disabled={busy}
               onClick={() => void reload()}
             >
-              Muat versi terbaru sebelum mengulangi
-            </button>
+              {t("Muat versi terbaru sebelum mengulangi")}</button>
+          )}
+          {latestResult && (
+            <Notice>
+              <strong>{t("Versi terbaru · revisi")}{" "}{latestResult.revision}</strong>
+              <p>{latestResult.description}</p>
+              <p>
+                {t("Status:")}{" "}{latestResult.status} · {latestResult.decisionReason}
+              </p>
+              <p>{latestResult.requestedEvidence.join("; ")}</p>
+              <button
+                className={s.secondary}
+                disabled={busy}
+                onClick={() => {
+                  setResult(latestResult);
+                  setLatestResult(null);
+                  setConflict(false);
+                  setApprovals([]);
+                  setEpoch((x) => x + 1);
+                }}
+              >
+                {t("Saya sudah meninjau, pilih ulang versi foto publik")}</button>
+            </Notice>
           )}
           <div className={s.reviewHeader}>
             <span className={s.iconCircle}>
               <ClipboardCheck size={26} />
             </span>
             <div>
-              <strong>Hasil #{shortId(result.id)}</strong>
+              <strong>{t("Hasil #")}{shortId(result.id)}</strong>
               <p>
-                Diamati {dateLabel(result.observedAt, true)} · dikirim{" "}
-                {dateLabel(result.createdAt, true)}
+                {t("Diamati")}{" "}{t(dateLabel(result.observedAt, true, intlLocale))} {" "}{t("· dikirim")}{" "}
+                {t(dateLabel(result.createdAt, true, intlLocale))}
               </p>
             </div>
             <span
               className={`${s.badge} ${result.status === "approved" ? s.green : result.status === "rejected" ? s.red : s.amber}`}
             >
-              {resultLabels[result.status]}
+              {t(resultLabels[result.status])}
             </span>
           </div>
           <div className={s.detailLayout}>
             <div className={s.formStack}>
               <section className={s.card}>
                 <div className={s.sectionHeading}>
-                  <h2>Bukti sebelum & sesudah</h2>
+                  <h2>{t("Bukti sebelum & sesudah")}</h2>
                   <span className={s.badge}>
                     {result.claimedOutcome === "complete"
-                      ? "Klaim: selesai"
-                      : "Klaim: sebagian"}
+                      ? t("Klaim: selesai")
+                      : t("Klaim: sebagian")}
                   </span>
                 </div>
                 <div className={s.evidenceGrid}>
                   {[
-                    { label: "Sebelum kegiatan", ids: result.beforeMediaIds },
-                    { label: "Sesudah kegiatan", ids: result.afterMediaIds },
+                    { label: t("Sebelum kegiatan"), ids: result.beforeMediaIds },
+                    { label: t("Sesudah kegiatan"), ids: result.afterMediaIds },
                   ].map((group) => (
                     <section key={group.label}>
                       <h3>{group.label}</h3>
@@ -281,12 +304,11 @@ export default function ActivityResultReview({
                                 className={s.secondary}
                                 onClick={() => setPhoto(id)}
                               >
-                                <Eye size={17} /> Versi publik & izin
-                              </button>
+                                <Eye size={17} /> {" "}{t("Versi publik & izin")}</button>
                             )}
                             {approvals.some((x) => x.mediaId === id) && (
                               <small className={s.approvalLabel}>
-                                <Check size={15} /> Versi dipilih ·{" "}
+                                <Check size={15} /> {" "}{t("Versi dipilih ·")}{" "}
                                 {approvals
                                   .find((x) => x.mediaId === id)
                                   ?.channels.join(", ")}
@@ -298,26 +320,20 @@ export default function ActivityResultReview({
                       {group.label === "Sebelum kegiatan" &&
                         result.beforePublicEvidenceIds.length > 0 && (
                           <Notice>
-                            {result.beforePublicEvidenceIds.length} bukti publik
-                            laporan sebelumnya juga digunakan sebagai bukti
-                            sebelum kegiatan.
-                          </Notice>
+                            {result.beforePublicEvidenceIds.length} {" "}{t("bukti publik laporan sebelumnya juga digunakan sebagai bukti sebelum kegiatan.")}</Notice>
                         )}
                     </section>
                   ))}
                 </div>
                 <Notice>
-                  Foto asli hanya untuk peninjauan. Untuk publikasi, pilih versi
-                  publik yang siap. SAP memeriksa izin pemilik pada setiap kanal
-                  saat keputusan disimpan.
-                </Notice>
+                  {t("Foto asli hanya untuk peninjauan. Untuk publikasi, pilih versi publik yang siap. SAP memeriksa izin pemilik pada setiap kanal saat keputusan disimpan.")}</Notice>
               </section>
               <section className={s.card}>
-                <h2>Catatan hasil kegiatan</h2>
+                <h2>{t("Catatan hasil kegiatan")}</h2>
                 <p className={s.preserve}>{result.description}</p>
                 {result.requestedEvidence.length > 0 && (
                   <>
-                    <h3>Bukti tambahan yang diminta</h3>
+                    <h3>{t("Bukti tambahan yang diminta")}</h3>
                     <ul>
                       {result.requestedEvidence.map((x, i) => (
                         <li key={i}>{x}</li>
@@ -327,7 +343,7 @@ export default function ActivityResultReview({
                 )}
                 {result.decisionReason && (
                   <>
-                    <h3>Alasan keputusan terakhir</h3>
+                    <h3>{t("Alasan keputusan terakhir")}</h3>
                     <p>{result.decisionReason}</p>
                   </>
                 )}
@@ -336,12 +352,11 @@ export default function ActivityResultReview({
                     activity.status,
                   ) && (
                     <button className={s.secondary} onClick={onEdit}>
-                      Lengkapi / perbaiki hasil
-                    </button>
+                      {t("Lengkapi / perbaiki hasil")}</button>
                   )}
               </section>
               <section className={s.card}>
-                <h2>Berat sampah</h2>
+                <h2>{t("Berat sampah")}</h2>
                 {result.measurement ? (
                   <>
                     <div className={s.measurement}>
@@ -352,26 +367,26 @@ export default function ActivityResultReview({
                       <span
                         className={`${s.badge} ${result.measurement.status === "verified" ? s.green : s.amber}`}
                       >
-                        {measurementLabels[result.measurement.status]}
+                        {t(measurementLabels[result.measurement.status])}
                       </span>
                     </div>
                     <dl className={s.facts}>
                       <div>
-                        <dt>Tahap</dt>
-                        <dd>{stageLabels[result.measurement.stage]}</dd>
+                        <dt>{t("Tahap")}</dt>
+                        <dd>{t(stageLabels[result.measurement.stage])}</dd>
                       </div>
                       <div>
-                        <dt>Metode</dt>
-                        <dd>Timbangan</dd>
+                        <dt>{t("Metode")}</dt>
+                        <dd>{t("Timbangan")}</dd>
                       </div>
                       <div>
-                        <dt>Waktu penimbangan</dt>
+                        <dt>{t("Waktu penimbangan")}</dt>
                         <dd>
-                          {dateLabel(result.measurement.measuredAt, true)}
+                          {t(dateLabel(result.measurement.measuredAt, true, intlLocale))}
                         </dd>
                       </div>
                       <div>
-                        <dt>Referensi</dt>
+                        <dt>{t("Referensi")}</dt>
                         <dd>{result.measurement.sourceReference}</dd>
                       </div>
                     </dl>
@@ -380,35 +395,28 @@ export default function ActivityResultReview({
                         className={s.secondary}
                         onClick={() => setMeasurementOpen(true)}
                       >
-                        <ShieldCheck size={18} /> Tinjau pengukuran berat
-                      </button>
+                        <ShieldCheck size={18} /> {" "}{t("Tinjau pengukuran berat")}</button>
                     )}
                     <p className={s.hint}>
-                      Persetujuan hasil kegiatan tidak otomatis memverifikasi
-                      berat sampah.
-                    </p>
+                      {t("Persetujuan hasil kegiatan tidak otomatis memverifikasi berat sampah.")}</p>
                   </>
                 ) : (
                   <p>
-                    Koordinator tidak mengirim pengukuran berat. Nilai berat
-                    tidak diasumsikan nol.
-                  </p>
+                    {t("Koordinator tidak mengirim pengukuran berat. Nilai berat tidak diasumsikan nol.")}</p>
                 )}
               </section>
             </div>
             <aside className={s.sideStack}>
               <section className={`${s.card} ${s.softCard}`}>
-                <h2>Tinjauan pendamping</h2>
+                <h2>{t("Tinjauan pendamping")}</h2>
                 {result.latestReview?.status === "completed" &&
                 result.latestReview.result ? (
                   <>
                     <span className={s.badge}>
-                      {reviewLabels[result.latestReview.result.recommendation]}
+                      {t(reviewLabels[result.latestReview.result.recommendation])}
                     </span>
                     <p className={s.hint}>
-                      Rekomendasi membantu pemeriksaan. Keputusan tetap dibuat
-                      oleh admin.
-                    </p>
+                      {t("Rekomendasi membantu pemeriksaan. Keputusan tetap dibuat oleh admin.")}</p>
                     {result.latestReview.result.missingEvidence.length > 0 && (
                       <ul>
                         {result.latestReview.result.missingEvidence.map(
@@ -436,27 +444,26 @@ export default function ActivityResultReview({
                           )
                         }
                       >
-                        Gunakan usulan ringkasan
-                      </button>
+                        {t("Gunakan usulan ringkasan")}</button>
                     )}
                   </>
                 ) : (
                   <p>
                     {result.latestReview?.status === "queued" ||
                     result.latestReview?.status === "running"
-                      ? "Analisis pendamping sedang diproses. Tinjauan manual tetap tersedia."
-                      : "Tinjauan manual tersedia. Belum ada rekomendasi pendamping yang dapat digunakan."}
+                      ? t("Analisis pendamping sedang diproses. Tinjauan manual tetap tersedia.")
+                      : t("Tinjauan manual tersedia. Belum ada rekomendasi pendamping yang dapat digunakan.")}
                   </p>
                 )}
               </section>
               <section className={s.card}>
-                <h2>Keputusan admin</h2>
+                <h2>{t("Keputusan admin")}</h2>
                 {result.status !== "submitted" ? (
                   <>
                     <Notice>
                       {result.status === "needs_evidence"
-                        ? "Menunggu hasil diperbaiki dan dikirim kembali sebelum keputusan berikutnya."
-                        : "Hasil ini telah diputuskan."}
+                        ? t("Menunggu hasil diperbaiki dan dikirim kembali sebelum keputusan berikutnya.")
+                        : t("Hasil ini telah diputuskan.")}
                     </Notice>
                     {result.publicSummary && <p>{result.publicSummary}</p>}
                   </>
@@ -468,62 +475,55 @@ export default function ActivityResultReview({
                     }}
                   >
                     <label className={s.field}>
-                      Tindakan
-                      <select
+                      {t("Tindakan")}<select
                         value={action}
                         onChange={(e) =>
                           setAction(e.target.value as ResultDecision["action"])
                         }
                       >
-                        <option value="approve">Setujui hasil</option>
+                        <option value="approve">{t("Setujui hasil")}</option>
                         <option value="request_evidence">
-                          Minta bukti tambahan
-                        </option>
-                        <option value="reject">Tolak hasil</option>
+                          {t("Minta bukti tambahan")}</option>
+                        <option value="reject">{t("Tolak hasil")}</option>
                       </select>
                     </label>
                     {action === "approve" ? (
                       <>
                         <label className={s.field}>
-                          Hasil terverifikasi
-                          <select
+                          {t("Hasil terverifikasi")}<select
                             value={outcome}
                             onChange={(e) =>
                               setOutcome(e.target.value as typeof outcome)
                             }
                           >
                             <option value="partial">
-                              Pembersihan sebagian
-                            </option>
+                              {t("Pembersihan sebagian")}</option>
                             <option value="complete">
-                              Pembersihan selesai
-                            </option>
+                              {t("Pembersihan selesai")}</option>
                           </select>
                         </label>
                         <label className={s.field}>
-                          Ringkasan publik
-                          <textarea
+                          {t("Ringkasan publik")}<textarea
                             rows={4}
                             required
                             minLength={1}
                             maxLength={500}
                             value={summary}
                             onChange={(e) => setSummary(e.target.value)}
-                            placeholder="Ringkasan yang aman dan jelas untuk publik."
+                            placeholder={t("Ringkasan yang aman dan jelas untuk publik.")}
                           />
-                          <small>{summary.length}/500 karakter</small>
+                          <small>{summary.length}{t("/500 karakter")}</small>
                         </label>
                         <Notice>
                           {outcome === "complete"
-                            ? "Pilih bukti sesudah untuk web. Penutupan laporan sumber tetap memerlukan keputusan laporan yang terpisah."
-                            : "Hasil sebagian dapat menutup kegiatan, sementara laporan sumber tetap terbuka."}
+                            ? t("Pilih bukti sesudah untuk web. Penutupan laporan sumber tetap memerlukan keputusan laporan yang terpisah.")
+                            : t("Hasil sebagian dapat menutup kegiatan, sementara laporan sumber tetap terbuka.")}
                         </Notice>
                       </>
                     ) : (
                       action === "request_evidence" && (
                         <label className={s.field}>
-                          Bukti yang diminta
-                          <textarea
+                          {t("Bukti yang diminta")}<textarea
                             required
                             rows={4}
                             value={requested}
@@ -533,24 +533,21 @@ export default function ActivityResultReview({
                             }
                           />
                           <small>
-                            1–3 permintaan, satu per baris, maksimal 300
-                            karakter per permintaan.
-                          </small>
+                            {t("1–3 permintaan, satu per baris, maksimal 300 karakter per permintaan.")}</small>
                         </label>
                       )
                     )}
                     <label className={s.field}>
-                      Alasan keputusan
-                      <textarea
+                      {t("Alasan keputusan")}<textarea
                         required
                         rows={4}
                         minLength={5}
                         maxLength={1000}
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
-                        placeholder="Jelaskan pertimbangan keputusan Anda."
+                        placeholder={t("Jelaskan pertimbangan keputusan Anda.")}
                       />
-                      <small>{reason.length}/1000 karakter</small>
+                      <small>{reason.length}{t("/1000 karakter")}</small>
                     </label>
                     <button
                       type="submit"
@@ -563,7 +560,7 @@ export default function ActivityResultReview({
                       }
                     >
                       <Check size={18} />
-                      {busy ? "Menyimpan…" : "Simpan keputusan"}
+                      {busy ? t("Menyimpan…") : t("Simpan keputusan")}
                     </button>
                   </form>
                 )}
@@ -582,7 +579,7 @@ export default function ActivityResultReview({
           )}
           {measurementOpen && result.measurement && (
             <DialogShell
-              title="Tinjau berat sampah"
+              title={t("Tinjau berat sampah")}
               subtitle={`${result.measurement.valueKg} kg · ${stageLabels[result.measurement.stage]}`}
               busy={busy}
               onClose={() => setMeasurementOpen(false)}
@@ -595,8 +592,7 @@ export default function ActivityResultReview({
                     }
                     onClick={() => void measurementDecision("reject")}
                   >
-                    Tolak pengukuran
-                  </button>
+                    {t("Tolak pengukuran")}</button>
                   <button
                     className={s.primary}
                     disabled={
@@ -604,15 +600,13 @@ export default function ActivityResultReview({
                     }
                     onClick={() => void measurementDecision("verify")}
                   >
-                    Verifikasi pengukuran
-                  </button>
+                    {t("Verifikasi pengukuran")}</button>
                 </div>
               }
             >
               <MeasurementEvidence result={result} />
               <label className={s.field}>
-                Alasan keputusan
-                <textarea
+                {t("Alasan keputusan")}<textarea
                   rows={4}
                   minLength={5}
                   maxLength={1000}
@@ -620,7 +614,7 @@ export default function ActivityResultReview({
                   onChange={(e) => setMeasureReason(e.target.value)}
                 />
               </label>
-              {error && <Notice error>{error}</Notice>}
+              {error && <Notice error>{t(error)}</Notice>}
             </DialogShell>
           )}
         </>
@@ -653,12 +647,11 @@ const reviewLabels = {
 };
 
 function MeasurementEvidence({ result }: { result: AdminActivityResult }) {
+  const { t } = useI18n();
   return (
     <>
       <p>
-        Periksa bukti timbangan, waktu, dan referensi sebelum memverifikasi
-        berat.
-      </p>
+        {t("Periksa bukti timbangan, waktu, dan referensi sebelum memverifikasi berat.")}</p>
       <div className={s.measurePhotos}>
         {result.measurement?.evidenceMediaIds.map((id) => (
           <MeasurementPhoto
@@ -672,19 +665,31 @@ function MeasurementEvidence({ result }: { result: AdminActivityResult }) {
   );
 }
 
-function PublicVersion({
+export function PublicVersion({
   result,
   mediaId,
   selected,
   onClose,
   onChoose,
+  gateway,
 }: {
-  result: AdminActivityResult;
+  result: { id: string; revision: number; activityId?: string };
   mediaId: string;
   selected?: PublicationApproval;
   onClose: () => void;
   onChoose: (a: PublicationApproval) => void;
+  gateway?: {
+    photoUrl: (
+      signal?: AbortSignal,
+    ) => Promise<{ url: string; expiresAt: string }>;
+    list: (
+      cursor?: string,
+      signal?: AbortSignal,
+    ) => Promise<{ items: Rendition[]; nextCursor: string | null }>;
+    create: (rects: Rendition["redactions"], key: string) => Promise<Rendition>;
+  };
 }) {
+  const { t } = useI18n();
   const [items, setItems] = useState<Rendition[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
     [renditionId, setRenditionId] = useState(selected?.renditionId || ""),
@@ -695,6 +700,9 @@ function PublicVersion({
     [error, setError] = useState(""),
     [url, setUrl] = useState(""),
     [checked, setChecked] = useState(false);
+  const [urlExpiresAt, setUrlExpiresAt] = useState(""),
+    [failedUrls, setFailedUrls] = useState<string[]>([]),
+    [expiryEpoch, setExpiryEpoch] = useState(0);
   const [message, setMessage] = useState("");
   const [rects, setRects] = useState<Rendition["redactions"]>([]),
     [drag, setDrag] = useState<{
@@ -712,15 +720,36 @@ function PublicVersion({
   const key = useIntentKey();
   useEffect(() => {
     const c = new AbortController();
-    void resultPhotoUrl(result.activityId, result.id, mediaId, c.signal)
+    void (
+      gateway
+        ? gateway.photoUrl(c.signal)
+        : resultPhotoUrl(result.activityId!, result.id, mediaId, c.signal)
+    )
       .then((p) => {
-        if (!c.signal.aborted) setUrl(p.url);
+        if (!c.signal.aborted) {
+          if (!(Date.parse(p.expiresAt) > Date.now())) {
+            setUrl("");
+            setError("Foto privat kedaluwarsa. Tutup panel lalu buka kembali.");
+            return;
+          }
+          setUrl(p.url);
+          setUrlExpiresAt(p.expiresAt);
+        }
       })
       .catch((e) => {
         if (!c.signal.aborted) setError(errorMessage(e));
       });
     setBusy(true);
-    void listResultRenditions(result, mediaId, undefined, c.signal)
+    void (
+      gateway
+        ? gateway.list(undefined, c.signal)
+        : listResultRenditions(
+            result as AdminActivityResult,
+            mediaId,
+            undefined,
+            c.signal,
+          )
+    )
       .then((p) => {
         if (!c.signal.aborted) {
           setItems(p.items);
@@ -734,16 +763,29 @@ function PublicVersion({
         if (!c.signal.aborted) setBusy(false);
       });
     return () => c.abort();
-  }, [result, mediaId]);
+  }, [result, mediaId, gateway]);
+  useEffect(() => {
+    const remaining = [...items.map((r) => r.expiresAt), urlExpiresAt]
+      .map((value) => Date.parse(value || "") - Date.now())
+      .filter((wait) => wait > 0);
+    if (!remaining.length) return;
+    const timer = setTimeout(
+      () => setExpiryEpoch((v) => v + 1),
+      Math.min(...remaining, 2_147_000_000) + 1,
+    );
+    return () => clearTimeout(timer);
+  }, [items, urlExpiresAt, expiryEpoch]);
   async function reload(more = false) {
     setBusy(true);
     setError("");
     try {
-      const p = await listResultRenditions(
-        result,
-        mediaId,
-        more ? cursor || undefined : undefined,
-      );
+      const p = gateway
+        ? await gateway.list(more ? cursor || undefined : undefined)
+        : await listResultRenditions(
+            result as AdminActivityResult,
+            mediaId,
+            more ? cursor || undefined : undefined,
+          );
       setItems((old) => (more ? uniqueItems(old, p.items) : p.items));
       setCursor(p.nextCursor);
     } catch (e) {
@@ -801,15 +843,32 @@ function PublicVersion({
     setError("");
   }
   async function prepare() {
+    if (busy || !checked || !url || !(Date.parse(urlExpiresAt) > Date.now()))
+      return;
     setBusy(true);
     setError("");
     try {
-      const r = await createResultRendition(
-        result,
-        mediaId,
-        rects,
-        key({ result: result.id, revision: result.revision, mediaId, rects }),
-      );
+      const r = gateway
+        ? await gateway.create(
+            rects,
+            key({
+              result: result.id,
+              revision: result.revision,
+              mediaId,
+              rects,
+            }),
+          )
+        : await createResultRendition(
+            result as AdminActivityResult,
+            mediaId,
+            rects,
+            key({
+              result: result.id,
+              revision: result.revision,
+              mediaId,
+              rects,
+            }),
+          );
       setItems((old) => uniqueItems(old, [r]));
       setMessage(
         "Versi publik sedang diproses. Muat ulang versi untuk melihat hasilnya.",
@@ -820,42 +879,51 @@ function PublicVersion({
       setBusy(false);
     }
   }
-  const ready = items.find((x) => x.id === renditionId && x.status === "ready");
+  const usable = (r: Rendition) =>
+    r.status === "ready" &&
+    !!r.url &&
+    Date.parse(r.expiresAt || "") > Date.now() &&
+    !failedUrls.includes(r.url);
+  const ready = items.find((x) => x.id === renditionId && usable(x));
   return (
     <DialogShell
-      title="Versi foto untuk publik"
-      subtitle="Periksa privasi foto dan pilih kanal publikasi."
+      title={t("Versi foto untuk publik")}
+      subtitle={t("Periksa privasi foto dan pilih kanal publikasi.")}
       busy={busy}
       wide
       onClose={onClose}
       footer={
         <div className={s.actions}>
           <button className={s.secondary} onClick={onClose} disabled={busy}>
-            Kembali
-          </button>
+            {t("Kembali")}</button>
           <button
             className={s.primary}
             disabled={busy || (!!channels.length && !ready)}
-            onClick={() => onChoose({ mediaId, renditionId, channels })}
+            onClick={() => {
+              if (
+                channels.length &&
+                !items.some((r) => r.id === renditionId && usable(r))
+              ) {
+                setError(
+                  "Versi publik belum siap atau kedaluwarsa. Muat ulang versi dan tinjau kembali.",
+                );
+                return;
+              }
+              onChoose({ mediaId, renditionId, channels });
+            }}
           >
-            Simpan pilihan foto
-          </button>
+            {t("Simpan pilihan foto")}</button>
         </div>
       }
     >
       <Notice>
-        Izin pemilik diperlukan untuk setiap kanal. Panel ini menyiapkan versi
-        publik; izin pemilik tetap diperiksa oleh SAP saat keputusan hasil
-        disimpan.
-      </Notice>
-      {error && <Notice error>{error}</Notice>}
-      {message && <Notice>{message}</Notice>}
-      <h3>1. Siapkan versi publik</h3>
+        {t("Izin pemilik diperlukan untuk setiap kanal. Panel ini menyiapkan versi publik; izin pemilik tetap diperiksa oleh SAP saat keputusan hasil disimpan.")}</Notice>
+      {error && <Notice error>{t(error)}</Notice>}
+      {message && <Notice>{t(message)}</Notice>}
+      <h3>{t("1. Siapkan versi publik")}</h3>
       <p>
-        Seret pada foto untuk menutupi wajah, pelat nomor, atau informasi
-        pribadi. Hingga 20 area dapat ditutup.
-      </p>
-      {url && (
+        {t("Seret pada foto untuk menutupi wajah, pelat nomor, atau informasi pribadi. Hingga 20 area dapat ditutup.")}</p>
+      {url && Date.parse(urlExpiresAt) > Date.now() && (
         <div
           className={s.redactionCanvas}
           onPointerDown={down}
@@ -870,8 +938,15 @@ function PublicVersion({
         >
           <img
             src={url}
-            alt="Foto asli: seret untuk memilih area yang akan ditutupi"
+            alt={t("Foto asli: seret untuk memilih area yang akan ditutupi")}
             draggable={false}
+            onError={() => {
+              setUrl("");
+              setChecked(false);
+              setError(
+                "Foto privat belum dapat dimuat. Tutup panel lalu buka kembali.",
+              );
+            }}
           />
           {rects.map((r, i) => (
             <span
@@ -899,27 +974,25 @@ function PublicVersion({
         </div>
       )}
       <div className={s.actions}>
-        <small>{rects.length} area dipilih</small>
+        <small>{rects.length} {" "}{t("area dipilih")}</small>
         <button
           className={s.secondary}
           disabled={!rects.length || busy}
           onClick={() => setRects((old) => old.slice(0, -1))}
         >
-          <Trash2 size={16} /> Hapus area terakhir
-        </button>
+          <Trash2 size={16} /> {" "}{t("Hapus area terakhir")}</button>
       </div>
       <details className={s.manualRedaction}>
-        <summary>Pilih area dengan angka (opsional)</summary>
+        <summary>{t("Pilih area dengan angka (opsional)")}</summary>
         <p className={s.hint}>
-          Posisi dan ukuran dihitung dalam persen terhadap foto.
-        </p>
+          {t("Posisi dan ukuran dihitung dalam persen terhadap foto.")}</p>
         <div className={s.fieldGrid}>
           {(
             [
-              { key: "x", label: "Posisi dari kiri (%)" },
-              { key: "y", label: "Posisi dari atas (%)" },
-              { key: "width", label: "Lebar area (%)" },
-              { key: "height", label: "Tinggi area (%)" },
+              { key: "x", label: t("Posisi dari kiri (%)") },
+              { key: "y", label: t("Posisi dari atas (%)") },
+              { key: "width", label: t("Lebar area (%)") },
+              { key: "height", label: t("Tinggi area (%)") },
             ] as const
           ).map((f) => (
             <label className={s.field} key={f.key}>
@@ -942,32 +1015,31 @@ function PublicVersion({
           disabled={busy || rects.length >= 20}
           onClick={addManualBox}
         >
-          Tambah area penutup
-        </button>
+          {t("Tambah area penutup")}</button>
       </details>
       <label className={s.checkbox}>
         <input
           type="checkbox"
           checked={checked}
+          disabled={busy || !url || !(Date.parse(urlExpiresAt) > Date.now())}
           onChange={(e) => setChecked(e.target.checked)}
         />
-        Saya sudah memeriksa foto dan area privasi yang perlu ditutupi.
-      </label>
+        {t("Saya sudah memeriksa foto dan area privasi yang perlu ditutupi.")}</label>
       <button
         className={s.secondary}
-        disabled={busy || !checked}
+        disabled={
+          busy || !checked || !url || !(Date.parse(urlExpiresAt) > Date.now())
+        }
         onClick={() => void prepare()}
       >
-        <Plus size={17} /> Buat versi publik
-      </button>
-      <h3>2. Pilih versi siap</h3>
+        <Plus size={17} /> {" "}{t("Buat versi publik")}</button>
+      <h3>{t("2. Pilih versi siap")}</h3>
       <button
         className={s.secondary}
         disabled={busy}
         onClick={() => void reload()}
       >
-        <RefreshCw size={17} /> Muat ulang versi
-      </button>
+        <RefreshCw size={17} /> {" "}{t("Muat ulang versi")}</button>
       <div className={s.renditions}>
         {items.map((r) => (
           <label
@@ -979,11 +1051,15 @@ function PublicVersion({
               name="rendition"
               value={r.id}
               checked={renditionId === r.id}
-              disabled={r.status !== "ready"}
+              disabled={!usable(r)}
               onChange={() => setRenditionId(r.id)}
             />
-            {r.status === "ready" && r.url ? (
-              <img src={r.url} alt="Pratinjau versi publik" />
+            {usable(r) && r.url ? (
+              <img
+                src={r.url}
+                alt={t("Pratinjau versi publik")}
+                onError={() => setFailedUrls((v) => [...v, r.url!])}
+              />
             ) : (
               <span className={s.iconCircle}>
                 <ShieldCheck size={25} />
@@ -992,20 +1068,22 @@ function PublicVersion({
             <span>
               <strong>
                 {r.status === "ready"
-                  ? "Siap dipilih"
+                  ? usable(r)
+                    ? t("Siap dipilih")
+                    : t("Foto kedaluwarsa atau belum dapat dimuat")
                   : r.status === "queued"
-                    ? "Sedang diproses"
-                    : "Gagal diproses"}
+                    ? t("Sedang diproses")
+                    : t("Gagal diproses")}
               </strong>
               <small>
-                {r.redactions.length} area ditutupi · #{shortId(r.id)}
+                {r.redactions.length} {" "}{t("area ditutupi · #")}{shortId(r.id)}
               </small>
             </span>
           </label>
         ))}
       </div>
       {!items.length && !busy && (
-        <p>Belum ada versi publik. Siapkan versi terlebih dahulu.</p>
+        <p>{t("Belum ada versi publik. Siapkan versi terlebih dahulu.")}</p>
       )}
       {cursor && (
         <button
@@ -1013,10 +1091,9 @@ function PublicVersion({
           onClick={() => void reload(true)}
           disabled={busy}
         >
-          Muat versi berikutnya
-        </button>
+          {t("Muat versi berikutnya")}</button>
       )}
-      <h3>3. Kanal publikasi</h3>
+      <h3>{t("3. Kanal publikasi")}</h3>
       {(["web", "instagram"] as const).map((c) => (
         <label className={s.checkbox} key={c}>
           <input
@@ -1028,12 +1105,11 @@ function PublicVersion({
               )
             }
           />
-          {c === "web" ? "Web SAP" : "Instagram SAP"}
+          {c === "web" ? t("Web SAP") : "Instagram SAP"}
         </label>
       ))}
       <p className={s.hint}>
-        Kosongkan kanal untuk tidak menggunakan foto ini dalam publikasi.
-      </p>
+        {t("Kosongkan kanal untuk tidak menggunakan foto ini dalam publikasi.")}</p>
     </DialogShell>
   );
 }

@@ -7,6 +7,8 @@ import { sendSapaMessage, type SapaCitation, type SapaPageContext, type SapaSugg
 import SapaSprite from "./sapa-sprite";
 import type { SapaActivity, SapaMotion } from "./sapa-motion-data";
 import styles from "./sapa-pet.module.css";
+import { useI18n } from "../lib/i18n/provider";
+
 
 export type SapaDashboardTab = "dashboard" | "scan" | "reports" | "map" | "history" | "achievements" | "settings" | "help";
 
@@ -58,6 +60,7 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate, mobi
   onNavigate: (tab: SapaDashboardTab) => void;
   mobileDock?: boolean;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [reaction, setReaction] = useState<{ motion: SapaMotion; id: number } | null>(null);
   const [draft, setDraft] = useState("");
@@ -279,28 +282,28 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate, mobi
     {open && <section className={`${styles.panel} ${!docked && panelBelow ? styles.panelBelow : ""}`} style={docked ? undefined : { left: panelLeft - petX, right: "auto", maxHeight: panelMaxHeight }} id="sapa-chat-panel" role="dialog" aria-modal="false" aria-labelledby="sapa-chat-title">
       <header className={styles.header}>
         <span className={styles.headerAvatar}><Image src="/images/sapa/SAPA_Chat_Avatar.png" alt="" width={42} height={42} /></span>
-        <span className={styles.heading}><strong id="sapa-chat-title">SAPA</strong><small>Asisten SAP</small></span>
-        <button className={styles.close} type="button" onClick={closePanel} aria-label="Minimalkan chat SAPA"><X size={19} /></button>
+        <span className={styles.heading}><strong id="sapa-chat-title">SAPA</strong><small>{t("Asisten SAP")}</small></span>
+        <button className={styles.close} type="button" onClick={closePanel} aria-label={t("Minimalkan chat SAPA")}><X size={19} /></button>
       </header>
 
       <div className={styles.body} ref={logRef}>
         {messages.length === 0 && <>
           <div className={styles.welcome}>
-            <Image src="/images/sapa/SAPA_Welcome_Sticker.png" alt="SAPA melambaikan tangan" width={86} height={83} />
-            <p>Hai! Aku SAPA.<br /><strong>Mau bantu apa hari ini?</strong></p>
+            <Image src="/images/sapa/SAPA_Welcome_Sticker.png" alt={t("SAPA melambaikan tangan")} width={86} height={83} />
+            <p>{t("Hai! Aku SAPA.")}<br /><strong>{t("Mau bantu apa hari ini?")}</strong></p>
           </div>
-          <div className={styles.quickActions} aria-label="Bantuan cepat SAPA">
-            <button type="button" disabled={sending} onClick={() => void sendMessage("Bagaimana cara pilah sampah?")}><Recycle size={18} /><span>Cara pilah sampah</span><ArrowRight size={16} /></button>
-            <button type="button" onClick={() => navigate("reports")}><FilePlus2 size={18} /><span>Buat laporan</span><ArrowRight size={16} /></button>
-            <button type="button" onClick={() => navigate("map")}><Map size={18} /><span>Lihat peta area</span><ArrowRight size={16} /></button>
+          <div className={styles.quickActions} aria-label={t("Bantuan cepat SAPA")}>
+            <button type="button" disabled={sending} onClick={() => void sendMessage(t("Bagaimana cara pilah sampah?"))}><Recycle size={18} /><span>{t("Cara pilah sampah")}</span><ArrowRight size={16} /></button>
+            <button type="button" onClick={() => navigate("reports")}><FilePlus2 size={18} /><span>{t("Buat laporan")}</span><ArrowRight size={16} /></button>
+            <button type="button" onClick={() => navigate("map")}><Map size={18} /><span>{t("Lihat peta area")}</span><ArrowRight size={16} /></button>
           </div>
         </>}
 
-        {messages.length > 0 && <div className={styles.messages} role="log" aria-label="Percakapan SAPA" aria-live="polite">
+        {messages.length > 0 && <div className={styles.messages} role="log" aria-label={t("Percakapan SAPA")} aria-live="polite">
           {messages.map(item => item.role === "assistant"
             ? <div className={styles.assistantTurn} key={item.id}>
                 <p className={styles.assistantMessage}>{item.content}</p>
-                {item.citations && item.citations.length > 0 && <ul className={styles.citations} aria-label="Sumber jawaban SAPA">
+                {item.citations && item.citations.length > 0 && <ul className={styles.citations} aria-label={t("Sumber jawaban SAPA")}>
                   {item.citations.map(citation => <li className={styles.citation} key={citation.id}>
                     <span className={styles.citationSource}>{citation.source}</span>
                     <span className={styles.citationTitle}>
@@ -318,32 +321,32 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate, mobi
             const PhaseIcon = step.icon;
             return <p className={styles.pendingMessage} aria-live="polite">
               <PhaseIcon size={15} className={styles.pendingIcon} aria-hidden="true" />
-              <span>{step.label}</span>
+              <span>{t(step.label)}</span>
               <span className={styles.pendingDots} aria-hidden="true"><i /><i /><i /></span>
             </p>;
           })()}
-          {suggestedActions.length > 0 && <div className={styles.suggestions}>{suggestedActions.filter(action => action.target in tabByTarget).map(action => <button type="button" key={`${action.target}-${action.label}`} onClick={() => navigate(tabByTarget[action.target])}>{action.label}<ArrowRight size={14} /></button>)}</div>}
+          {suggestedActions.length > 0 && <div className={styles.suggestions}>{suggestedActions.filter(action => action.target in tabByTarget).map(action => <button type="button" key={`${action.target}-${action.label}`} onClick={() => navigate(tabByTarget[action.target])}>{t(action.label)}<ArrowRight size={14} /></button>)}</div>}
         </div>}
       </div>
 
       <div className={styles.composerArea}>
-        {error && <p className={styles.error} role="alert">{error}</p>}
+        {error && <p className={styles.error} role="alert">{t(error)}</p>}
         <form className={styles.composer} onSubmit={submit}>
-          <input ref={inputRef} value={draft} maxLength={2000} onChange={event => { setDraft(event.target.value); if (error) setError(""); }} placeholder="Tulis pesan untuk SAPA…" aria-label="Pesan untuk SAPA" />
-          <button type="submit" disabled={!draft.trim() || sending} aria-label="Kirim pesan ke SAPA"><Send size={19} /></button>
+          <input ref={inputRef} value={draft} maxLength={2000} onChange={event => { setDraft(event.target.value); if (error) setError(""); }} placeholder={t("Tulis pesan untuk SAPA…")} aria-label={t("Pesan untuk SAPA")} />
+          <button type="submit" disabled={!draft.trim() || sending} aria-label={t("Kirim pesan ke SAPA")}><Send size={19} /></button>
         </form>
-        {!backendLinked && <p className={styles.connectionNote}>Chat AI memerlukan akun backend yang terhubung.</p>}
+        {!backendLinked && <p className={styles.connectionNote}>{t("Chat AI memerlukan akun backend yang terhubung.")}</p>}
       </div>
     </section>}
 
-    <button ref={launchRef} className={`${styles.launcher} ${dragging ? styles.dragging : ""}`} type="button" onPointerDown={onPointerDown} onPointerEnter={event => { if (event.pointerType === "mouse") attention(); }} onFocus={attention} onClick={() => activate()} onDragStart={event => event.preventDefault()} aria-label={open ? "Tutup chat SAPA" : "Buka chat SAPA"} aria-expanded={open} aria-controls="sapa-chat-panel" title={`${open ? "Tutup" : "Buka"} chat SAPA · Seret untuk memindahkan`}>
+    <button ref={launchRef} className={`${styles.launcher} ${dragging ? styles.dragging : ""}`} type="button" onPointerDown={onPointerDown} onPointerEnter={event => { if (event.pointerType === "mouse") attention(); }} onFocus={attention} onClick={() => activate()} onDragStart={event => event.preventDefault()} aria-label={open ? t("Tutup chat SAPA") : t("Buka chat SAPA")} aria-expanded={open} aria-controls="sapa-chat-panel" title={t("{0} chat SAPA · Seret untuk memindahkan", { "0": open ? t("Tutup") : t("Buka") })}>
       <span className={styles.character}><SapaSprite motion={motion} playId={reaction?.id ?? 0} paused={dragging} calm={open} onComplete={finishReaction} /></span>
-      <span className={`${styles.petLabel} ${working ? styles.workingLabel : ""}`} aria-hidden="true">{working ? "AI bekerja" : "SAPA"}</span>
+      <span className={`${styles.petLabel} ${working ? styles.workingLabel : ""}`} aria-hidden="true">{working ? t("AI bekerja") : "SAPA"}</span>
     </button>
   </div>
-    {mobileDock && <button ref={dockLaunchRef} type="button" className={styles.mobileDockLauncher} onClick={() => activate("dock")} aria-label={open ? "Tutup chat SAPA dari navbar" : "Buka chat SAPA dari navbar"} aria-expanded={open} aria-controls="sapa-chat-panel">
+    {mobileDock && <button ref={dockLaunchRef} type="button" className={styles.mobileDockLauncher} onClick={() => activate("dock")} aria-label={open ? t("Tutup chat SAPA dari navbar") : t("Buka chat SAPA dari navbar")} aria-expanded={open} aria-controls="sapa-chat-panel">
       <Sparkles size={19} aria-hidden="true" />
-      <span>{working ? "SAPA sedang memproses…" : "SAPA siap membantu"}</span>
+      <span>{working ? t("SAPA sedang memproses…") : t("SAPA siap membantu")}</span>
       <ChevronRight size={18} aria-hidden="true" />
     </button>}
   </>;

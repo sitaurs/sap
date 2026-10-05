@@ -5,6 +5,11 @@ import Image from "next/image";
 import { ArrowRight, ChevronRight, Clock3, LockKeyhole, MapPin, X } from "lucide-react";
 import styles from "./lower-section.module.css";
 import BrandLogo from "./brand-logo";
+import MobileStories from "./landing/mobile-stories";
+import MobileFooter from "./landing/mobile-footer";
+import { mobileStories } from "./landing/content";
+import { useI18n } from "../lib/i18n/provider";
+
 
 const verificationSteps = [
   {
@@ -54,8 +59,10 @@ const testimonials = [
   },
 ];
 
+const legalLabels = ["Kebijakan Privasi", "Ketentuan Layanan", "Pengaturan Cookie"] as const;
+
 export type BottomDetail =
-  | { kind: "testimonial"; index: number }
+  | { kind: "testimonial"; index: number; variant?: "mobile" }
   | { kind: "footer"; label: string };
 
 type OpenDetail = (detail: BottomDetail) => void;
@@ -84,25 +91,27 @@ function useInView<T extends HTMLElement>() {
 }
 
 export function VerificationAndStories({ onOpen }: { onOpen: OpenDetail }) {
+  const { t } = useI18n();
   const verificationView = useInView<HTMLDivElement>();
   const storiesView = useInView<HTMLDivElement>();
   const [activeStep, setActiveStep] = useState<number | null>(null);
 
   return (
-    <section className={styles.section} aria-label="Verifikasi laporan dan cerita pelanggan">
+    <section className={styles.section} aria-label={t("Verifikasi laporan dan cerita pelanggan")}>
       <div
         id="verifikasi"
         ref={verificationView.ref}
         className={`${styles.verification} ${verificationView.visible ? styles.visible : ""}`}
       >
         <div className={styles.verificationInner}>
-          <p className={styles.eyebrow}>Data yang bisa dipercaya</p>
-          <h2>Dari laporan ke peta, melalui verifikasi <em>yang jelas.</em></h2>
-          <div className={styles.verificationGrid} aria-label="Tahapan verifikasi laporan">
+          <p className={styles.eyebrow}>{t("Data yang bisa dipercaya")}</p>
+          <h2>{t("Dari laporan ke peta, melalui verifikasi")}{" "}<em>{t("yang jelas.")}</em></h2>
+          <p className={styles.mobileIntro}>{t("Setiap laporan melewati pemeriksaan sebelum menjadi informasi publik.")}</p>
+          <div className={styles.verificationGrid} aria-label={t("Tahapan verifikasi laporan")}>
             {verificationSteps.map((step, index) => (
               <button
                 className={`${styles.verificationCard} ${activeStep === index ? styles.verificationCardActive : ""}`}
-                key={step.title}
+                key={t(step.title)}
                 type="button"
                 onClick={() => setActiveStep(activeStep === index ? null : index)}
                 aria-expanded={activeStep === index}
@@ -110,24 +119,27 @@ export function VerificationAndStories({ onOpen }: { onOpen: OpenDetail }) {
               >
                 <span className={styles.verificationCardHeading}>
                   <span className={styles.stepNumber}>{index + 1}</span>
-                  <strong>{step.title}</strong>
+                  <strong>{t(step.title)}</strong>
                   <ChevronRight className={styles.cardChevron} size={24} aria-hidden="true" />
                 </span>
                 {index === 0 ? (
                   <span className={styles.reportVisual}>
-                    <Image src="/images/verification/report-photo.png" width={118} height={79} alt="Contoh foto tumpukan sampah" />
+                    <Image className={styles.desktopArtwork} src="/images/verification/report-photo.png" width={118} height={79} alt={t("Contoh foto tumpukan sampah")} />
+                    <Image className={styles.mobileArtwork} src="/images/landing-mobile/report-photo.webp" width={136} height={158} sizes="(max-width: 760px) 35vw, 1px" alt={t("Contoh foto tumpukan sampah")} />
                     <span className={styles.reportMeta}>
-                      <span><MapPin size={24} aria-hidden="true" /><span><strong>Lokasi</strong><small>Disimpan secara privat</small></span></span>
-                      <span><Clock3 size={24} aria-hidden="true" /><span><strong>Waktu</strong><small>Disimpan secara privat</small></span></span>
+                      <span><MapPin size={24} aria-hidden="true" /><span><strong>{t("Lokasi")}</strong><small>{t("Disimpan secara privat")}</small></span></span>
+                      <span><Clock3 size={24} aria-hidden="true" /><span><strong>{t("Waktu")}</strong><small>{t("Disimpan secara privat")}</small></span></span>
                     </span>
                   </span>
                 ) : index === 1 ? (
                   <span className={styles.reviewVisual}>
-                    <Image src="/images/verification/admin-review.png" width={235} height={95} alt="" />
+                    <Image className={styles.desktopArtwork} src="/images/verification/admin-review.png" width={235} height={95} alt="" />
+                    <Image className={styles.mobileArtwork} src="/images/landing-mobile/review-illustration.webp" width={321} height={170} sizes="(max-width: 760px) calc(100vw - 100px), 1px" alt="" />
                   </span>
                 ) : (
                   <span className={styles.mapVisual}>
-                    <Image src="/images/verification/verified-area.png" width={264} height={92} alt="" />
+                    <Image className={styles.desktopArtwork} src="/images/verification/verified-area.png" width={264} height={92} alt="" />
+                    <Image className={styles.mobileArtwork} src="/images/landing-mobile/verified-area.webp" width={322} height={167} sizes="(max-width: 760px) calc(100vw - 100px), 1px" alt="" />
                   </span>
                 )}
                 <span className={styles.verificationSummary}>{step.summary}</span>
@@ -136,38 +148,39 @@ export function VerificationAndStories({ onOpen }: { onOpen: OpenDetail }) {
           </div>
           {activeStep !== null && (
             <div className={styles.verificationDetail} id="verification-step-detail">
-              <span className={styles.detailStepLabel}>Tahap {activeStep + 1}</span>
-              <p>{verificationSteps[activeStep].detail}</p>
+              <span className={styles.detailStepLabel}>{t("Tahap")}{" "}{activeStep + 1}</span>
+              <p>{t(verificationSteps[activeStep].detail)}</p>
               <a href={verificationSteps[activeStep].href}>{verificationSteps[activeStep].action} <ArrowRight size={18} aria-hidden="true" /></a>
             </div>
           )}
-          <p className={styles.privacyNote}><span><LockKeyhole size={23} aria-hidden="true" /></span>Detail foto dan koordinat tidak langsung ditampilkan ke publik.</p>
+          <p className={styles.privacyNote}><span><LockKeyhole size={23} aria-hidden="true" /></span>{t("Detail foto dan koordinat tidak langsung ditampilkan ke publik.")}</p>
         </div>
       </div>
 
+      <span id="cerita-pelanggan" className={styles.storiesAnchor} aria-hidden="true" />
       <div
-        id="cerita-pelanggan"
         ref={storiesView.ref}
         className={`${styles.stories} ${storiesView.visible ? styles.visible : ""}`}
       >
-        <p className={styles.eyebrow}>Cerita pelanggan</p>
-        <h2>Organisasi membangun masa depan yang lebih berkelanjutan dengan SAP.</h2>
+        <p className={styles.eyebrow}>{t("Cerita pelanggan")}</p>
+        <h2>{t("Organisasi membangun masa depan yang lebih berkelanjutan dengan SAP.")}</h2>
         <div className={styles.storyGrid}>
           {testimonials.map((person, index) => (
-            <button className={styles.quoteCard} key={person.name} type="button" onClick={() => onOpen({ kind: "testimonial", index })} aria-label={`Baca cerita ${person.name}`}>
-              <span className={styles.quoteText}>“{person.quote}”</span>
+            <button className={styles.quoteCard} key={person.name} type="button" onClick={() => onOpen({ kind: "testimonial", index })} aria-label={t("Baca cerita {0}", { "0": person.name })}>
+              <span className={styles.quoteText}>“{t(person.quote)}”</span>
               <span className={styles.personRow}>
                 <Image src={`/images/lower/${person.image}.png`} width={105} height={105} alt="" />
                 <span>
                   <strong>{person.name}</strong>
-                  <span>{person.role}</span>
-                  <span>{person.company}</span>
+                  <span>{t(person.role)}</span>
+                  <span>{t(person.company)}</span>
                 </span>
               </span>
             </button>
           ))}
         </div>
       </div>
+      <MobileStories onSelect={index => onOpen({ kind: "testimonial", index, variant: "mobile" })} />
     </section>
   );
 }
@@ -193,38 +206,41 @@ const footerDetails: Record<string, { description: string; href?: string; action
 };
 
 export function SiteFooter({ onOpen }: { onOpen: OpenDetail }) {
+  const { t } = useI18n();
   return (
     <footer className={styles.footer} id="edukasi">
-      <div className={styles.footerInner}>
+      <div className={`${styles.footerInner} ${styles.desktopFooter}`}>
         <div className={styles.brandGroup}>
-          <a className={styles.footerMark} href="#beranda" aria-label="SAP, kembali ke beranda"><BrandLogo width={140} /></a>
+          <a className={styles.footerMark} href="#beranda" aria-label={t("SAP, kembali ke beranda")}><BrandLogo width={140} /></a>
           <div>
-            <strong>Bersama untuk masa depan<br />yang lebih berkelanjutan.</strong>
-            <p>Menghubungkan orang, proses, dan data—mengurangi sampah, melestarikan sumber daya, dan menciptakan dampak nyata.</p>
+            <strong>{t("Bersama untuk masa depan")}<br />{t("yang lebih berkelanjutan.")}</strong>
+            <p>{t("Menghubungkan orang, proses, dan data—mengurangi sampah, melestarikan sumber daya, dan menciptakan dampak nyata.")}</p>
           </div>
         </div>
-        <nav className={styles.footerNavigation} aria-label="Navigasi footer">
+        <nav className={styles.footerNavigation} aria-label={t("Navigasi footer")}>
           {footerGroups.map((group) => (
             <div className={styles.footerGroup} key={group.title}>
-              <strong>{group.title}</strong>
+              <strong>{t(group.title)}</strong>
               {group.items.map((item) => item.href
-                ? <a href={item.href} key={item.label}>{item.label}</a>
-                : <button type="button" onClick={() => onOpen({ kind: "footer", label: item.label })} key={item.label}>{item.label}</button>)}
+                ? <a href={item.href} key={t(item.label)}>{t(item.label)}</a>
+                : <button type="button" onClick={() => onOpen({ kind: "footer", label: item.label })} key={t(item.label)}>{t(item.label)}</button>)}
             </div>
           ))}
         </nav>
         <div className={styles.legal}>
-          {["Kebijakan Privasi", "Ketentuan Layanan", "Pengaturan Cookie"].map((label) =>
-            <button type="button" onClick={() => onOpen({ kind: "footer", label })} key={label}>{label}</button>
+          {legalLabels.map((label) =>
+            <button type="button" onClick={() => onOpen({ kind: "footer", label })} key={label}>{t(label)}</button>
           )}
         </div>
         <span className={styles.footerLeaf} aria-hidden="true" />
       </div>
+      <MobileFooter groups={footerGroups} onOpen={label => onOpen({ kind: "footer", label })} />
     </footer>
   );
 }
 
 export function DetailDialog({ detail, onClose }: { detail: BottomDetail | null; onClose: () => void }) {
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -246,23 +262,23 @@ export function DetailDialog({ detail, onClose }: { detail: BottomDetail | null;
   let content: ReactNode;
 
   if (detail.kind === "testimonial") {
-    const person = testimonials[detail.index];
-    eyebrow = "Cerita pelanggan";
+    const person = detail.variant === "mobile" ? mobileStories[detail.index] : testimonials[detail.index];
+    eyebrow = detail.variant === "mobile" ? "Contoh cerita pelanggan" : "Cerita pelanggan";
     title = person.name;
     content = <>
       <div className={styles.detailPerson}>
         <Image src={`/images/lower/${person.image}.png`} width={105} height={105} alt="" />
-        <span>{person.role}<br />{person.company}</span>
+        <span>{t(person.role)}<br />{t(person.company)}</span>
       </div>
-      <blockquote className={styles.detailQuote}>“{person.quote}”</blockquote>
+      <blockquote className={styles.detailQuote}>“{t(person.quote)}”</blockquote>
     </>;
   } else {
     const info = footerDetails[detail.label];
     eyebrow = "Informasi";
-    title = detail.label;
+    title = t(detail.label);
     content = <>
-      <p>{info?.description ?? "Informasi untuk bagian ini sedang disiapkan."}</p>
-      {info?.href && <a className={styles.detailAction} href={info.href} onClick={() => dialogRef.current?.close()}>{info.action} <ArrowRight size={18} aria-hidden="true" /></a>}
+      <p>{t(info?.description ?? t("Informasi untuk bagian ini sedang disiapkan."))}</p>
+      {info?.href && <a className={styles.detailAction} href={info.href} onClick={() => dialogRef.current?.close()}>{t(info.action ?? "Lihat detail")} <ArrowRight size={18} aria-hidden="true" /></a>}
     </>;
   }
 
@@ -275,8 +291,8 @@ export function DetailDialog({ detail, onClose }: { detail: BottomDetail | null;
     aria-describedby="bottom-detail-content"
   >
     <div className={styles.detailContent} id="bottom-detail-content">
-      <button className={styles.detailClose} type="button" onClick={() => dialogRef.current?.close()} aria-label="Tutup detail"><X size={22} /></button>
-      <p className={styles.detailEyebrow}>{eyebrow}</p>
+      <button className={styles.detailClose} type="button" onClick={() => dialogRef.current?.close()} aria-label={t("Tutup detail")}><X size={22} /></button>
+      <p className={styles.detailEyebrow}>{t(eyebrow)}</p>
       <h2 id="bottom-detail-title">{title}</h2>
       {content}
     </div>

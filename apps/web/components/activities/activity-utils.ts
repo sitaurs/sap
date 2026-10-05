@@ -66,10 +66,10 @@ export const initials = (name: string) =>
     .map((part) => part[0])
     .join("")
     .toUpperCase() || "KS";
-export function dateLabel(value: string | null, time = false) {
+export function dateLabel(value: string | null, time = false, locale = "id-ID") {
   if (!value || !Number.isFinite(Date.parse(value))) return "Belum ditentukan";
   return (
-    new Intl.DateTimeFormat("id-ID", {
+    new Intl.DateTimeFormat(locale, {
       timeZone: "Asia/Jakarta",
       day: "numeric",
       month: "short",

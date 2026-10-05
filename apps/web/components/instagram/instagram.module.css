@@ -42,7 +42,7 @@
 .iconButton{display:inline-grid;place-items:center;border:1px solid #dbe6ee;width:42px;height:42px;flex-shrink:0;border-radius:10px;background:white;color:#506a83;cursor:pointer}
 .iconButton:hover:not(:disabled){background:#f0f8f4;color:#0a775a;border-color:#9acbb8}
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap}
-.filters{display:flex;align-items:center;gap:8px}
+.filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .filters button{border:1px solid #dde7ee;min-height:42px;background:#fff;border-radius:9px;color:#58728b;font-size:13px;font-weight:600;padding:9px 17px}
 .filters button:hover{background:#f0f8f4;border-color:#a7cebe}
 .filters .activeFilter{background:#107a5c;border-color:#107a5c;color:#fff}
@@ -223,3 +223,6 @@
 @keyframes ig-spin{to{transform:rotate(360deg)}}
 @keyframes ig-fade{from{opacity:0}to{opacity:1}}
 @keyframes ig-drawer{from{opacity:.5;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+.operation { display: grid; gap: 14px; padding: 20px; border: 1px solid #d8e8e4; border-radius: 14px; background: #f5faf8; color: #315348; font-size: 14px; line-height: 1.6; min-width: 0; overflow-wrap: anywhere; }
+.operation h3 { font-size: 18px; margin: 0; }
+.finalPhoto { display: block; width: 100%; height: auto; max-height: 580px; object-fit: contain; border-radius: 14px; background: #f4f8fa; }

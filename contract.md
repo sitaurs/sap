@@ -1,5 +1,69 @@
 # Catatan perubahan frontend SAP
 
+## 6 Oktober 2026 — Ringkasan perubahan untuk commit dan handoff backend
+
+Perubahan lokal sejak `beebfdd` mencakup:
+
+- Landing page mobile dengan komponen/aset WebP terpisah, menu, alur laporan/verifikasi, cerita contoh, CTA, dan footer responsif.
+- Pilihan Indonesia/English di Pengaturan, provider/kamus per fitur, preferensi browser, metadata, serta format tanggal dan angka sesuai locale.
+- Perapian judul English agar tidak bertumpuk dan layout Kata sandi mobile agar deskripsi tidak menyempit.
+- Tombol kembali ke Pusat admin pada halaman admin mobile; penghapusan Antrean review dan Aktivitas warga sesuai keputusan pemilik, termasuk penanganan URL lama.
+- Frontend detail kejadian publik, kontribusi kondisi dari kejadian, jelajah/detail relawan, dan pengelolaan koordinator; adapter/tipe Instagram R1 dengan preview final, approval, operasi pending, cancel/retract, konflik revisi, dan riwayat. Batas scope terbaru mengikuti [handoff R1](docs/FRONTEND_R1_HANDOFF.md).
+- Fixture/runner browser frontend yang sudah dibuat pada pekerjaan R1 sebelumnya; skenario untuk halaman yang dihapus dikeluarkan. Hasil browser terdahulu tetap bukti historis, bukan eksekusi baru pada commit ini.
+- **Backend email development:** `MailerService` dan config bersama mendukung `MAIL_TRANSPORT=smtp` secara eksplisit. SMTP memerlukan host, port, user, dan password; menggunakan TLS, koneksi lazy, timeout terbatas, serta log error generik. Resend tetap default dan SMTP ditolak pada production. Dependency `nodemailer`/tipenya dan lockfile disertakan; contoh konfigurasi serta [deployment](docs/DEPLOYMENT.md) diperbarui. Tidak ada pengiriman OTP yang dipalsukan.
+
+Nilai konfigurasi asli tetap lokal. Git mengabaikan `.env`/`.env.*`, selain template `.env.example`; template SMTP berisi nilai kosong. Preferensi bahasa tidak menambah field pada API akun. Penghapusan menu tidak menghapus endpoint atau data backend. Catatan setiap fitur dan alasan perubahan dijabarkan pada bagian berikut serta dokumen implementasinya.
+
+**Sinkronisasi GitHub:** pekerjaan diselaraskan dengan `bb29e10` dari `origin/main`. Perubahan backend, migration, worker, deployment, API relawan, dan kontrak bersama dari commit tersebut dipertahankan. Tipe frontend R1 diregenerasi, termasuk `resolutionReviewRequired` dan jenis notifikasi baru. Menu **Relawan** terpisah dari commit teman dipertahankan dan dihubungkan ke provider Indonesia/English; tautan kronologi publik dari detail laporan juga dipertahankan. Kode review komunitas milik teman tetap tersimpan, tetapi menu/halamannya tidak dihubungkan ke dashboard sesuai penghapusan Antrean review; URL lama `admin-community` membuka Moderasi laporan. Adapter komunitas mempertahankan ekspor kompatibilitas untuk komponen handoff tersebut. Penyelarasan ini tidak menjalankan migration atau mengaktifkan layanan R1.
+
+**Pemeriksaan sebelum push:** typecheck workspace config/API/worker/frontend berhasil; build config, API, worker, serta produksi Next.js berhasil sesudah penyelesaian konflik. Pemeriksaan isi index Git membandingkan berkas dengan nilai secret dari konfigurasi lokal dan memeriksa pola credential serta file environment. Tidak ditemukan kecocokan secret lokal atau credential pada berkas yang disiapkan; `.env` asli diabaikan Git dan hanya dua template `.env.example` yang terlacak. Output build/log, laporan audit lokal, ZIP sumber, dan konfigurasi asli tidak disertakan. Pemeriksaan ini tidak menjalankan suite test, migration, atau operasi API/Instagram nyata; hasil browser R1 sebelumnya tetap bersifat historis.
+
+## 6 Oktober 2026 — Penghapusan Aktivitas warga atas permintaan pemilik
+
+Menu **Aktivitas warga** dan halaman dashboard terkait dihapus. Sidebar desktop serta Akun mobile tidak lagi menampilkan menu tersebut. URL lama `view=community` membuka Dashboard dan membersihkan parameter `view`/`community` saat dimuat atau dipulihkan dari history. Tautan dari halaman publik, form kondisi, serta halaman koordinator diarahkan ke Dashboard atau detail kejadian/kegiatan yang sesuai.
+
+Daftar Kabar saya, Kejadian diikuti, Kontribusi saya, Kegiatan saya, dan Tugas koordinator yang berada dalam halaman tersebut dikeluarkan dari scope frontend. Detail kejadian publik, dukung/follow, form kondisi, jelajah/detail relawan, dan pengelolaan koordinator langsung tetap menggunakan rute existing. Empat skenario browser yang membutuhkan halaman yang dihapus juga dikeluarkan; suite tidak dijalankan ulang dalam perubahan ini. Mapping terbaru ada pada [handoff R1](docs/FRONTEND_R1_HANDOFF.md). Backend, database, dan kontrak API tidak dihapus atau diubah.
+
+## 6 Oktober 2026 — Perapian bagian kata sandi pada Pengaturan mobile
+
+Pada viewport ≤760 px, ikon dan informasi kata sandi menggunakan dua kolom dengan area teks fleksibel. Tombol **Ganti kata sandi** ditempatkan pada baris berikutnya dengan lebar penuh, margin kiri nol, dan tinggi sentuh minimal 46 px. Ini mengatasi deskripsi yang menyempit menjadi satu kata per baris akibat layout flex tiga elemen. Aturan CSS dibatasi pada `passwordRow` di Pengaturan; teks Indonesia/English serta handler, dialog, dan API perubahan kata sandi tetap digunakan.
+
+## 6 Oktober 2026 — Perapian judul landing page English
+
+Judul hero English sebelumnya melampaui kolom tengah karena `white-space: nowrap` dan pemisah baris mengikuti panjang teks Indonesia. Judul English kini dibagi menjadi tiga baris pada desktop dengan lebar kolom, ukuran font, dan jarak baris yang sesuai ruang di antara kartu. Judul dapat membungkus sesuai layar; pada mobile pemisah baris desktop disembunyikan dan label tombol dapat membungkus agar tetap muat. Susunan kartu serta aset existing tetap digunakan. Perubahan dibatasi pada komponen/CSS hero dan dua entri kamus; tidak ada perubahan kontrak API atau backend.
+
+## 5 Oktober 2026 — Bahasa Indonesia dan English
+
+Kartu **Bahasa** ditambahkan ke Pengaturan. Radio Indonesia/English mengganti copy antarmuka langsung dan menyimpan preferensi di browser melalui `sap.locale.v1` serta cookie publik `sap_locale`. Provider bersama dipakai desktop/mobile, halaman publik, auth, dashboard, scan/laporan/peta, fitur admin, dan kontrol SAPA. Kamus dipisahkan per fitur; format tanggal/angka serta bahasa HTML mengikuti locale. Root layout membaca cookie untuk SSR dan metadata sehingga halaman menggunakan rendering dinamis.
+
+Pilihan ini bukan preferensi yang disinkronkan pada akun. API preferensi tetap `sapaEnabled`; tidak mengirim field locale, mengubah DTO/migration, atau mengubah `.env`. Input pengguna, konten backend, caption, kode pemulihan, identifier navigasi/status, dan literal **HAPUS AKUN** tetap mengikuti data/kontrak existing. Teks dalam ilustrasi dan jawaban AI tidak diterjemahkan otomatis. Rincian integrasi dan batas scope tersedia dalam [implementasi dua bahasa](docs/FRONTEND_I18N.md).
+
+## 5 Oktober 2026 — Landing page publik versi mobile
+
+Landing page `/` pada viewport ≤760 px mengikuti mockup mobile: hero dengan foto dan empat kartu fitur, menu layar penuh, alur laporan serta verifikasi vertikal, peta interaktif, carousel cerita contoh, CTA, dan footer accordion. Delapan aset WebP dipisahkan ke `apps/web/public/images/landing-mobile/` dengan manifest; komponen dan CSS mobile dipisahkan dalam `apps/web/components/landing/`. Tampilan desktop mengikuti susunan existing.
+
+Menu mendukung Escape, fokus dialog, safe area, dan penutupan saat resize ke desktop. Carousel mendukung swipe/panah keyboard serta reduced motion; kontrol utama berukuran minimal 44 px. Peta memakai API asli dan menampilkan loading/kosong/error/retry; data ilustratif mockup tidak digunakan sebagai fallback. Contoh form dan cerita diberi label. Endpoint, payload, role, auth, flag, database, serta `.env` tidak berubah dalam pekerjaan landing ini.
+
+Mapping komponen, aset, interaksi, state peta, dan catatan peninjauan tersedia dalam [implementasi landing mobile](docs/FRONTEND_LANDING_MOBILE.md). Peninjauan browser pada lebar 320–1440 px dilakukan; typecheck dan build produksi berhasil. Suite E2E tidak ditambahkan atau dijalankan.
+
+## 5 Oktober 2026 — Penghapusan Antrean review atas permintaan pemilik
+
+Menu **Antrean review** dihapus dari sidebar desktop dan Pusat admin mobile. Halaman serta adapter frontend khusus antrean dihapus; tautan lama `view=admin-reviews` membuka **Moderasi laporan** melalui resolver navigasi existing. Saat halaman dimuat atau history browser dipulihkan, URL lama juga diganti menjadi `view=admin-moderation` tanpa menambah entri history baru. Tombol kembali mobile berlaku untuk lima menu admin yang tersisa.
+
+Tiga skenario browser yang khusus menguji layar antrean dihapus dari suite karena layar tersebut sudah dikeluarkan dari scope. Tes tidak dijalankan ulang pada perubahan ini; hasil verifikasi sebelumnya merupakan bukti historis sebelum penghapusan. Tidak ada penghapusan data, tabel, endpoint review/Hermes backend, atau perubahan kontrak shared. FE-09 untuk UI antrean khusus kini dikeluarkan dari scope frontend, bukan dipindahkan otomatis ke Moderasi laporan. Mockup antrean tidak diimplementasikan.
+
+## 5 Oktober 2026 — Tombol kembali halaman admin mobile
+
+Semua halaman yang terdaftar di `adminNav` mempunyai tombol **Kembali ke pusat admin** di atas konten pada viewport ≤760 px: Antrean review, Moderasi laporan, Kegiatan relawan, Dampak, Pengaturan scan, dan Publikasi Instagram. Tombol menggunakan navigasi dashboard existing menuju `view=admin-menu`, sehingga URL detail kegiatan/hasil dan publikasi dibersihkan oleh alur existing. Area sentuh minimal 44 px, label teks terlihat, dan fokus keyboard mempunyai outline. Aturan bersama berada di `dashboard.tsx` dan CSS mobile dashboard; halaman desktop dan kontrak API tidak berubah. Tombol ini tidak menjalankan mutasi backend.
+
+## 5 Oktober 2026 — Penutupan celah frontend kontrak R1
+
+Ditambahkan detail kejadian publik/timeline/bukti, support dan follow terpisah, kabar serta kontribusi pengguna, pembaruan kondisi dengan upload/consent/draft/conflict, jelajah dan keikutsertaan relawan, acknowledgement jadwal, serta pengelolaan coordinator. Antrean review warga/hasil menggunakan saran Hermes sebagai pendamping dan keputusan moderator eksplisit. Komponen auth, peta, moderasi, kegiatan admin, Dampak, dan navigasi existing dipakai kembali.
+
+Adapter/UI Instagram diselaraskan dengan DTO R1: delapan status, preview gambar final, altText/contentRevision, approval terpisah dari publish, operasi 202/pending/uncertain, cancel/retract/manual confirmation, history, koneksi/disconnect dan capability reasons. Credential tidak masuk UI. Mock E2E terisolasi dari backend dan produksi.
+
+Mapping endpoint, semantik revisi/izin, batas scope, kesiapan dan blocker backend: [handoff frontend R1](docs/FRONTEND_R1_HANDOFF.md). Bukti browser/typecheck/build: [verifikasi frontend R1](docs/FRONTEND_R1_VERIFICATION.md). Backend R1 belum siap menurut pengguna; implementasi ini tidak mengubah published OpenAPI, readiness, migration, flag, `.env`, atau backend.
+
 ## 4 Oktober 2026 — Kegiatan relawan admin
 
 Menu admin kegiatan relawan, daftar dan detail kegiatan, buat/edit draf, pengelolaan peserta/kehadiran, pengiriman hasil, serta tinjauan hasil/berat/versi foto publik telah ditambahkan. Empat aset status dipisahkan; foto bukti tetap berasal dari backend sesuai izin akses.

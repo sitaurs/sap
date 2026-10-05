@@ -4,11 +4,14 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { createPortal } from "react-dom";
 import styles from "./instagram.module.css";
+import { useI18n } from "../../lib/i18n/provider";
+
 
 export default function DialogShell({ title, subtitle, children, footer, onClose, busy = false, wide = false }: {
   title: string; subtitle: string; children: ReactNode; footer?: ReactNode;
   onClose: () => void; busy?: boolean; wide?: boolean;
 }) {
+  const { t } = useI18n();
   const id = useId();
   const ref = useRef<HTMLElement>(null);
   const closeRef = useRef(onClose);
@@ -34,7 +37,7 @@ export default function DialogShell({ title, subtitle, children, footer, onClose
   return createPortal(<div className={styles.overlay}>
     <div className={styles.shade} onClick={() => { if (!busyRef.current) closeRef.current(); }} aria-hidden="true" />
     <section ref={ref} className={`${styles.drawer} ${wide ? styles.wideDrawer : ""}`} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} aria-describedby={`${id}-subtitle`} tabIndex={-1}>
-      <header className={styles.drawerHeader}><div><h2 id={`${id}-title`}>{title}</h2><p id={`${id}-subtitle`}>{subtitle}</p></div><button type="button" className={styles.iconButton} onClick={onClose} disabled={busy} aria-label="Tutup panel"><X size={23} /></button></header>
+      <header className={styles.drawerHeader}><div><h2 id={`${id}-title`}>{title}</h2><p id={`${id}-subtitle`}>{subtitle}</p></div><button type="button" className={styles.iconButton} onClick={onClose} disabled={busy} aria-label={t("Tutup panel")}><X size={23} /></button></header>
       <div className={styles.drawerBody}>{children}</div>
       {footer && <footer className={styles.drawerFooter}>{footer}</footer>}
     </section>

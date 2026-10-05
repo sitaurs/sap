@@ -3262,7 +3262,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            type: "incident_updated" | "incident_resolved" | "incident_withdrawn" | "evidence_requested" | "membership_decided" | "coordinator_assigned" | "activity_changed" | "activity_cancelled" | "result_approved";
+            type: "incident_updated" | "incident_resolved" | "incident_withdrawn" | "evidence_requested" | "membership_requested" | "membership_decided" | "coordinator_assigned" | "activity_changed" | "activity_cancelled" | "result_approved" | "community_update_decided";
             title: string;
             message: string;
             targetPath: string;
@@ -3321,6 +3321,8 @@ export interface components {
             instagramAllowed: boolean;
             latestReview: components["schemas"]["ReviewRun"] | null;
             approvedResolutionEvidence: components["schemas"]["ApprovedResolutionEvidence"][];
+            /** @description True when evidence used by the current resolved decision is revoked, missing, or no longer eligible; a moderator must review the resolution. */
+            resolutionReviewRequired: boolean;
             publicationAssets: {
                 /** Format: uuid */
                 mediaId: string;

@@ -12,4 +12,27 @@
 @media(max-width:1180px){.card{padding:20px}.avatarRow{gap:13px}.avatarButton{flex-basis:105px;width:105px;height:105px}.avatarInfo{padding:13px}.passwordRow{flex-wrap:wrap}.passwordRow .outlineButton{margin-left:57px}.securityInset{gap:9px;padding:11px}.securityInset>img{width:37%}.privacyInset,.sapaInset{padding:15px}.cardHeading h2{font-size:20px}.cardHeading p{font-size:12px}}
 @media(max-width:960px){.grid{grid-template-columns:1fr}.accountCard{grid-column:auto}.card{padding:23px}.avatarButton{flex-basis:136px;width:136px;height:136px}.avatarInfo{padding:18px}.passwordRow{flex-wrap:nowrap}.passwordRow .outlineButton{margin-left:0}.securityInset{min-height:195px}.securityInset>img{width:185px;max-height:185px}.privacyInset>img{width:165px}.sapaInset>img{width:160px}}
 @media(max-width:540px){.pageHeading h1{font-size:34px;letter-spacing:-1.2px}.pageHeading p{font-size:14px;line-height:1.6}.grid{gap:15px}.card{padding:18px;border-radius:16px}.headingIcon{width:46px;height:46px}.cardHeading{gap:11px;margin-bottom:20px}.cardHeading h2{font-size:20px}.avatarRow{align-items:center;gap:12px}.avatarButton{flex-basis:94px;width:94px;height:94px}.avatarInfo{padding:12px}.avatarInfo p{font-size:12px}.avatarInfo small{font-size:10px}.avatarActions{gap:8px}.avatarActions .outlineButton{padding:7px 10px}.passwordRow{flex-wrap:wrap}.passwordRow .outlineButton{margin-left:57px}.securityInset>img{width:35%;max-height:150px}.securityInset h4{font-size:14px}.securityInset p{font-size:12px}.securityInset .statusHint{font-size:11px}.privacyInset,.sapaInset{padding:14px;gap:10px}.privacyInset>img{width:28%;max-height:125px}.sapaInset>img{width:31%;max-height:140px}.privacyInset h3{font-size:13px}.privacyInset p,.sapaInset p{font-size:12px}.sapaInset small{font-size:11px}.accountRow{grid-template-columns:31px minmax(0,1fr);gap:10px;padding:18px 0}.accountRow>svg{width:25px}.accountRow>button{grid-column:2;width:100%;margin-top:4px}.deleteRow{padding-bottom:0}.modal{padding:23px 18px}.modalActions>*{flex:1}.mfaActions{align-items:stretch;flex-direction:column}}
+@media (max-width: 760px) {
+  .passwordRow {
+    display: grid;
+    grid-template-columns: 45px minmax(0, 1fr);
+    align-items: start;
+    column-gap: 12px;
+    row-gap: 16px;
+    padding: 12px 0;
+  }
+  .passwordRow > .smallIcon { grid-column: 1; grid-row: 1; }
+  .passwordRow > div { grid-column: 2; grid-row: 1; }
+  .passwordRow .outlineButton {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    min-height: 46px;
+    margin-left: 0;
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+  .passwordRow .outlineButton svg { flex-shrink: 0; }
+}
 @media(prefers-reduced-motion:reduce){.page,.modal,.spinner{animation:none}.page button,.toggle,.toggle>span,.inputWrap{transition:none}.primaryButton:hover:not(:disabled),.primaryButton:active:not(:disabled),.outlineButton:active:not(:disabled),.dangerButton:active:not(:disabled){transform:none}}
+.languageCard{grid-column:1/-1}.languageOptions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:0;border:0;margin:0}.languageLegend{font-size:14px;font-weight:650;color:#355a50;margin-bottom:12px}.languageOption{position:relative;display:flex;align-items:center;gap:14px;min-height:84px;padding:18px;border:1px solid #dcebe4;border-radius:14px;background:#fff;cursor:pointer}.languageOption:focus-within{outline:3px solid #1380ff;outline-offset:3px}.languageSelected{border-color:#00866b;background:#f0fbf6}.languageOption input{position:absolute;opacity:0;width:1px;height:1px}.languageCode{display:grid;place-items:center;flex:none;width:44px;height:44px;border-radius:12px;background:#eef7f3;color:#08765b;font-size:14px;font-weight:750}.languageCopy{min-width:0;display:grid;gap:4px}.languageCopy strong{font-size:16px;color:#12392e;line-height:1.4}.languageCopy small{font-size:13px;color:#648076;line-height:1.5}.languageCheck{margin-left:auto;flex:none;color:#00866b}.languageHint{margin:16px 0 0;color:#648076;font-size:13px;line-height:1.6}@media(max-width:540px){.languageOptions{grid-template-columns:1fr;gap:12px}.languageOption{padding:16px;min-height:80px}}

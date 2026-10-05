@@ -13,6 +13,9 @@ import {
 } from "../../lib/api/activities";
 import MediaThumbnail from "../media-thumbnail";
 import s from "./activities.module.css";
+import { enc, r1Get, type R1 } from "../../lib/api/r1";
+import { useI18n } from "../../lib/i18n/provider";
+
 
 export function SourcePhoto({
   reportId,
@@ -21,6 +24,7 @@ export function SourcePhoto({
   reportId: string;
   large?: boolean;
 }) {
+  const { t } = useI18n();
   const [report, setReport] = useState<SapReport | null>(null);
   useEffect(() => {
     const c = new AbortController();
@@ -39,7 +43,7 @@ export function SourcePhoto({
   return (
     <MediaThumbnail
       mediaId={report?.mediaIds[0]}
-      alt="Foto laporan sumber kegiatan"
+      alt={t("Foto laporan sumber kegiatan")}
       className={large ? s.cover : s.thumbnail}
       loadUrl={load}
       fallback={<FileText size={large ? 42 : 26} />}
@@ -49,19 +53,27 @@ export function SourcePhoto({
 export function ResultPhoto({
   result,
   mediaId,
+  real = false,
 }: {
   result: ActivityResult;
   mediaId: string;
+  real?: boolean;
 }) {
+  const { t } = useI18n();
   const load = useCallback(
     (id: string, signal?: AbortSignal) =>
-      resultPhotoUrl(result.activityId, result.id, id, signal),
-    [result.activityId, result.id],
+      real
+        ? r1Get<R1["MediaUrl"]>(
+            `/activities/${enc(result.activityId)}/results/${enc(result.id)}/media/${enc(id)}/url`,
+            signal,
+          )
+        : resultPhotoUrl(result.activityId, result.id, id, signal),
+    [result.activityId, result.id, real],
   );
   return (
     <MediaThumbnail
       mediaId={mediaId}
-      alt="Foto bukti hasil kegiatan"
+      alt={t("Foto bukti hasil kegiatan")}
       className={s.evidencePhoto}
       loadUrl={load}
       fallback={<Camera size={28} />}
@@ -71,19 +83,27 @@ export function ResultPhoto({
 export function MeasurementPhoto({
   measurement,
   mediaId,
+  real = false,
 }: {
   measurement: Measurement;
   mediaId: string;
+  real?: boolean;
 }) {
+  const { t } = useI18n();
   const load = useCallback(
     (id: string, signal?: AbortSignal) =>
-      measurementPhotoUrl(measurement, id, signal),
-    [measurement],
+      real
+        ? r1Get<R1["MediaUrl"]>(
+            `/activities/${enc(measurement.activityId)}/measurements/${enc(measurement.id)}/media/${enc(id)}/url`,
+            signal,
+          )
+        : measurementPhotoUrl(measurement, id, signal),
+    [measurement, real],
   );
   return (
     <MediaThumbnail
       mediaId={mediaId}
-      alt="Foto bukti timbangan kegiatan"
+      alt={t("Foto bukti timbangan kegiatan")}
       className={s.evidencePhoto}
       loadUrl={load}
       fallback={<Camera size={28} />}

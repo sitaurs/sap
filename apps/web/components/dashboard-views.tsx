@@ -22,6 +22,8 @@ import { createBackendScan, waitForBackendScan, type ScanResponse } from "./scan
 import type { ScanOperation } from "./scan-client";
 import type { SapaActivityPhase } from "./sapa-motion-data";
 import type { SapAchievement, SapCategory, SapReport, SapScan, SapStats, SapUser } from "../lib/api/client";
+import { useI18n } from "../lib/i18n/provider";
+
 
 const CameraCapture = dynamic(() => import("./camera-capture"), { ssr: false });
 
@@ -56,22 +58,25 @@ type Props = {
 function categoryName(id: string | null, categories: SapCategory[]) { return categories.find(item => item.id === id)?.name || id || "Belum dikenali"; }
 
 function PageTitle({ title, description }: { title: string; description: string }) {
-  return <div className={styles.referenceHeading}><h1>{title}</h1><p>{description}</p></div>;
+  const { t } = useI18n();
+  return <div className={styles.referenceHeading}><h1>{t(title)}</h1><p>{t(description)}</p></div>;
 }
 
 function DateFilter({ value, onChange, label = "Pilih periode" }: { value: string; onChange: (value: string) => void; label?: string }) {
-  return <span className={styles.selectWrap}><CalendarDays size={19} /><select aria-label={label} value={value} onChange={event => onChange(event.target.value)}><option value="all">{label}</option><option value="7">7 hari terakhir</option><option value="30">30 hari terakhir</option><option value="90">90 hari terakhir</option></select><ChevronDown size={18} /></span>;
+  const { t } = useI18n();
+  return <span className={styles.selectWrap}><CalendarDays size={19} /><select aria-label={t(label)} value={value} onChange={event => onChange(event.target.value)}><option value="all">{t(label)}</option><option value="7">{t("7 hari terakhir")}</option><option value="30">{t("30 hari terakhir")}</option><option value="90">{t("90 hari terakhir")}</option></select><ChevronDown size={18} /></span>;
 }
 
 function inPeriod(date: string, period: string) {
   return period === "all" || Date.now() - new Date(date).getTime() <= Number(period) * 86_400_000;
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
+function formatDate(value: string, locale = "id-ID") {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
 }
 
 function ScanView({ onScanFinished, onScanActivity, onOpenReport, onNavigate, categories }: Pick<Props, "onScanFinished" | "onScanActivity" | "onOpenReport" | "onNavigate" | "categories">) {
+  const { t } = useI18n();
   const [cameraOpen, setCameraOpen] = useState(false);
   const uploadRef = useRef<HTMLInputElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
@@ -141,25 +146,25 @@ function ScanView({ onScanFinished, onScanActivity, onOpenReport, onNavigate, ca
   if (result && preview && file) return <ScanResult preview={preview} fileName={file.name} scan={result} categories={categories} onRefresh={runBackendScan} onChangePhoto={() => { setResult(null); window.setTimeout(() => uploadRef.current?.click(), 0); }} onOpenReport={onOpenReport} onOpenHistory={() => onNavigate("history")} />;
 
   return <>
-    <PageTitle title="Scan sampah" description="Ambil atau unggah foto untuk mengenali jenis material dengan AI." />
+    <PageTitle title={t("Scan sampah")} description={t("Ambil atau unggah foto untuk mengenali jenis material dengan AI.")} />
     <div className={styles.scanLayout}>
       <div className={styles.scanMain}>
         <div className={styles.scanActions}>
-          <button className={styles.primaryButton} type="button" onClick={() => setCameraOpen(true)} disabled={busy}><Camera size={23} strokeWidth={2.2} />Buka kamera</button>
-          <button className={styles.outlineButton} type="button" onClick={() => uploadRef.current?.click()} disabled={busy}><Upload size={23} />Unggah foto</button>
-          <input ref={uploadRef} className={styles.srOnly} type="file" accept="image/jpeg,image/png,image/webp" onChange={event => { selectFile(event.target.files?.[0] || null); event.target.value = ""; }} aria-label="Unggah foto dari perangkat" />
+          <button className={styles.primaryButton} type="button" onClick={() => setCameraOpen(true)} disabled={busy}><Camera size={23} strokeWidth={2.2} />{t("Buka kamera")}</button>
+          <button className={styles.outlineButton} type="button" onClick={() => uploadRef.current?.click()} disabled={busy}><Upload size={23} />{t("Unggah foto")}</button>
+          <input ref={uploadRef} className={styles.srOnly} type="file" accept="image/jpeg,image/png,image/webp" onChange={event => { selectFile(event.target.files?.[0] || null); event.target.value = ""; }} aria-label={t("Unggah foto dari perangkat")} />
         </div>
-        <button className={styles.scanDrop} type="button" onClick={() => uploadRef.current?.click()} disabled={busy} aria-label="Pilih foto sampah dari perangkat">
+        <button className={styles.scanDrop} type="button" onClick={() => uploadRef.current?.click()} disabled={busy} aria-label={t("Pilih foto sampah dari perangkat")}>
           <span className={styles.scanDropInner}>
-            <span className={styles.scanArtwork}>{preview ? <Image src={preview} alt="Pratinjau foto sampah" fill unoptimized sizes="(max-width: 800px) 80vw, 500px" /> : <Image src="/images/dashboard/views/scan-bottle.webp" alt="" fill sizes="(max-width: 800px) 80vw, 500px" />}</span>
+            <span className={styles.scanArtwork}>{preview ? <Image src={preview} alt={t("Pratinjau foto sampah")} fill unoptimized sizes="(max-width: 800px) 80vw, 500px" /> : <Image src="/images/dashboard/views/scan-bottle.webp" alt="" fill sizes="(max-width: 800px) 80vw, 500px" />}</span>
             <strong>{file ? file.name : "Ambil foto atau unggah gambar\nuntuk mulai."}</strong>
-            <span className={styles.scanLink}><ImagePlus size={20} />{file ? "Ganti foto" : "Pilih foto dari perangkat"}</span>
+            <span className={styles.scanLink}><ImagePlus size={20} />{file ? t("Ganti foto") : t("Pilih foto dari perangkat")}</span>
           </span>
         </button>
       </div>
       <div className={styles.scanAside}>
-        <section className={styles.tipsCard}><div className={styles.tipsTitle}><span><Lightbulb size={26} /></span><h2>Tips foto</h2></div><div className={styles.tipRow}><Focus size={29} />Objek terlihat jelas</div><div className={styles.tipRow}><Sun size={29} />Gunakan cahaya cukup</div><div className={styles.tipRow}><Leaf size={29} />Fokus pada sampah yang ingin dikenali.</div></section>
-        <section className={styles.scanResult}>{file ? <><span className={styles.resultIcon}><ScanLine size={29} /></span><h2>Foto siap diproses</h2><p>Foto akan diunggah dan diproses oleh layanan AI SAP. Hasil dapat dilihat kembali di riwayat scan.</p><button className={styles.primaryButton} type="button" onClick={runBackendScan} disabled={busy}><ScanLine size={19} />{busy ? "Memproses foto..." : "Pindai dengan AI"}</button>{scanError && <p role="alert" className={styles.scanError}>{scanError}</p>}</> : <><Image src="/images/dashboard/views/report-empty.webp" alt="" width={235} height={105} /><p>Hasil scan akan muncul<br />setelah pemrosesan.</p>{scanError && <p role="alert" className={styles.scanError}>{scanError}</p>}</>}</section>
+        <section className={styles.tipsCard}><div className={styles.tipsTitle}><span><Lightbulb size={26} /></span><h2>{t("Tips foto")}</h2></div><div className={styles.tipRow}><Focus size={29} />{t("Objek terlihat jelas")}</div><div className={styles.tipRow}><Sun size={29} />{t("Gunakan cahaya cukup")}</div><div className={styles.tipRow}><Leaf size={29} />{t("Fokus pada sampah yang ingin dikenali.")}</div></section>
+        <section className={styles.scanResult}>{file ? <><span className={styles.resultIcon}><ScanLine size={29} /></span><h2>{t("Foto siap diproses")}</h2><p>{t("Foto akan diunggah dan diproses oleh layanan AI SAP. Hasil dapat dilihat kembali di riwayat scan.")}</p><button className={styles.primaryButton} type="button" onClick={runBackendScan} disabled={busy}><ScanLine size={19} />{busy ? t("Memproses foto...") : t("Pindai dengan AI")}</button>{scanError && <p role="alert" className={styles.scanError}>{scanError}</p>}</> : <><Image src="/images/dashboard/views/report-empty.webp" alt="" width={235} height={105} /><p>{t("Hasil scan akan muncul")}<br />{t("setelah pemrosesan.")}</p>{scanError && <p role="alert" className={styles.scanError}>{scanError}</p>}</>}</section>
       </div>
     </div>
     {cameraOpen && <CameraCapture onClose={() => setCameraOpen(false)} onUpload={() => { setCameraOpen(false); uploadRef.current?.click(); }} onPhoto={photo => { selectFile(photo); setCameraOpen(false); }} />}
@@ -174,6 +179,7 @@ const statusLegend = [
 const reportStatus: Record<SapReport["status"], string> = { submitted: "Menunggu pemeriksaan", verified: "Terverifikasi", in_progress: "Dalam penanganan", resolved: "Selesai", rejected: "Ditolak", duplicate: "Duplikat" };
 
 function ReportsView({ reports, categories, onReportSubmitted, onReportsChanged, onReportWizardChange, reportComposerRequested }: Pick<Props, "reports" | "categories" | "onReportSubmitted" | "onReportsChanged" | "onReportWizardChange" | "reportComposerRequested">) {
+  const { t, intlLocale } = useI18n();
   const [composerOpen, setComposerOpen] = useState(reportComposerRequested);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [status, setStatus] = useState("all");
@@ -192,8 +198,8 @@ function ReportsView({ reports, categories, onReportSubmitted, onReportsChanged,
   if (composerOpen) return <ReportWizard categories={categories} onClose={closeWizard} onSubmitted={summary => { onReportSubmitted(summary); closeWizard(); }} />;
 
   return <>
-    <div className={styles.referenceHeadingRow}><PageTitle title="Laporan saya" description="Pantau status laporan yang Anda kirim." /><div className={styles.reportToolbar}><button className={styles.primaryButton} type="button" onClick={() => { setComposerOpen(true); onReportWizardChange(true); }}><FilePlus2 size={20} />Buat laporan</button><span className={styles.selectWrap}><Filter size={19} /><select aria-label="Filter status laporan" value={status} onChange={event => setStatus(event.target.value)}><option value="all">Semua status</option>{Object.entries(reportStatus).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select><ChevronDown size={17} /></span><DateFilter value={period} onChange={setPeriod} /></div></div>
-    <section className={styles.reportTable}><div className={styles.tableHead}><span><MapPin size={22} />Temuan</span><span><CalendarDays size={22} />Dikirim</span><span><List size={22} />Status</span></div>{filtered.length ? <div className={styles.reportRows}>{filtered.map(report => <article key={report.id} role="button" tabIndex={0} aria-label={`Lihat detail laporan ${report.description.slice(0, 50)}`} onClick={() => setDetailId(report.id)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setDetailId(report.id); } }}><div className={styles.reportFinding}><MediaThumbnail className={styles.reportPhoto} mediaId={report.mediaIds[0]} alt={`Foto laporan ${report.description.slice(0, 50)}`} /><div><strong>{report.description.slice(0, 80)}</strong><span>{report.location.latitude.toFixed(4)}, {report.location.longitude.toFixed(4)}</span><small>{report.reportedSeverity === "small" ? "Tumpukan kecil" : report.reportedSeverity === "medium" ? "Tumpukan sedang" : "Tumpukan besar"} · {report.timeline.length} pembaruan</small></div></div><span>{formatDate(report.createdAt)}</span><span className={styles.draftBadge}>{reportStatus[report.status]}</span></article>)}</div> : <div className={styles.reportEmpty}><Image src="/images/dashboard/views/report-empty.webp" alt="" width={470} height={210} /><h2>{reports.length && status !== "all" ? "Tidak ada laporan untuk status ini." : "Belum ada laporan yang dikirim."}</h2><p>{reports.length ? "Ubah filter atau buat laporan baru." : "Laporan akan muncul di sini setelah Anda mengirimnya."}</p></div>}<div className={styles.statusLegend}>{statusLegend.map(([name, color]) => <span key={name}><i style={{ background: color }} />{name}</span>)}</div></section>
+    <div className={styles.referenceHeadingRow}><PageTitle title={t("Laporan saya")} description={t("Pantau status laporan yang Anda kirim.")} /><div className={styles.reportToolbar}><button className={styles.primaryButton} type="button" onClick={() => { setComposerOpen(true); onReportWizardChange(true); }}><FilePlus2 size={20} />{t("Buat laporan")}</button><span className={styles.selectWrap}><Filter size={19} /><select aria-label={t("Filter status laporan")} value={status} onChange={event => setStatus(event.target.value)}><option value="all">{t("Semua status")}</option>{Object.entries(reportStatus).map(([key, label]) => <option key={key} value={key}>{t(label)}</option>)}</select><ChevronDown size={17} /></span><DateFilter value={period} onChange={setPeriod} /></div></div>
+    <section className={styles.reportTable}><div className={styles.tableHead}><span><MapPin size={22} />{t("Temuan")}</span><span><CalendarDays size={22} />{t("Dikirim")}</span><span><List size={22} />{t("Status")}</span></div>{filtered.length ? <div className={styles.reportRows}>{filtered.map(report => <article key={report.id} role="button" tabIndex={0} aria-label={t("Lihat detail laporan {0}", { "0": report.description.slice(0, 50) })} onClick={() => setDetailId(report.id)} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setDetailId(report.id); } }}><div className={styles.reportFinding}><MediaThumbnail className={styles.reportPhoto} mediaId={report.mediaIds[0]} alt={t("Foto laporan {0}", { "0": report.description.slice(0, 50) })} /><div><strong>{report.description.slice(0, 80)}</strong><span>{report.location.latitude.toFixed(4)}, {report.location.longitude.toFixed(4)}</span><small>{report.reportedSeverity === "small" ? t("Tumpukan kecil") : report.reportedSeverity === "medium" ? t("Tumpukan sedang") : t("Tumpukan besar")} · {report.timeline.length} {" "}{t("pembaruan")}</small></div></div><span>{formatDate(report.createdAt, intlLocale)}</span><span className={styles.draftBadge}>{t(reportStatus[report.status])}</span></article>)}</div> : <div className={styles.reportEmpty}><Image src="/images/dashboard/views/report-empty.webp" alt="" width={470} height={210} /><h2>{reports.length && status !== "all" ? t("Tidak ada laporan untuk status ini.") : t("Belum ada laporan yang dikirim.")}</h2><p>{reports.length ? t("Ubah filter atau buat laporan baru.") : t("Laporan akan muncul di sini setelah Anda mengirimnya.")}</p></div>}<div className={styles.statusLegend}>{statusLegend.map(([name, color]) => <span key={t(name)}><i style={{ background: color }} />{t(name)}</span>)}</div></section>
     {detailId && <ReportDetail id={detailId} categories={categories} onClose={() => setDetailId(null)} onUpdated={onReportsChanged} />}
   </>;
 }
@@ -207,15 +213,16 @@ const badgeData = [
   { id: "streak_3", title: "Streak 3 hari", description: "3 hari aktivitas berpoin berturut-turut", image: "badge-streak.webp", needed: 3, action: "history" as Tab, detail: "Lakukan aktivitas berpoin selama tiga hari berturut-turut." },
 ];
 function AchievementsView({ stats, achievements, onNavigate }: Pick<Props, "stats" | "achievements" | "onNavigate">) {
+  const { t } = useI18n();
   const [selected, setSelected] = useState<number | null>(null);
   const progress = [Math.min(stats?.classifiedScans || 0, 1), Math.min(stats?.classifiedScans || 0, 10), Math.min(stats?.verifiedReports || 0, 1), Math.min(stats?.streakDays || 0, 3)];
   const isUnlocked = (index: number) => { const badge = achievements.find(item => item.id === badgeData[index].id); return !!badge?.unlockedAt && !badge.revokedAt; };
   const unlocked = badgeData.filter((_, index) => isUnlocked(index)).length;
   return <>
-    <PageTitle title="Pencapaian" description="Lencana untuk aktivitas yang bermakna." />
-    <div className={styles.badgeSummary}><span className={styles.badgeSummaryIcon}><Trophy size={43} /></span><div><strong>{unlocked} dari 4 <small>lencana terbuka</small></strong><p>Terus lakukan aktivitas untuk mendapatkan lencana.</p></div><span className={styles.badgeLeaves} aria-hidden="true"><Leaf size={115} /><Leaf size={87} /></span></div>
-    <div className={styles.badgeGrid}>{badgeData.map((badge, index) => <button key={badge.title} type="button" className={`${styles.badgeCard} ${styles[`badgeTone${index}`]}`} onClick={() => setSelected(index)}><Image src={`/images/dashboard/views/${badge.image}`} alt="" width={166} height={166} /><div className={styles.badgeCopy}><h2>{badge.title}</h2><p>{badge.description}</p><div className={styles.badgeProgress}><span><i style={{ width: `${progress[index] / badge.needed * 100}%` }} /></span><small>{progress[index]}/{badge.needed}</small></div></div>{isUnlocked(index) && <span className={styles.badgeUnlocked}><Check size={17} />Terbuka</span>}</button>)}</div>
-    {selected !== null && <div className={styles.modalBackdrop} role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelected(null); }}><div className={styles.badgeModal} role="dialog" aria-modal="true" aria-labelledby="badge-detail-title"><button className={styles.modalClose} type="button" onClick={() => setSelected(null)} aria-label="Tutup detail"><X size={20} /></button><Image src={`/images/dashboard/views/${badgeData[selected].image}`} alt="" width={166} height={166} /><h2 id="badge-detail-title">{badgeData[selected].title}</h2><p>{badgeData[selected].detail}</p><strong>Progres {progress[selected]} dari {badgeData[selected].needed}</strong><button className={styles.primaryButton} type="button" onClick={() => { const next = badgeData[selected].action; setSelected(null); onNavigate(next); }}>Lanjutkan aktivitas <ArrowRight size={17} /></button></div></div>}
+    <PageTitle title={t("Pencapaian")} description={t("Lencana untuk aktivitas yang bermakna.")} />
+    <div className={styles.badgeSummary}><span className={styles.badgeSummaryIcon}><Trophy size={43} /></span><div><strong>{unlocked} {" "}{t("dari 4")}{" "}<small>{t("lencana terbuka")}</small></strong><p>{t("Terus lakukan aktivitas untuk mendapatkan lencana.")}</p></div><span className={styles.badgeLeaves} aria-hidden="true"><Leaf size={115} /><Leaf size={87} /></span></div>
+    <div className={styles.badgeGrid}>{badgeData.map((badge, index) => <button key={badge.title} type="button" className={`${styles.badgeCard} ${styles[`badgeTone${index}`]}`} onClick={() => setSelected(index)}><Image src={`/images/dashboard/views/${badge.image}`} alt="" width={166} height={166} /><div className={styles.badgeCopy}><h2>{t(badge.title)}</h2><p>{t(badge.description)}</p><div className={styles.badgeProgress}><span><i style={{ width: `${progress[index] / badge.needed * 100}%` }} /></span><small>{progress[index]}/{badge.needed}</small></div></div>{isUnlocked(index) && <span className={styles.badgeUnlocked}><Check size={17} />{t("Terbuka")}</span>}</button>)}</div>
+    {selected !== null && <div className={styles.modalBackdrop} role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelected(null); }}><div className={styles.badgeModal} role="dialog" aria-modal="true" aria-labelledby="badge-detail-title"><button className={styles.modalClose} type="button" onClick={() => setSelected(null)} aria-label={t("Tutup detail")}><X size={20} /></button><Image src={`/images/dashboard/views/${badgeData[selected].image}`} alt="" width={166} height={166} /><h2 id="badge-detail-title">{t(badgeData[selected].title)}</h2><p>{t(badgeData[selected].detail)}</p><strong>{t("Progres")}{" "}{progress[selected]} {" "}{t("dari")}{" "}{badgeData[selected].needed}</strong><button className={styles.primaryButton} type="button" onClick={() => { const next = badgeData[selected].action; setSelected(null); onNavigate(next); }}>{t("Lanjutkan aktivitas")}{" "}<ArrowRight size={17} /></button></div></div>}
   </>;
 }
 
@@ -232,18 +239,19 @@ const faqs = [
 ];
 
 function HelpView({ onNavigate }: Pick<Props, "onNavigate">) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const visibleTopics = helpTopics.filter(topic => `${topic.title} ${topic.description}`.toLowerCase().includes(query.toLowerCase()));
+  const visibleTopics = helpTopics.filter(topic => `${t(topic.title)} ${t(topic.description)}`.toLowerCase().includes(query.toLowerCase()));
   const visibleFaqs = faqs.map((item, index) => ({ item, index })).filter(({ item }) => `${item[0]} ${item[1]}`.toLowerCase().includes(query.toLowerCase()));
   return <>
-    <PageTitle title="Pusat bantuan" description="Temukan panduan untuk memakai SAP." />
-    <label className={styles.helpSearch}><Search size={24} /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Cari bantuan..." aria-label="Cari bantuan" />{query && <button type="button" onClick={() => setQuery("")} aria-label="Hapus pencarian"><X size={18} /></button>}</label>
+    <PageTitle title={t("Pusat bantuan")} description={t("Temukan panduan untuk memakai SAP.")} />
+    <label className={styles.helpSearch}><Search size={24} /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={t("Cari bantuan...")} aria-label={t("Cari bantuan")} />{query && <button type="button" onClick={() => setQuery("")} aria-label={t("Hapus pencarian")}><X size={18} /></button>}</label>
     {visibleTopics.length > 0 && <div className={styles.helpCards}>{visibleTopics.map(topic => {
       const index = helpTopics.indexOf(topic);
-      return <button className={`${styles.helpCard} ${styles[`helpTone${index}`]}`} key={topic.title} type="button" onClick={() => onNavigate(topic.tab)}><span className={styles.helpCardIcon}>{index === 0 ? <ScanLine size={30} /> : index === 1 ? <FileText size={30} /> : <Map size={30} />}</span><span className={styles.helpCardCopy}><strong>{topic.title}</strong><small>{topic.description}</small></span><ChevronDown className={styles.helpCardArrow} size={21} /><Image src={`/images/dashboard/views/${topic.image}`} alt="" width={317} height={132} /></button>;
+      return <button className={`${styles.helpCard} ${styles[`helpTone${index}`]}`} key={topic.title} type="button" onClick={() => onNavigate(topic.tab)}><span className={styles.helpCardIcon}>{index === 0 ? <ScanLine size={30} /> : index === 1 ? <FileText size={30} /> : <Map size={30} />}</span><span className={styles.helpCardCopy}><strong>{t(topic.title)}</strong><small>{t(topic.description)}</small></span><ChevronDown className={styles.helpCardArrow} size={21} /><Image src={`/images/dashboard/views/${topic.image}`} alt="" width={317} height={132} /></button>;
     })}</div>}
-    <section className={styles.helpFaq}><h2><SlidersHorizontal size={22} />Pertanyaan yang sering diajukan (FAQ)</h2>{visibleFaqs.length ? visibleFaqs.map(({ item, index }) => <div className={styles.helpFaqItem} key={item[0]}><button type="button" onClick={() => setOpenFaq(openFaq === index ? null : index)} aria-expanded={openFaq === index}>{item[0]}<ChevronDown size={19} /></button>{openFaq === index && <p>{item[1]}</p>}</div>) : <p className={styles.noHelp}>Tidak ada panduan yang cocok. Coba kata kunci lain.</p>}<div className={styles.helpInfo}><Info size={22} />Foto dan lokasi laporan tidak langsung ditampilkan ke publik.<span aria-hidden="true"><Leaf size={70} /></span></div></section>
+    <section className={styles.helpFaq}><h2><SlidersHorizontal size={22} />{t("Pertanyaan yang sering diajukan (FAQ)")}</h2>{visibleFaqs.length ? visibleFaqs.map(({ item, index }) => <div className={styles.helpFaqItem} key={item[0]}><button type="button" onClick={() => setOpenFaq(openFaq === index ? null : index)} aria-expanded={openFaq === index}>{item[0]}<ChevronDown size={19} /></button>{openFaq === index && <p>{item[1]}</p>}</div>) : <p className={styles.noHelp}>{t("Tidak ada panduan yang cocok. Coba kata kunci lain.")}</p>}<div className={styles.helpInfo}><Info size={22} />{t("Foto dan lokasi laporan tidak langsung ditampilkan ke publik.")}<span aria-hidden="true"><Leaf size={70} /></span></div></section>
   </>;
 }
 

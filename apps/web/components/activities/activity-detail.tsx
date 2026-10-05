@@ -49,6 +49,8 @@ import { SourcePhoto } from "./activity-photo";
 import DialogShell from "../instagram/dialog-shell";
 import s from "./activities.module.css";
 import d from "./activity-detail.module.css";
+import { useI18n } from "../../lib/i18n/provider";
+
 
 type PublicResults = Awaited<ReturnType<typeof listPublicResults>>["items"];
 export default function ActivityDetail({
@@ -64,6 +66,7 @@ export default function ActivityDetail({
   onNavigate: (screen: string) => void;
   onReview: (id: string) => void;
 }) {
+  const { t, intlLocale } = useI18n();
   const [tab, setTab] = useState("summary"),
     [name, setName] = useState("Koordinator SAP"),
     [command, setCommand] = useState<(typeof commands)[number] | null>(null);
@@ -211,8 +214,8 @@ export default function ActivityDetail({
     <div className={d.page}>
       <div className={d.header}>
         <PageHead
-          title="Detail kegiatan"
-          subtitle={`Laporan sumber #${shortId(a.reportId)} · diperbarui ${dateLabel(a.updatedAt, true)}`}
+          title={t("Detail kegiatan")}
+          subtitle={t("Laporan sumber #{0} · diperbarui {1}", { "0": shortId(a.reportId), "1": dateLabel(a.updatedAt, true, intlLocale) })}
           onBack={onBack}
           action={
             <>
@@ -220,32 +223,28 @@ export default function ActivityDetail({
                 className={s.secondary}
                 onClick={() => onNavigate("members")}
               >
-                <UsersRound size={18} /> Kelola peserta
-              </button>
+                <UsersRound size={18} /> {" "}{t("Kelola peserta")}</button>
               <button
                 className={s.primary}
                 disabled={!a.actions.edit.allowed}
                 title={
                   a.actions.edit.allowed
                     ? undefined
-                    : "Perubahan tidak tersedia pada status kegiatan ini."
+                    : t("Perubahan tidak tersedia pada status kegiatan ini.")
                 }
                 onClick={() => onNavigate("edit")}
               >
-                <Pencil size={18} /> Edit kegiatan
-              </button>
+                <Pencil size={18} /> {" "}{t("Edit kegiatan")}</button>
             </>
           }
         />
       </div>
-      {message && <Notice>{message}</Notice>}
+      {message && <Notice>{t(message)}</Notice>}
       {activitiesMockEnabled && a.coordinatorId && !a.coordinatorAcceptedAt && (
         <Notice>
           <div className={s.mockConsent}>
             <span>
-              Koordinator belum menerima penugasan. Untuk mencoba alur
-              publikasi, simulasikan persetujuannya di mode mock.
-            </span>
+              {t("Koordinator belum menerima penugasan. Untuk mencoba alur publikasi, simulasikan persetujuannya di mode mock.")}</span>
             <button
               type="button"
               className={s.secondary}
@@ -269,8 +268,7 @@ export default function ActivityDetail({
                 }
               }}
             >
-              Simulasikan persetujuan
-            </button>
+              {t("Simulasikan persetujuan")}</button>
           </div>
         </Notice>
       )}
@@ -280,7 +278,7 @@ export default function ActivityDetail({
             <div className={d.hero}>
               <div className={`${s.sourceFrame} ${d.heroPhoto}`}>
                 <SourcePhoto reportId={a.reportId} large />
-                <span>Foto laporan sumber</span>
+                <span>{t("Foto laporan sumber")}</span>
               </div>
               <div className={`${s.titleRow} ${d.heroCopy}`}>
                 <div>
@@ -288,11 +286,11 @@ export default function ActivityDetail({
                   <h1 className={s.activityTitle}>{a.title}</h1>
                   <p className={s.preserve}>{a.description}</p>
                   <span className={s.meta}>
-                    <CalendarDays size={17} /> {dateLabel(a.startsAt, true)}{" "}
+                    <CalendarDays size={17} /> {t(dateLabel(a.startsAt, true, intlLocale))}{" "}
                     <Clock3 size={17} />{" "}
                     {a.endsAt
-                      ? `Selesai ${dateLabel(a.endsAt, true)}`
-                      : "Waktu selesai belum ditentukan"}
+                      ? t("Selesai {0}", { "0": dateLabel(a.endsAt, true, intlLocale) })
+                      : t("Waktu selesai belum ditentukan")}
                   </span>
                 </div>
               </div>
@@ -300,17 +298,17 @@ export default function ActivityDetail({
             <div className={`${s.detailMetrics} ${d.metrics}`}>
               <div>
                 <span className={s.largeInitials}>{initials(name)}</span>
-                <small>Koordinator</small>
-                <strong>{a.coordinatorId ? name : "Belum ditugaskan"}</strong>
+                <small>{t("Koordinator")}</small>
+                <strong>{a.coordinatorId ? name : t("Belum ditugaskan")}</strong>
                 <small>
                   {a.coordinatorAcceptedAt
-                    ? "● Penugasan diterima"
-                    : "Belum menerima penugasan"}
+                    ? t("● Penugasan diterima")
+                    : t("Belum menerima penugasan")}
                 </small>
               </div>
               <div>
                 <UsersRound />
-                <small>Peserta diterima</small>
+                <small>{t("Peserta diterima")}</small>
                 <strong>
                   {a.acceptedCount} / {a.capacity ?? "—"}
                 </strong>
@@ -318,24 +316,23 @@ export default function ActivityDetail({
               <div>
                 <UsersRound />
                 <strong>{a.availableSeats}</strong>
-                <small>Tempat tersedia</small>
+                <small>{t("Tempat tersedia")}</small>
               </div>
             </div>
             <nav
               className={`${s.tabs} ${d.tabs}`}
-              aria-label="Informasi kegiatan"
+              aria-label={t("Informasi kegiatan")}
             >
               <button
                 className={tab === "summary" ? s.activeTab : ""}
                 aria-current={tab === "summary" ? "page" : undefined}
                 onClick={() => setTab("summary")}
               >
-                Ringkasan
-              </button>
-              <button onClick={() => onNavigate("members")}>Peserta</button>
+                {t("Ringkasan")}</button>
+              <button onClick={() => onNavigate("members")}>{t("Peserta")}</button>
               {[
-                { id: "results", label: "Hasil kegiatan" },
-                { id: "history", label: "Riwayat" },
+                { id: "results", label: t("Hasil kegiatan") },
+                { id: "history", label: t("Riwayat") },
               ].map((t) => (
                 <button
                   key={t.id}
@@ -352,31 +349,29 @@ export default function ActivityDetail({
             <section className={`${s.card} ${d.summaryPanel}`}>
               <section className={d.infoSection}>
                 <h3>
-                  <ClipboardCheck size={20} /> Informasi laporan
-                </h3>
+                  <ClipboardCheck size={20} /> {" "}{t("Informasi laporan")}</h3>
                 <div className={d.report}>
                   <span className={d.reportIcon}>
                     <FileText size={25} />
                   </span>
                   <div>
-                    <small>Laporan sumber kegiatan</small>
-                    <strong>Laporan #{shortId(a.reportId)}</strong>
+                    <small>{t("Laporan sumber kegiatan")}</small>
+                    <strong>{t("Laporan #")}{shortId(a.reportId)}</strong>
                   </div>
                 </div>
               </section>
               <section className={d.infoSection}>
                 <h3>
-                  <MapPin size={19} /> Titik kumpul
-                </h3>
+                  <MapPin size={19} /> {" "}{t("Titik kumpul")}</h3>
                 <p>
                   {a.meetingPoint?.instructions ||
-                    "Titik kumpul belum ditentukan."}
+                    t("Titik kumpul belum ditentukan.")}
                 </p>
                 {a.meetingPoint?.latitude != null &&
                   a.meetingPoint.longitude != null && (
                     <div className={d.locationMeta}>
                       <small>
-                        Koordinat: {a.meetingPoint.latitude.toFixed(5)},{" "}
+                        {t("Koordinat:")}{" "}{a.meetingPoint.latitude.toFixed(5)},{" "}
                         {a.meetingPoint.longitude.toFixed(5)}
                       </small>
                       <a
@@ -384,7 +379,7 @@ export default function ActivityDetail({
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        <MapPin size={16} /> Lihat peta{" "}
+                        <MapPin size={16} /> {" "}{t("Lihat peta")}{" "}
                         <ExternalLink size={14} />
                       </a>
                     </div>
@@ -392,8 +387,7 @@ export default function ActivityDetail({
               </section>
               <section className={d.infoSection}>
                 <h3>
-                  <Package size={19} /> Perlengkapan
-                </h3>
+                  <Package size={19} /> {" "}{t("Perlengkapan")}</h3>
                 {a.equipment.length ? (
                   <div className={s.chips}>
                     {a.equipment.map((item, i) => (
@@ -401,24 +395,22 @@ export default function ActivityDetail({
                     ))}
                   </div>
                 ) : (
-                  <p>Ikuti arahan koordinator untuk perlengkapan kegiatan.</p>
+                  <p>{t("Ikuti arahan koordinator untuk perlengkapan kegiatan.")}</p>
                 )}
               </section>
               <section className={d.infoSection}>
                 <h3>
-                  <Accessibility size={19} /> Catatan aksesibilitas
-                </h3>
+                  <Accessibility size={19} /> {" "}{t("Catatan aksesibilitas")}</h3>
                 <p className={s.preserve}>
                   {a.accessibilityNotes ||
-                    "Informasi aksesibilitas belum ditambahkan."}
+                    t("Informasi aksesibilitas belum ditambahkan.")}
                 </p>
               </section>
               <section className={d.infoSection}>
                 <h3>
-                  <Truck size={19} /> Rencana serah terima sampah
-                </h3>
+                  <Truck size={19} /> {" "}{t("Rencana serah terima sampah")}</h3>
                 <p className={s.preserve}>
-                  {a.wasteHandoverPlan || "Rencana belum ditambahkan."}
+                  {a.wasteHandoverPlan || t("Rencana belum ditambahkan.")}
                 </p>
               </section>
             </section>
@@ -430,7 +422,7 @@ export default function ActivityDetail({
               {tabBusy && <Busy />}
               {tab === "history" ? (
                 <>
-                  <h3>Riwayat kegiatan yang dimuat</h3>
+                  <h3>{t("Riwayat kegiatan yang dimuat")}</h3>
                   {history.filter((e) => e.targetId === a.id).length
                     ? history
                         .filter((e) => e.targetId === a.id)
@@ -438,19 +430,17 @@ export default function ActivityDetail({
                           <div className={s.timeline} key={e.id}>
                             <span />
                             <div>
-                              <strong>{auditLabel(e.action)}</strong>
+                              <strong>{t(auditLabel(e.action))}</strong>
                               <p>
                                 {e.actorDisplayName} ·{" "}
-                                {dateLabel(e.createdAt, true)}
+                                {t(dateLabel(e.createdAt, true, intlLocale))}
                               </p>
                             </div>
                           </div>
                         ))
                     : !tabBusy && (
-                        <Empty title="Belum ada riwayat pada halaman yang dimuat">
-                          Muat halaman audit berikutnya untuk mencari catatan
-                          kegiatan yang lebih lama.
-                        </Empty>
+                        <Empty title={t("Belum ada riwayat pada halaman yang dimuat")}>
+                          {t("Muat halaman audit berikutnya untuk mencari catatan kegiatan yang lebih lama.")}</Empty>
                       )}
                   {historyCursor && (
                     <button
@@ -458,33 +448,30 @@ export default function ActivityDetail({
                       disabled={tabBusy}
                       onClick={() => void moreHistory()}
                     >
-                      Muat audit berikutnya
-                    </button>
+                      {t("Muat audit berikutnya")}</button>
                   )}
                 </>
               ) : (
                 <>
-                  <h3>Hasil publik yang disetujui</h3>
+                  <h3>{t("Hasil publik yang disetujui")}</h3>
                   {results.map((r) => (
                     <article className={s.resultSummary} key={r.id}>
                       <span className={`${s.badge} ${s.green}`}>
                         {r.outcome === "complete"
-                          ? "Pembersihan selesai"
-                          : "Pembersihan sebagian"}
+                          ? t("Pembersihan selesai")
+                          : t("Pembersihan sebagian")}
                       </span>
                       <p>{r.summary}</p>
-                      <small>{dateLabel(r.observedAt, true)}</small>
+                      <small>{t(dateLabel(r.observedAt, true, intlLocale))}</small>
                       {r.verifiedMeasurement && (
                         <strong>
-                          {r.verifiedMeasurement.valueKg} kg terverifikasi
-                        </strong>
+                          {r.verifiedMeasurement.valueKg} {" "}{t("kg terverifikasi")}</strong>
                       )}
                     </article>
                   ))}
                   {!results.length && !tabBusy && (
                     <p>
-                      Belum ada hasil publik yang disetujui pada halaman ini.
-                    </p>
+                      {t("Belum ada hasil publik yang disetujui pada halaman ini.")}</p>
                   )}
                   {resultCursor && (
                     <button
@@ -492,10 +479,9 @@ export default function ActivityDetail({
                       onClick={() => void moreResults()}
                       disabled={tabBusy}
                     >
-                      Muat hasil publik berikutnya
-                    </button>
+                      {t("Muat hasil publik berikutnya")}</button>
                   )}
-                  <h3>Antrean hasil laporan sumber yang dimuat</h3>
+                  <h3>{t("Antrean hasil laporan sumber yang dimuat")}</h3>
                   {review.map((q) => (
                     <button
                       key={q.subjectId}
@@ -505,19 +491,18 @@ export default function ActivityDetail({
                       <ClipboardCheck size={21} />
                       <span>
                         {q.title}
-                        <small>{dateLabel(q.submittedAt, true)}</small>
+                        <small>{t(dateLabel(q.submittedAt, true, intlLocale))}</small>
                       </span>
                       <span>
                         {q.reviewState === "needs_evidence"
-                          ? "Perlu bukti"
-                          : "Tinjau hasil"}
+                          ? t("Perlu bukti")
+                          : t("Tinjau hasil")}
                       </span>
                     </button>
                   ))}
                   {!review.length && !tabBusy && (
                     <p>
-                      Tidak ada hasil laporan sumber dalam antrean yang dimuat.
-                    </p>
+                      {t("Tidak ada hasil laporan sumber dalam antrean yang dimuat.")}</p>
                   )}
                 </>
               )}
@@ -527,29 +512,28 @@ export default function ActivityDetail({
         <aside className={`${s.sideStack} ${d.sidebar}`}>
           <section className={`${s.card} ${d.statusCard}`}>
             <h2>
-              <Leaf size={22} /> Status kegiatan
-            </h2>
+              <Leaf size={22} /> {" "}{t("Status kegiatan")}</h2>
             <Status status={a.status} />
             <dl className={s.facts}>
               <div>
-                <dt>Pendaftaran ditutup</dt>
-                <dd>{dateLabel(a.registrationClosesAt, true)}</dd>
+                <dt>{t("Pendaftaran ditutup")}</dt>
+                <dd>{t(dateLabel(a.registrationClosesAt, true, intlLocale))}</dd>
               </div>
               <div>
-                <dt>Kegiatan berakhir</dt>
-                <dd>{dateLabel(a.endsAt, true)}</dd>
+                <dt>{t("Kegiatan berakhir")}</dt>
+                <dd>{t(dateLabel(a.endsAt, true, intlLocale))}</dd>
               </div>
               <div>
-                <dt>Tempat tersedia</dt>
+                <dt>{t("Tempat tersedia")}</dt>
                 <dd>
                   {a.capacity == null
-                    ? "Kuota belum ditentukan"
-                    : `${a.availableSeats} tempat`}
+                    ? t("Kuota belum ditentukan")
+                    : t("{0} tempat", { "0": a.availableSeats })}
                 </dd>
               </div>
               <div>
-                <dt>Zona waktu</dt>
-                <dd>Waktu Indonesia Barat</dd>
+                <dt>{t("Zona waktu")}</dt>
+                <dd>{t("Waktu Indonesia Barat")}</dd>
               </div>
             </dl>
             {primaryCommand && (
@@ -563,11 +547,11 @@ export default function ActivityDetail({
                   setCommand(primaryCommand);
                 }}
               >
-                {primaryCommand.label}
+                {t(primaryCommand.label)}
               </button>
             )}
             <details className={d.commands}>
-              <summary>Tindakan lainnya</summary>
+              <summary>{t("Tindakan lainnya")}</summary>
               <div className={s.commandList}>
                 {commands
                   .filter(
@@ -594,58 +578,56 @@ export default function ActivityDetail({
                       }}
                       title={
                         !a.actions[c.permission].allowed
-                          ? "Syarat atau status kegiatan belum memungkinkan tindakan ini."
+                          ? t("Syarat atau status kegiatan belum memungkinkan tindakan ini.")
                           : undefined
                       }
                     >
-                      {c.label}
+                      {t(c.label)}
                     </button>
                   ))}
               </div>
               {a.holdReason && (
-                <Notice>Alasan penundaan: {a.holdReason}</Notice>
+                <Notice>{t("Alasan penundaan:")}{" "}{a.holdReason}</Notice>
               )}
             </details>
           </section>
           <section className={`${s.card} ${d.participants}`}>
             <h2>
-              <UsersRound size={22} /> Ringkasan peserta
-            </h2>
+              <UsersRound size={22} /> {" "}{t("Ringkasan peserta")}</h2>
             <div className={s.capacity}>
               <div>
                 <strong>
                   {a.acceptedCount} / {a.capacity ?? "—"}
                 </strong>
-                <small>Peserta diterima</small>
+                <small>{t("Peserta diterima")}</small>
               </div>
               <progress
                 max={a.capacity || 1}
                 value={a.acceptedCount}
-                aria-label="Kuota peserta"
+                aria-label={t("Kuota peserta")}
               />
             </div>
             <div className={s.infoLine}>
               <UsersRound size={23} />
               <span>
                 <strong>{a.availableSeats}</strong>
-                <small>Tempat tersedia</small>
+                <small>{t("Tempat tersedia")}</small>
               </span>
             </div>
             <button className={s.primary} onClick={() => onNavigate("members")}>
-              Kelola peserta
-            </button>
+              {t("Kelola peserta")}</button>
           </section>
           <section className={`${s.card} ${d.coordinator}`}>
-            <h2>Penanggung jawab kegiatan</h2>
+            <h2>{t("Penanggung jawab kegiatan")}</h2>
             <div className={s.coordinatorChoice}>
               <span className={s.largeInitials}>{initials(name)}</span>
               <span>
-                <strong>{a.coordinatorId ? name : "Belum ditugaskan"}</strong>
-                <small>Koordinator kegiatan</small>
+                <strong>{a.coordinatorId ? name : t("Belum ditugaskan")}</strong>
+                <small>{t("Koordinator kegiatan")}</small>
                 <small>
                   {a.coordinatorAcceptedAt
-                    ? "● Penugasan diterima"
-                    : "Menunggu penerimaan penugasan"}
+                    ? t("● Penugasan diterima")
+                    : t("Menunggu penerimaan penugasan")}
                 </small>
               </span>
             </div>
@@ -653,24 +635,21 @@ export default function ActivityDetail({
           {["in_progress", "awaiting_result"].includes(a.status) && (
             <section className={`${s.card} ${s.softCard}`}>
               <ClipboardCheck size={28} />
-              <h2>Laporkan hasil aksi</h2>
+              <h2>{t("Laporkan hasil aksi")}</h2>
               <p>
-                Tambahkan bukti sebelum dan sesudah serta catatan hasil
-                kegiatan.
-              </p>
+                {t("Tambahkan bukti sebelum dan sesudah serta catatan hasil kegiatan.")}</p>
               <button
                 className={s.primary}
                 onClick={() => onNavigate("result-new")}
               >
-                Kirim hasil kegiatan
-              </button>
+                {t("Kirim hasil kegiatan")}</button>
             </section>
           )}
         </aside>
       </div>
       {command && (
         <DialogShell
-          title={command.label}
+          title={t(command.label)}
           subtitle={a.title}
           onClose={() => setCommand(null)}
           busy={busy}
@@ -681,8 +660,7 @@ export default function ActivityDetail({
                 disabled={busy}
                 onClick={() => setCommand(null)}
               >
-                Kembali
-              </button>
+                {t("Kembali")}</button>
               <button
                 className={command.danger ? s.danger : s.primary}
                 disabled={
@@ -693,36 +671,34 @@ export default function ActivityDetail({
                 }
                 onClick={() => void runCommand()}
               >
-                {busy ? "Menyimpan…" : "Konfirmasi"}
+                {busy ? t("Menyimpan…") : t("Konfirmasi")}
               </button>
             </div>
           }
         >
-          <p>Status akan diperbarui setelah tindakan diterima oleh SAP.</p>
+          <p>{t("Status akan diperbarui setelah tindakan diterima oleh SAP.")}</p>
           {command.reason && (
             <label className={s.field}>
-              Alasan tindakan
-              <textarea
+              {t("Alasan tindakan")}<textarea
                 minLength={5}
                 maxLength={1000}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Jelaskan alasan tindakan (minimal 5 karakter)."
+                placeholder={t("Jelaskan alasan tindakan (minimal 5 karakter).")}
                 rows={4}
                 required
               />
-              <small>{reason.length}/1000 karakter</small>
+              <small>{reason.length}{t("/1000 karakter")}</small>
             </label>
           )}
-          {error && <Notice error>{error}</Notice>}
+          {error && <Notice error>{t(error)}</Notice>}
           {conflict && (
             <button
               className={s.secondary}
               disabled={busy}
               onClick={() => void reloadConflict()}
             >
-              Muat versi terbaru
-            </button>
+              {t("Muat versi terbaru")}</button>
           )}
         </DialogShell>
       )}

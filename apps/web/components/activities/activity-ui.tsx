@@ -11,6 +11,8 @@ import {
 import type { ActivityStatus } from "../../lib/api/activities";
 import { statusLabels } from "./activity-utils";
 import s from "./activities.module.css";
+import { useI18n } from "../../lib/i18n/provider";
+
 
 export function useIntentKey() {
   const intents = useRef(new Map<string, string>());
@@ -58,25 +60,27 @@ export function Empty({
   children?: ReactNode;
   action?: ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <div className={s.empty}>
       <span className={s.emptyIcon}>
         <Leaf size={31} />
       </span>
-      <h3>{title}</h3>
+      <h3>{t(title)}</h3>
       {children && <p>{children}</p>}
       {action}
     </div>
   );
 }
 export function Busy() {
+  const { t } = useI18n();
   return (
     <div className={s.loading} role="status">
-      <LoaderCircle size={24} className={s.spin} /> Memuat informasi kegiatan…
-    </div>
+      <LoaderCircle size={24} className={s.spin} /> {" "}{t("Memuat informasi kegiatan…")}</div>
   );
 }
 export function Status({ status }: { status: ActivityStatus }) {
+  const { t } = useI18n();
   const tone =
     status === "completed" || status === "registration_open"
       ? s.green
@@ -90,7 +94,7 @@ export function Status({ status }: { status: ActivityStatus }) {
   return (
     <span className={`${s.badge} ${tone}`}>
       {status === "completed" && <CheckCircle2 size={14} />}
-      {statusLabels[status]}
+      {t(statusLabels[status])}
     </span>
   );
 }
@@ -99,22 +103,24 @@ export function PageHead({
   subtitle,
   action,
   onBack,
+  kicker = "ADMIN SAP · KEGIATAN RELAWAN",
 }: {
   title: string;
   subtitle: string;
   action?: ReactNode;
   onBack?: () => void;
+  kicker?: string;
 }) {
+  const { t } = useI18n();
   return (
     <header className={s.pageHead}>
       <div>
         {onBack && (
           <button type="button" className={s.back} onClick={onBack}>
-            <ArrowLeft size={18} /> Kembali
-          </button>
+            <ArrowLeft size={18} /> {" "}{t("Kembali")}</button>
         )}
-        <p className={s.eyebrow}>ADMIN SAP · KEGIATAN RELAWAN</p>
-        <h1>{title}</h1>
+        <p className={s.eyebrow}>{t(kicker)}</p>
+        <h1>{t(title)}</h1>
         <p className={s.subtitle}>{subtitle}</p>
       </div>
       {action && <div className={s.actions}>{action}</div>}

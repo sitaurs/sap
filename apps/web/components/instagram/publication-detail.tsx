@@ -1,44 +1,32 @@
 "use client";
-
 import { useEffect, useRef, useState } from "react";
-import {
-  Ban,
-  CheckCircle2,
-  ExternalLink,
-  FileText,
-  Instagram,
-  LoaderCircle,
-  RefreshCw,
-  RotateCcw,
-  Save,
-  Send,
-  Settings2,
-  ShieldCheck,
-} from "lucide-react";
-import PublicationPhoto from "./publication-photo";
-import { uploadMedia } from "../../lib/api/client";
+import { ExternalLink, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
 import {
   approveInstagramPost,
   cancelInstagramPost,
   createInstagramDraft,
-  getInstagramOperation,
   getInstagramPost,
-  getInstagramPreview,
-  manuallyConfirmInstagramRetraction,
+  getPublicationPreview,
   publishInstagramPost,
-  retryInstagramOperation,
   retractInstagramPost,
   updateInstagramDraft,
-  type PublicationOperation,
-  type PublicationPreview,
 } from "../../lib/api/instagram";
+import { revisionConflict, r1Error, type R1 } from "../../lib/api/r1";
+import { ApiError } from "../../lib/api/client";
+import { useIntentKey } from "../activities/activity-ui";
 import DialogShell from "./dialog-shell";
+import OperationPanel from "./operation-panel";
+import PublicationHistory from "./publication-history";
 import { DateStamp, Notice, PostStatus } from "./publication-ui";
 import { instagramPermalink, shortId } from "./publication-utils";
-import type { InstagramOverview, InstagramPost, PostPreview } from "./types";
+import type {
+  InstagramOverview,
+  InstagramPost,
+  PostPreview,
+  PublicationOperation,
+} from "./types";
 import styles from "./instagram.module.css";
-
-type ConfirmAction = "publish" | "cancel" | "retract" | "discard" | "retry-operation" | "manual-confirm";
+import { useI18n } from "../../lib/i18n/provider";
 
 export default function PublicationDetail({
   post,
@@ -59,444 +47,520 @@ export default function PublicationDetail({
   onSettings: () => void;
   onReport: () => void;
 }) {
-  const [record, setRecord] = useState<InstagramPost | null>(post);
-  const [renderPreview, setRenderPreview] = useState<PublicationPreview | null>(null);
-  const [caption, setCaption] = useState(post?.caption ?? preview?.caption ?? "");
-  const [altText, setAltText] = useState(post?.altText ?? preview?.altText ?? "");
-  const [loading, setLoading] = useState(!!post);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
-  const [reason, setReason] = useState("");
-  const [operation, setOperation] = useState<PublicationOperation | null>(null);
-  const [manualFiles, setManualFiles] = useState<File[]>([]);
-  const [manualMediaIds, setManualMediaIds] = useState<string[]>([]);
-  const [manualExplanation, setManualExplanation] = useState("");
-  const [refresh, setRefresh] = useState(0);
-  const createIntent = useRef<{ body: string; key: string } | null>(null);
-  const operationIntent = useRef<{ fingerprint: string; key: string } | null>(null);
-  const recordId = post?.id ?? record?.id;
-
+  const { t } = useI18n();
+  const [record, setRecord] = useState(post),
+    [caption, setCaption] = useState(post?.caption ?? preview?.caption ?? ""),
+    [altText, setAltText] = useState(
+      post?.altText ?? preview?.source.title ?? "",
+    ),
+    [final, setFinal] = useState<R1["PublicationPreview"] | null>(null),
+    [loading, setLoading] = useState(!!post),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [message, setMessage] = useState(""),
+    [confirm, setConfirm] = useState<
+      "publish" | "approve" | "cancel" | "retract" | "discard" | null
+    >(null),
+    [reason, setReason] = useState(""),
+    [latest, setLatest] = useState<{
+      post: InstagramPost;
+      preview: R1["PublicationPreview"];
+    } | null>(null),
+    [operation, setOperation] = useState<PublicationOperation | null>(null),
+    [epoch, setEpoch] = useState(0),
+    [expired, setExpired] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
+  const key = useIntentKey(),
+    id = record?.id ?? post?.id,
+    dirty =
+      caption !== (record?.caption ?? preview?.caption ?? "") ||
+      altText !== (record?.altText ?? preview?.source.title ?? ""),
+    dirtyRef = useRef(dirty);
   useEffect(() => {
-    if (!recordId) return;
-    const controller = new AbortController();
+    dirtyRef.current = dirty;
+  }, [dirty]);
+  useEffect(() => {
+    if (!id) return;
+    const c = new AbortController();
     setLoading(true);
-    setError("");
-    void getInstagramPost(recordId, controller.signal)
-      .then(async (value) => {
-        if (controller.signal.aborted) return;
-        setRecord(value);
-        setCaption(value.caption);
-        setAltText(value.altText);
-        if (value.lastOperationId) {
-          void getInstagramOperation(value.lastOperationId, controller.signal)
-            .then((latest) => { if (!controller.signal.aborted) setOperation(latest); })
-            .catch((cause: unknown) => {
-              if (!controller.signal.aborted)
-                setError(cause instanceof Error ? cause.message : "Status operasi belum dapat dimuat.");
-            });
+    Promise.all([
+      getInstagramPost(id, c.signal),
+      getPublicationPreview(id, c.signal),
+    ])
+      .then(([p, v]) => {
+        if (c.signal.aborted) return;
+        setUncertain(false);
+        if (dirtyRef.current) {
+          setLatest({ post: p, preview: v });
         } else {
-          setOperation(null);
-        }
-        try {
-          const rendition = await getInstagramPreview(recordId, controller.signal);
-          if (!controller.signal.aborted) setRenderPreview(rendition);
-        } catch (cause) {
-          if (!controller.signal.aborted) {
-            setRenderPreview(null);
-            setError(cause instanceof Error ? cause.message : "Pratinjau poster belum dapat dimuat.");
-          }
+          setRecord(p);
+          setCaption(p.caption);
+          setAltText(p.altText);
+          setFinal(v);
+          setError("");
         }
       })
-      .catch((cause: unknown) => {
-        if (!controller.signal.aborted)
-          setError(cause instanceof Error ? cause.message : "Detail belum dapat dimuat.");
+      .catch((e) => {
+        if (!c.signal.aborted) setError(r1Error(e));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!c.signal.aborted) setLoading(false);
       });
-    return () => controller.abort();
-  }, [recordId, refresh]);
-
+    return () => c.abort();
+  }, [id, epoch]);
   useEffect(() => {
-    if (record?.rendition.status !== "queued" || busy) return;
-    const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
-    const deadline = Date.now() + 120_000;
-    async function poll() {
-      if (Date.now() > deadline || controller.signal.aborted) return;
-      try {
-        const latest = await getInstagramPost(record!.id, controller.signal);
-        if (controller.signal.aborted) return;
-        setRecord(latest);
-        if (latest.rendition.status === "ready") {
-          setRenderPreview(await getInstagramPreview(latest.id, controller.signal));
-          return;
-        }
-        if (latest.rendition.status === "failed") return;
-      } catch (cause) {
-        if (!controller.signal.aborted)
-          setError(cause instanceof Error ? cause.message : "Status render belum dapat diperbarui.");
-        return;
-      }
-      timer = setTimeout(() => void poll(), 3500);
-    }
-    timer = setTimeout(() => void poll(), 2500);
-    return () => {
-      controller.abort();
-      clearTimeout(timer);
-    };
-  }, [record?.id, record?.rendition.status, busy]);
-
-  useEffect(() => {
-    if (!operation || !["queued", "running"].includes(operation.status)) return;
-    const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
-    const deadline = Date.now() + 120_000;
-    async function poll() {
-      if (Date.now() > deadline || controller.signal.aborted) return;
-      try {
-        const latest = await getInstagramOperation(operation!.id, controller.signal);
-        if (controller.signal.aborted) return;
-        setOperation(latest);
-        if (!["queued", "running"].includes(latest.status)) {
-          setMessage(latest.message);
-          if (recordId) setRefresh((value) => value + 1);
-          onChanged();
-          return;
-        }
-      } catch (cause) {
-        if (!controller.signal.aborted)
-          setError(cause instanceof Error ? cause.message : "Status operasi belum dapat diperbarui.");
-        return;
-      }
-      timer = setTimeout(() => void poll(), 4000);
-    }
-    timer = setTimeout(() => void poll(), 3000);
-    return () => {
-      controller.abort();
-      clearTimeout(timer);
-    };
-  }, [operation?.id, operation?.status, recordId, onChanged]);
-
-  const source = record?.source ?? preview!.source;
-  const baselineCaption = record?.caption ?? preview?.caption ?? "";
-  const baselineAltText = record?.altText ?? preview?.altText ?? "";
-  const dirty = caption !== baselineCaption || altText !== baselineAltText;
-  const editable = !record || record.actions.edit.allowed;
-  const captionValid = !!caption.trim() && caption.length <= 2200;
-  const altTextValid = !!altText.trim() && altText.length <= 1000;
-  const valid = captionValid && altTextValid;
-  const permalink = instagramPermalink(record?.permalink ?? null);
-  const renderMatches = !!record && !!renderPreview && renderPreview.contentRevision === record.contentRevision;
-  const renderUrl = renderMatches ? renderPreview?.rendition.url : null;
-  const canCreate = !!overview?.capabilities.canCreateDraft;
-  const canApprove = !!record?.actions.approve.allowed && record.rendition.status === "ready" && renderMatches && !dirty;
-  const canPublish =
-    !!record?.actions.publish.allowed &&
-    !!overview?.capabilities.canPublish &&
-    overview.account.status === "connected" &&
-    record.approval.status === "approved" &&
-    !dirty;
-  const canRetract =
-    !!record?.actions.retract.allowed &&
-    !!overview?.capabilities.canRetract &&
-    record.status !== "cancelled" &&
-    record.status !== "retracted";
-
-  function idempotencyKey(intent: unknown) {
-    const fingerprint = JSON.stringify(intent);
-    if (operationIntent.current?.fingerprint !== fingerprint)
-      operationIntent.current = { fingerprint, key: crypto.randomUUID() };
-    return operationIntent.current.key;
-  }
-
-  function close() {
-    if (dirty) setConfirmAction("discard");
-    else onClose();
-  }
-
-  async function save() {
-    if (busy || loading || !valid || !editable || (!record && !canCreate)) return;
-    setBusy(true);
-    setError("");
-    setMessage("");
-    setConfirmAction(null);
-    setOperation(null);
-    try {
-      let updated: InstagramPost;
-      if (record) {
-        updated = await updateInstagramDraft(record, { caption, altText });
-      } else {
-        const body = {
-          reportId: source.reportId,
-          mediaId: source.mediaId,
-          caption,
-          altText,
-          kind: "initial" as const,
-          milestoneId: null,
-          replacesPostId: null,
-        };
-        const encoded = JSON.stringify(body);
-        if (createIntent.current?.body !== encoded)
-          createIntent.current = { body: encoded, key: crypto.randomUUID() };
-        updated = await createInstagramDraft(body, createIntent.current.key);
-      }
-      setRecord(updated);
-      setCaption(updated.caption);
-      setAltText(updated.altText);
-      setRenderPreview(null);
-      setMessage("Draf tersimpan. Poster sedang disiapkan; tinjau hasilnya sebelum memberi persetujuan.");
-      onChanged();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Draf belum tersimpan. Coba lagi.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function approve() {
-    if (!record || busy || loading || !canApprove) return;
-    setBusy(true);
-    setError("");
-    setMessage("");
-    try {
-      const key = idempotencyKey({ action: "approve", id: record.id, revision: record.revision, contentRevision: record.contentRevision, sourceRevision: record.source.sourceRevision, renditionId: record.rendition.id });
-      const updated = await approveInstagramPost(record, key);
-      operationIntent.current = null;
-      setRecord(updated);
-      setMessage("Persetujuan admin tercatat untuk versi poster, sumber, dan caption ini.");
-      onChanged();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Persetujuan belum tersimpan.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function confirm() {
-    if (!confirmAction || busy) return;
-    if (confirmAction === "discard") {
-      setConfirmAction(null);
-      onClose();
+    setExpired(false);
+    if (!final?.rendition.expiresAt) return;
+    const delay = Date.parse(final.rendition.expiresAt) - Date.now();
+    if (delay <= 0) {
+      setExpired(true);
       return;
     }
-    if (confirmAction === "retry-operation") {
-      if (!operation || !(operation.status === "failed" || (operation.status === "needs_action" && operation.kind === "retract"))) return;
-    } else if (confirmAction === "manual-confirm") {
-      if (!operation || operation.kind !== "retract" || operation.status !== "needs_action" || manualFiles.length + manualMediaIds.length < 1 || manualExplanation.trim().length < 20) return;
-    } else {
-      if (!record) return;
-      if (confirmAction !== "publish" && reason.trim().length < 5) return;
-    }
+    const timer = setTimeout(
+      () => setExpired(true),
+      Math.min(delay, 2_147_000_000),
+    );
+    return () => clearTimeout(timer);
+  }, [final]);
+  const source = record?.source ?? preview?.source;
+  if (!source) return null;
+  const editable = !record || record.actions.edit.allowed,
+    valid =
+      caption.trim().length > 0 &&
+      caption.length <= 2200 &&
+      altText.trim().length > 0 &&
+      altText.length <= 1000;
+  const ready =
+    !!final &&
+    !expired &&
+    final.rendition.status === "ready" &&
+    !!final.rendition.url &&
+    final.contentRevision === record?.contentRevision &&
+    final.sourceRevision === record?.source.sourceRevision;
+  const approved =
+    record?.approval.status === "approved" &&
+    record.approval.contentRevision === record.contentRevision &&
+    record.approval.sourceRevision === record.source.sourceRevision &&
+    record.approval.renditionId === final?.rendition.id;
+  const blocked =
+    busy || loading || dirty || !!latest || uncertain || !available;
+  async function execute(
+    action: "save" | "approve" | "publish" | "cancel" | "retract",
+  ) {
+    if (busy || loading || latest || (uncertain && record) || !available)
+      return;
     setBusy(true);
     setError("");
     setMessage("");
     try {
-      if (confirmAction === "retry-operation") {
-        const key = idempotencyKey({ action: "retry", operationId: operation!.id });
-        const queued = await retryInstagramOperation(operation!.id, key);
-        operationIntent.current = null;
-        setOperation(queued);
-        setMessage(`Percobaan ulang masuk antrean: ${queued.message}`);
-        onChanged();
-      } else if (confirmAction === "manual-confirm") {
-        let evidenceMediaIds = [...manualMediaIds];
-        for (const file of manualFiles.slice(evidenceMediaIds.length)) {
-          const uploaded = await uploadMedia(file, "resolution");
-          evidenceMediaIds.push(uploaded.id);
-          setManualMediaIds(evidenceMediaIds);
+      let updated: InstagramPost | undefined;
+      if (action === "save") {
+        if (!valid) return;
+        if (record)
+          updated = await updateInstagramDraft(record, caption, altText);
+        else {
+          const body = {
+            reportId: source!.reportId,
+            mediaId: source!.mediaId,
+            caption,
+            altText,
+            kind: preview!.kind,
+            milestoneId: preview!.milestoneId,
+            replacesPostId: preview!.replacesPostId,
+          };
+          updated = await createInstagramDraft(body, key(body));
         }
-        const body = { evidenceMediaIds, explanation: manualExplanation.trim() };
-        const key = idempotencyKey({ action: "manual-confirmation", operationId: operation!.id, body });
-        const confirmed = await manuallyConfirmInstagramRetraction(operation!.id, body, key);
-        operationIntent.current = null;
-        setOperation(confirmed);
-        setManualFiles([]);
-        setManualMediaIds([]);
-        setManualExplanation("");
-        setMessage("Penarikan manual dicatat dengan bukti dan alasan audit.");
-        onChanged();
-        setRefresh((value) => value + 1);
-      } else if (confirmAction === "publish") {
-        const key = idempotencyKey({ action: "publish", id: record!.id, revision: record!.revision });
-        const queued = await publishInstagramPost(record!, key);
-        operationIntent.current = null;
-        setOperation(queued);
-        setMessage(`Permintaan publikasi diterima: ${queued.message}`);
-      } else if (confirmAction === "cancel") {
-        const key = idempotencyKey({ action: "cancel", id: record!.id, revision: record!.revision, reason: reason.trim() });
-        const updated = await cancelInstagramPost(record!, reason.trim(), key);
-        operationIntent.current = null;
-        setRecord(updated);
-        setMessage("Draf dibatalkan.");
-        onChanged();
-      } else if (confirmAction === "retract") {
-        const key = idempotencyKey({ action: "retract", id: record!.id, revision: record!.revision, reason: reason.trim() });
-        const queued = await retractInstagramPost(record!, reason.trim(), key);
-        operationIntent.current = null;
-        setOperation(queued);
-        setMessage(`Permintaan penarikan diterima: ${queued.message}`);
+      } else if (
+        action === "approve" &&
+        record &&
+        final &&
+        ready &&
+        !dirty &&
+        record.actions.approve.allowed
+      )
+        updated = await approveInstagramPost(
+          record,
+          final,
+          key({
+            action,
+            id,
+            revision: record.revision,
+            contentRevision: final.contentRevision,
+            renditionId: final.rendition.id,
+          }),
+        );
+      else if (
+        action === "publish" &&
+        record &&
+        approved &&
+        record.actions.publish.allowed &&
+        !dirty
+      ) {
+        const op = await publishInstagramPost(
+          record,
+          key({ action, id, revision: record.revision }),
+        );
+        setOperation(op);
+        setMessage(
+          "Permintaan publish masuk antrean. Hasil akan ditampilkan dari status operasi.",
+        );
+      } else if (action === "cancel" && record && record.actions.cancel.allowed)
+        updated = await cancelInstagramPost(
+          record,
+          reason.trim(),
+          key({ action, id, revision: record.revision, reason }),
+        );
+      else if (
+        action === "retract" &&
+        record &&
+        record.actions.retract.allowed
+      ) {
+        setOperation(
+          await retractInstagramPost(
+            record,
+            reason.trim(),
+            key({ action, id, revision: record.revision, reason }),
+          ),
+        );
+        setMessage(
+          "Permintaan penarikan diterima. Penghapusan Instagram menunggu hasil operasi.",
+        );
       }
-      setConfirmAction(null);
-      setReason("");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Operasi belum berhasil.");
+      if (updated) {
+        setUncertain(false);
+        setRecord(updated);
+        setCaption(updated.caption);
+        setAltText(updated.altText);
+        setFinal(null);
+        setMessage(
+          action === "approve"
+            ? "Konten disetujui; belum diposting."
+            : action === "cancel"
+              ? "Draf dibatalkan."
+              : "Draf tersimpan; tinjau ulang preview final.",
+        );
+      }
+      setConfirm(null);
+      setEpoch((v) => v + 1);
+      onChanged();
+    } catch (e) {
+      setError(r1Error(e));
+      if (e instanceof ApiError && e.code === "OPERATION_UNCERTAIN") {
+        setUncertain(true);
+        setConfirm(null);
+      }
+      if (revisionConflict(e) && record) {
+        try {
+          const [p, v] = await Promise.all([
+            getInstagramPost(record.id),
+            getPublicationPreview(record.id),
+          ]);
+          setLatest({ post: p, preview: v });
+        } catch (load) {
+          setError(r1Error(load));
+        }
+      }
     } finally {
       setBusy(false);
     }
   }
-
-  const footer = (
-    <>
-      {confirmAction ? (
+  const link = instagramPermalink(record?.permalink ?? null),
+    operationId = operation?.id ?? record?.lastOperationId;
+  return (
+    <DialogShell
+      title={t("Detail postingan")}
+      subtitle={t("Tinjau gambar final, persetujuan, dan riwayat operasi.")}
+      busy={busy}
+      onClose={() => (dirty ? setConfirm("discard") : onClose())}
+      footer={
+        <div className={styles.footerActions}>
+          {editable && (
+            <button
+              className={styles.secondary}
+              disabled={
+                busy ||
+                loading ||
+                !available ||
+                !valid ||
+                !!latest ||
+                (!!record && (!dirty || uncertain))
+              }
+              onClick={() => void execute("save")}
+            >
+              <Save size={18} />
+              {uncertain && !record
+                ? t("Periksa penyimpanan draf")
+                : t("Simpan draf")}
+            </button>
+          )}
+          {record && (
+            <>
+              <button
+                className={styles.secondary}
+                disabled={blocked || !ready || !record.actions.approve.allowed}
+                onClick={() => setConfirm("approve")}
+              >
+                <ShieldCheck size={18} />
+                {t("Setujui konten")}</button>
+              <button
+                className={styles.primary}
+                disabled={
+                  blocked ||
+                  !approved ||
+                  !record.actions.publish.allowed ||
+                  !overview?.capabilities.canPublish
+                }
+                onClick={() => setConfirm("publish")}
+              >
+                <Send size={18} />
+                {t("Posting sekarang")}</button>
+            </>
+          )}
+        </div>
+      }
+    >
+      <div className={styles.detailTitle}>
+        <h3>{source.title}</h3>
+        <PostStatus status={record?.status ?? "preview"} />
+      </div>
+      {final?.rendition.status === "ready" &&
+      final.rendition.url &&
+      !expired ? (
+        <img
+          className={styles.finalPhoto}
+          src={final.rendition.url}
+          alt={final.altText}
+          onError={() => setExpired(true)}
+        />
+      ) : (
+        <Notice warning>
+          {!record
+            ? t("Simpan draf untuk menghasilkan preview gambar final.")
+            : expired
+              ? t("Preview kedaluwarsa. Perbarui informasi untuk mengambil URL baru.")
+              : final?.rendition.status === "failed"
+                ? t("Pembuatan gambar final gagal. Hubungi pengelola.")
+                : t("Preview gambar final sedang disiapkan atau belum tersedia.")}
+        </Notice>
+      )}
+      <button
+        className={styles.secondary}
+        disabled={busy || loading || !id}
+        onClick={() => setEpoch((v) => v + 1)}
+      >
+        <RefreshCw size={17} />
+        {t("Perbarui versi dan preview")}</button>
+      <div className={styles.sourceTags}>
+        <span>{t("Laporan #")}{shortId(source.reportId)}</span>
+        <span>{source.categoryName}</span>
+        <span>
+          {record?.kind ?? preview?.kind} {" "}{t("· generasi")}{" "}
+          {record?.generation ?? "baru"}
+        </span>
+      </div>
+      <button
+        className={styles.textButton}
+        disabled={dirty || busy}
+        onClick={onReport}
+      >
+        {t("Buka moderasi laporan")}</button>
+      <div className={styles.dateGrid}>
+        <div>
+          <span>{t("Masuk draf")}</span>
+          <DateStamp
+            value={record?.createdAt ?? null}
+            empty="Belum tersimpan"
+          />
+        </div>
+        <div>
+          <span>{t("Pernah terposting")}</span>
+          <DateStamp value={record?.publishedAt ?? null} />
+        </div>
+        <div>
+          <span>{t("Ditarik")}</span>
+          <DateStamp
+            value={record?.retractedAt ?? null}
+            empty="Belum ditarik"
+          />
+        </div>
+      </div>
+      <label className={styles.field}>
+        <span>{t("Caption Instagram")}</span>
+        <textarea
+          rows={6}
+          maxLength={2200}
+          value={caption}
+          readOnly={!editable}
+          disabled={busy || loading || uncertain}
+          onChange={(e) => {
+            setCaption(e.target.value);
+            setConfirm(null);
+            setMessage("");
+          }}
+        />
+        <small>{caption.length}{t("/2.200 karakter")}</small>
+      </label>
+      <label className={styles.field}>
+        <span>{t("Deskripsi gambar untuk aksesibilitas")}</span>
+        <textarea
+          rows={3}
+          value={altText}
+          maxLength={1000}
+          readOnly={!editable}
+          disabled={busy || loading || uncertain}
+          onChange={(e) => setAltText(e.target.value)}
+        />
+      </label>
+      <Notice>
+        {t("Persetujuan:")}{" "}
+        {record
+          ? {
+              unapproved: t("Belum disetujui"),
+              approved: "Disetujui",
+              invalidated: t("Perlu ditinjau ulang"),
+            }[record.approval.status]
+          : t("Belum tersimpan")}
+        {t(". Persetujuan terikat pada revisi konten, sumber, dan gambar final. Perubahan dapat membatalkan persetujuan.")}</Notice>
+      {latest && (
+        <div className={styles.confirmation} role="alert">
+          <strong>{t("Versi terbaru · revisi")}{" "}{latest.post.revision}</strong>
+          <p>{latest.post.caption}</p>
+          <p>{latest.post.altText}</p>
+          <PostStatus status={latest.post.status} />
+          <p>
+            {t("Input Anda tetap ada. Konfirmasi sebelum menyimpan ke revisi terbaru.")}</p>
+          <button
+            className={styles.secondary}
+            onClick={() => {
+              setRecord(latest.post);
+              setFinal(latest.preview);
+              setLatest(null);
+              setError("");
+              setConfirm(null);
+            }}
+          >
+            {t("Saya sudah meninjau, pertahankan input saya")}</button>
+        </div>
+      )}
+      {confirm === "discard" ? (
+        <div className={styles.confirmation}>
+          <strong>{t("Caption dan deskripsi belum tersimpan.")}</strong>
+          <button className={styles.secondary} onClick={() => setConfirm(null)}>
+            {t("Lanjut mengedit")}</button>
+          <button className={styles.textButton} onClick={onClose}>
+            {t("Tutup tanpa menyimpan")}</button>
+        </div>
+      ) : confirm ? (
         <div className={styles.confirmation}>
           <strong>
-            {confirmAction === "publish"
-              ? `Terbitkan ke ${overview?.account.username ? `@${overview.account.username}` : "Instagram"}?`
-              : confirmAction === "retry-operation"
-                ? `Ulangi operasi ${operation?.kind === "publish" ? "publikasi" : "penarikan"}?`
-                : confirmAction === "manual-confirm"
-                  ? "Konfirmasi bahwa postingan sudah dihapus manual?"
-              : confirmAction === "discard"
-                ? "Tutup tanpa menyimpan perubahan?"
-              : confirmAction === "retract"
-                ? "Minta penarikan postingan ini dari Instagram?"
-                : "Batalkan draf ini?"}
+            {confirm === "approve"
+              ? t("Setujui gambar final dan caption ini?")
+              : confirm === "publish"
+                ? t("Posting konten yang telah disetujui sekarang?")
+                : confirm === "cancel"
+                  ? t("Batalkan draf?")
+                  : t("Tarik postingan dari Instagram?")}
           </strong>
-          <p>
-            {confirmAction === "publish"
-              ? "Konten akan dikirim ke Meta dan dapat terlihat publik. Pastikan ini akun uji serta foto memiliki persetujuan yang tercatat."
-              : confirmAction === "retry-operation"
-                ? operation?.kind === "retract"
-                  ? "Worker akan mengirim ulang permintaan penghapusan ke Meta. Lanjutkan hanya setelah memastikan postingan masih ada dan tidak sedang dalam proses di Meta."
-                  : "Operasi ini akan dijalankan ulang oleh worker dan dapat mengirim konten ke Meta. Pastikan akun uji, persetujuan, dan status operasi sebelumnya sudah diperiksa."
-                : confirmAction === "manual-confirm"
-                  ? "Gunakan hanya setelah admin benar-benar menghapus postingan di Meta. Bukti dan alasan disimpan untuk audit SAP; ini tidak menghubungi Meta."
-              : confirmAction === "discard"
-                ? "Caption dan teks alternatif yang belum disimpan akan hilang."
-              : confirmAction === "retract"
-                ? "Penarikan dikirim sebagai operasi backend dan statusnya akan diperbarui; ini tidak menjamin Meta sudah menyelesaikannya."
-                : "Draf yang dibatalkan tidak dapat diedit atau diterbitkan kembali."}
-          </p>
-          {confirmAction !== "publish" && confirmAction !== "discard" && confirmAction !== "retry-operation" && confirmAction !== "manual-confirm" && (
+          {(confirm === "cancel" || confirm === "retract") && (
             <label className={styles.field}>
-              <span>Alasan (minimal 5 karakter)</span>
+              <span>{t("Alasan")}</span>
               <textarea
-                rows={2}
-                maxLength={1000}
                 value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                disabled={busy}
+                maxLength={1000}
+                minLength={5}
+                onChange={(e) => setReason(e.target.value)}
               />
             </label>
           )}
-          {confirmAction === "manual-confirm" && <>
-            <label className={styles.field}>
-              <span>Bukti penghapusan manual (1–3 foto)</span>
-              <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={(event) => { setManualFiles(Array.from(event.target.files ?? []).slice(0, 3)); setManualMediaIds([]); }} />
-              <small>{manualMediaIds.length ? `${manualMediaIds.length} foto sudah diunggah privat; ` : ""}Hanya untuk audit internal. Jangan unggah data pribadi atau gunakan sebagai bukti sebelum penghapusan benar-benar dilakukan.</small>
-            </label>
-            <label className={styles.field}>
-              <span>Penjelasan admin (minimal 20 karakter)</span>
-              <textarea rows={3} maxLength={1000} value={manualExplanation} onChange={(event) => setManualExplanation(event.target.value)} disabled={busy} />
-            </label>
-          </>}
-          <div>
-            <button className={styles.secondary} type="button" onClick={() => setConfirmAction(null)} disabled={busy}>
-              Kembali meninjau
-            </button>
-            <button className={styles.primary} type="button" onClick={() => void confirm()} disabled={busy || ((confirmAction === "cancel" || confirmAction === "retract") && reason.trim().length < 5) || (confirmAction === "manual-confirm" && (manualFiles.length + manualMediaIds.length < 1 || manualExplanation.trim().length < 20))}>
-              {busy ? <LoaderCircle className={styles.spin} size={18} /> : confirmAction === "publish" ? <Send size={18} /> : confirmAction === "retract" ? <RotateCcw size={18} /> : confirmAction === "retry-operation" ? <RefreshCw size={18} /> : <Ban size={18} />}
-              {confirmAction === "publish" ? "Ya, minta publikasi" : confirmAction === "retract" ? "Ya, minta penarikan" : confirmAction === "discard" ? "Tutup tanpa menyimpan" : confirmAction === "retry-operation" ? "Ya, ulangi operasi" : confirmAction === "manual-confirm" ? "Catat penghapusan manual" : "Batalkan draf"}
-            </button>
+          <div className={styles.footerActions}>
+            <button
+              className={styles.secondary}
+              disabled={busy}
+              onClick={() => setConfirm(null)}
+            >
+              {t("Kembali meninjau")}</button>
+            <button
+              className={styles.primary}
+              disabled={
+                busy ||
+                ((confirm === "cancel" || confirm === "retract") &&
+                  reason.trim().length < 5)
+              }
+              onClick={() => void execute(confirm)}
+            >
+              {t("Konfirmasi tindakan")}</button>
           </div>
         </div>
-      ) : (
+      ) : null}
+      {record && (
         <div className={styles.footerActions}>
-          {editable ? (
-            <>
-              <button className={styles.secondary} type="button" onClick={() => void save()} disabled={busy || loading || !valid || (record ? !dirty : !canCreate)}>
-                {busy ? <LoaderCircle className={styles.spin} size={18} /> : <Save size={18} />}
-                Simpan draf
-              </button>
-              {record?.actions.cancel.allowed && (
-                <button className={styles.secondary} type="button" onClick={() => { setReason(""); setConfirmAction("cancel"); }} disabled={busy || dirty}>
-                  <Ban size={18} /> Batalkan draf
-                </button>
-              )}
-              {record && record.approval.status !== "approved" && (
-                <button className={styles.primary} type="button" onClick={() => void approve()} disabled={busy || loading || !canApprove}>
-                  {busy ? <LoaderCircle className={styles.spin} size={18} /> : <ShieldCheck size={18} />}
-                  Setujui versi ini
-                </button>
-              )}
-              {record && record.approval.status === "approved" && (
-                <button className={styles.primary} type="button" onClick={() => setConfirmAction("publish")} disabled={busy || loading || !canPublish}>
-                  <Send size={18} /> Posting sekarang
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              {canRetract && (
-                <button className={styles.secondary} type="button" onClick={() => { setReason(""); setConfirmAction("retract"); }} disabled={busy || loading}>
-                  <RotateCcw size={18} /> Tarik postingan
-                </button>
-              )}
-              {permalink ? (
-                <a href={permalink} className={styles.primary} target="_blank" rel="noopener noreferrer">
-                  Lihat di Instagram <ExternalLink size={18} />
-                </a>
-              ) : (
-                <button className={styles.secondary} type="button" onClick={() => setRefresh((value) => value + 1)} disabled={loading || busy}>
-                  <RefreshCw size={18} /> Perbarui status
-                </button>
-              )}
-            </>
+          <button
+            className={styles.secondary}
+            disabled={blocked || !record.actions.cancel.allowed}
+            onClick={() => setConfirm("cancel")}
+          >
+            {t("Batalkan draf")}</button>
+          <button
+            className={styles.secondary}
+            disabled={
+              blocked ||
+              !record.actions.retract.allowed ||
+              !overview?.capabilities.canRetract
+            }
+            onClick={() => setConfirm("retract")}
+          >
+            {t("Tarik postingan")}</button>
+          {link && (
+            <a
+              className={styles.secondary}
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t("Periksa di Instagram")}<ExternalLink size={16} />
+            </a>
           )}
+          <button
+            className={styles.textButton}
+            disabled={dirty || busy}
+            onClick={onSettings}
+          >
+            {t("Pengaturan publikasi")}</button>
         </div>
       )}
-      {!available && <small className={styles.footerHint}>Layanan publikasi belum aktif. Pratinjau ini tidak dikirim atau disimpan.</small>}
-      {operation && operation.kind !== "disconnect" && (operation.status === "failed" || (operation.status === "needs_action" && operation.kind === "retract")) && operation.errorCode !== "PUBLICATION_UNCERTAIN" && !confirmAction && <button className={styles.secondary} type="button" onClick={() => setConfirmAction("retry-operation")} disabled={busy || !available}><RefreshCw size={17} /> Coba ulang {operation.kind === "publish" ? "publikasi" : "penarikan"}</button>}
-      {operation?.status === "needs_action" && operation.kind === "retract" && !confirmAction && <button className={styles.secondary} type="button" onClick={() => { setManualFiles([]); setManualMediaIds([]); setManualExplanation(""); setConfirmAction("manual-confirm"); }} disabled={busy}><ShieldCheck size={17} /> Catat penghapusan manual</button>}
-      {operation?.status === "needs_action" && operation.kind === "publish" && <small className={styles.footerHint}>Publikasi memerlukan rekonsiliasi manual. Jangan ulangi publish sebelum status di Meta diperiksa.</small>}
-      {available && !canCreate && !record && <small className={styles.footerHint}>Pembuatan draf menunggu koneksi akun dan renderer poster.</small>}
-      {record && record.rendition.status === "queued" && <small className={styles.footerHint}>Poster sedang dirender. Tombol persetujuan aktif setelah pratinjau siap.</small>}
-      {record?.approval.status === "approved" && !overview?.capabilities.canPublish && <small className={styles.footerHint}>Persetujuan tercatat, tetapi kemampuan publikasi belum diaktifkan oleh pengelola.</small>}
-    </>
-  );
-
-  return (
-    <DialogShell title="Detail postingan" subtitle="Periksa poster hasil render, persetujuan, dan status operasi." onClose={close} busy={busy} footer={footer}>
-      {dirty && (
-        <div className={styles.discardPrompt} role="status">
-          <strong>Perubahan caption atau teks alternatif belum tersimpan.</strong>
-          <span>Simpan perubahan untuk membuat versi poster baru; persetujuan sebelumnya tidak berlaku lagi.</span>
-        </div>
+      {operationId && (
+        <OperationPanel
+          key={operationId}
+          id={operationId}
+          initial={operation ?? undefined}
+          onCompleted={() => {
+            setEpoch((v) => v + 1);
+            onChanged();
+          }}
+        />
       )}
-      <div className={styles.detailTitle}><h3>{source.title}</h3><PostStatus status={record?.status ?? "preview"} /></div>
-      <PublicationPhoto mediaId={source.mediaId} reportId={source.reportId} alt={source.title} className={styles.detailPhoto} />
-      <div className={styles.sourceTags}><span><FileText size={14} />Laporan #{shortId(source.reportId)}</span>{source.scanId && <span>Scan #{shortId(source.scanId)}</span>}<span className={styles.categoryTag}>{source.categoryName}</span></div>
-      <button className={styles.textButton} type="button" onClick={onReport} disabled={busy || dirty}>Lihat laporan dan persetujuan media<ExternalLink size={15} /></button>
-      <div className={styles.dateGrid}><div><span>Masuk draf</span><DateStamp value={record?.createdAt ?? null} empty="Belum tersimpan" /></div><div><span>Terposting</span><DateStamp value={record?.publishedAt ?? null} /></div></div>
-      <section className={styles.renderPreview} aria-labelledby="instagram-render-title">
-        <div><h4 id="instagram-render-title">Poster yang akan ditinjau</h4><p>Persetujuan terikat pada versi poster, foto sumber, caption, dan revisi laporan yang tampil di sini.</p></div>
-        {renderUrl ? <img src={renderUrl} alt={record?.altText || source.title} /> : <div className={styles.renderPlaceholder} role="status">
-          {record?.rendition.status === "queued" ? <><LoaderCircle className={styles.spin} size={22} /> Poster sedang dirender…</> : record?.rendition.status === "failed" ? <>Render gagal. Muat ulang atau simpan ulang draf untuk mencoba lagi.</> : <>Simpan draf terlebih dahulu untuk membuat poster final.</>}
-        </div>}
-        {record && <small>Status render: {record.rendition.status === "ready" ? "siap" : record.rendition.status === "queued" ? "antrean" : "gagal"} · {record.approval.status === "approved" ? "persetujuan admin tercatat" : "belum disetujui"}</small>}
-      </section>
-      <label className={styles.field}><span>Caption Instagram</span><textarea rows={7} maxLength={2200} value={caption} readOnly={!editable} disabled={busy || loading} onChange={(event) => { setCaption(event.target.value); setConfirmAction(null); setMessage(""); }} placeholder="Tulis caption postingan…" /><span className={styles.fieldFoot}><small>{editable ? "Pastikan ringkasan publik akurat dan tidak memuat data pribadi." : "Caption pada saat publikasi."}</small><small>{caption.length}/2.200</small></span></label>
-      <label className={styles.field}><span>Teks alternatif foto</span><textarea rows={2} maxLength={1000} value={altText} readOnly={!editable} disabled={busy || loading} onChange={(event) => { setAltText(event.target.value); setConfirmAction(null); setMessage(""); }} placeholder="Deskripsikan isi poster/foto untuk aksesibilitas…" /><span className={styles.fieldFoot}><small>Dipakai untuk aksesibilitas; jangan masukkan identitas orang atau lokasi privat.</small><small>{altText.length}/1.000</small></span></label>
-      {!valid && <div className={styles.error} role="alert">Caption dan teks alternatif harus diisi sebelum menyimpan.</div>}
-      <div className={styles.destination}><span className={styles.smallIcon}><Instagram size={22} /></span><div><strong>{overview?.account.username ? `@${overview.account.username}` : "Akun belum terhubung"}</strong><small>Poster hasil render · Feed · persetujuan admin diwajibkan</small></div><button className={styles.iconButton} type="button" aria-label="Buka pengaturan postingan" disabled={busy || dirty} onClick={onSettings}><Settings2 size={19} /></button></div>
-      <Notice warning={!!record && record.status === "needs_action"}><ShieldCheck size={19} className={styles.inlineIcon} />{record?.status === "published" ? "Sudah terbit di Instagram. Tarik postingan hanya bila ada alasan yang tercatat." : record?.status === "publishing" ? "Operasi publikasi berjalan; status postingan belum menjadi bukti selesai." : record?.status === "retracting" ? "Operasi penarikan sedang berjalan. Periksa status operasi sebelum mengulang." : record?.status === "retracted" ? "Backend mencatat penarikan berhasil." : record?.status === "needs_action" ? "Operasi memerlukan rekonsiliasi admin. Jangan mengirim ulang publish tanpa memeriksa operasi." : "Belum ada posting langsung. Simpan draf, tinjau poster final, lalu catat persetujuan admin."}</Notice>
-      {operation && <div className={operation.status === "failed" || operation.status === "needs_action" ? styles.error : styles.success} role={operation.status === "failed" || operation.status === "needs_action" ? "alert" : "status"}><strong>{operation.kind === "publish" ? "Operasi publikasi" : "Operasi penarikan"}: {operation.status}</strong><span>{operation.message}</span>{operation.errorCode && <small>Kode: {operation.errorCode}</small>}</div>}
-      {loading && <p className={styles.helper} role="status">Memuat versi terbaru…</p>}
-      {(error || record?.publishError) && <div className={styles.error} role="alert">{error || record?.publishError}<button type="button" onClick={() => setRefresh((value) => value + 1)} disabled={loading || busy || dirty}>Muat versi terbaru</button></div>}
-      {message && <div className={styles.success} role="status"><CheckCircle2 size={18} />{message}</div>}
+      {record && (
+        <PublicationHistory key={record.id} reportId={record.source.reportId} />
+      )}
+      {loading && (
+        <p role="status" className={styles.helper}>
+          {t("Memuat versi terbaru…")}</p>
+      )}
+      {error && (
+        <p role="alert" className={styles.error}>
+          {t(error)}
+        </p>
+      )}
+      {record?.publishError && (
+        <p role="alert" className={styles.error}>
+          {record.publishError}
+        </p>
+      )}
+      {message && (
+        <p role="status" className={styles.notice}>
+          {t(message)}
+        </p>
+      )}
     </DialogShell>
   );
 }

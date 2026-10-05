@@ -1,10 +1,8 @@
 import type { ImpactQuery } from "../../lib/api/impact";
 
-const numbers = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 1 });
-const weights = new Intl.NumberFormat("id-ID", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-export const numberLabel = (n: number) => numbers.format(n);
-export const weightLabel = (n: number) => `${weights.format(n)} kg`;
-export const updatedLabel = (date: string) => new Intl.DateTimeFormat("id-ID", {
+export const numberLabel = (n: number, locale = "id-ID") => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(n);
+export const weightLabel = (n: number, locale = "id-ID") => `${new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n)} kg`;
+export const updatedLabel = (date: string, locale = "id-ID") => new Intl.DateTimeFormat(locale, {
   day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta",
 }).format(new Date(date)) + " WIB";
 
@@ -15,8 +13,8 @@ export function todayJakarta(): string {
   const parts = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Asia/Jakarta" }).formatToParts(new Date());
   return ["year", "month", "day"].map(k => parts.find(p => p.type === k)!.value).join("-");
 }
-export function periodLabel(start: string, end: string): string {
-  const format = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" });
+export function periodLabel(start: string, end: string, locale = "id-ID"): string {
+  const format = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" });
   return format.formatRange(new Date(start + "T00:00:00+07:00"), new Date(end + "T00:00:00+07:00"));
 }
 export function queryForDays(start: string, end: string, cellId?: string): ImpactQuery {

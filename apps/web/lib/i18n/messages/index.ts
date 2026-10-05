@@ -1,0 +1,14 @@
+import { common } from "./common";
+import { landing } from "./landing";
+import { scan } from "./scan";
+import { reports } from "./reports";
+import { activities } from "./activities";
+import { volunteer } from "./volunteer";
+import { community } from "./community";
+import { evidence } from "./evidence";
+import { impact } from "./impact";
+import { instagram } from "./instagram";
+import { misc } from "./misc";
+import { dynamic } from "./dynamic";
+import { errors } from "./errors";
+export const english: Record<string, string> = { ...common, ...landing, ...scan, ...reports, ...activities, ...community, ...evidence, ...impact, ...instagram, ...misc, ...dynamic, ...errors, ...volunteer };

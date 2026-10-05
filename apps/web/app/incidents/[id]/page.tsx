@@ -1,6 +1,9 @@
 import IncidentPage from "../../../components/community/incident-page";
-
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
-  return <IncidentPage incidentId={id} />;
+  return <IncidentPage id={id} />;
 }

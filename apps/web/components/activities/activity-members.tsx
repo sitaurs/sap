@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Search, UsersRound } from "lucide-react";
 import {
-  decideMember,
-  getActivity,
-  listMembers,
-  recordAttendance,
+  decideMember as defaultDecideMember,
+  getActivity as defaultGetActivity,
+  listMembers as defaultListMembers,
+  recordAttendance as defaultRecordAttendance,
   type Activity,
   type ActivityMember,
   type MemberStatus,
@@ -21,16 +21,35 @@ import {
 } from "./activity-utils";
 import { Busy, Empty, Notice, PageHead, Status } from "./activity-ui";
 import s from "./activities.module.css";
+import { useI18n } from "../../lib/i18n/provider";
+
 
 export default function ActivityMembers({
   activity,
   onBack,
   onChanged,
+  gateway,
+  kicker,
 }: {
   activity: Activity;
   onBack: () => void;
   onChanged: (a: Activity) => void;
+  gateway?: {
+    listMembers: typeof defaultListMembers;
+    decideMember: typeof defaultDecideMember;
+    recordAttendance: typeof defaultRecordAttendance;
+    getActivity: typeof defaultGetActivity;
+  };
+  kicker?: string;
 }) {
+  const { t, intlLocale } = useI18n();
+  const { listMembers, decideMember, recordAttendance, getActivity } =
+    gateway ?? {
+      listMembers: defaultListMembers,
+      decideMember: defaultDecideMember,
+      recordAttendance: defaultRecordAttendance,
+      getActivity: defaultGetActivity,
+    };
   const [status, setStatus] = useState<MemberStatus | "">(""),
     [search, setSearch] = useState(""),
     [items, setItems] = useState<ActivityMember[]>([]),
@@ -51,6 +70,7 @@ export default function ActivityMembers({
     [message, setMessage] = useState(""),
     [conflict, setConflict] = useState(false);
   const listGeneration = useRef(0);
+  const [latestMember, setLatestMember] = useState<ActivityMember | null>(null);
   useEffect(() => {
     const c = new AbortController();
     listGeneration.current += 1;
@@ -72,7 +92,7 @@ export default function ActivityMembers({
         if (!c.signal.aborted) setLoading(false);
       });
     return () => c.abort();
-  }, [activity.id, status, epoch]);
+  }, [activity.id, status, epoch, listMembers]);
   const admitted =
     ["registration_open", "registration_closed"].includes(activity.status) &&
     !!activity.startsAt &&
@@ -96,6 +116,7 @@ export default function ActivityMembers({
     setReason("");
     setPanelError("");
     setConflict(false);
+    setLatestMember(null);
   }
   async function loadMore() {
     if (!cursor || more || loading) return;
@@ -113,7 +134,7 @@ export default function ActivityMembers({
     }
   }
   async function save(kind: "decision" | "attendance") {
-    if (!selected) return;
+    if (!selected || conflict || latestMember) return;
     setBusy(true);
     setPanelError("");
     try {
@@ -159,10 +180,8 @@ export default function ActivityMembers({
         throw new Error(
           "Peserta tidak tersedia lagi. Pilih peserta dari daftar terbaru.",
         );
-      setSelected(found);
-      setAttendance(found.attendance);
+      setLatestMember(found);
       onChanged(await getActivity(activity.id));
-      setConflict(false);
       setPanelError(
         "Data terbaru dimuat. Periksa keputusan dan alasan sebelum menyimpan ulang.",
       );
@@ -183,78 +202,73 @@ export default function ActivityMembers({
   return (
     <>
       <PageHead
-        title="Kelola peserta"
+        kicker={kicker}
+        title={t("Kelola peserta")}
         subtitle={activity.title}
         onBack={onBack}
         action={<Status status={activity.status} />}
       />
-      {message && <Notice>{message}</Notice>}
+      {message && <Notice>{t(message)}</Notice>}
       <div className={s.memberSummary}>
         <span className={s.iconCircle}>
           <UsersRound size={26} />
         </span>
         <div>
           <strong>
-            {activity.acceptedCount} / {activity.capacity ?? "—"} peserta
-            diterima
-          </strong>
+            {activity.acceptedCount} / {activity.capacity ?? "—"} {" "}{t("peserta diterima")}</strong>
           <p>
             {activity.capacity == null
-              ? "Kuota belum ditentukan"
-              : `${activity.availableSeats} tempat tersedia`}
+              ? t("Kuota belum ditentukan")
+              : t("{0} tempat tersedia", { "0": activity.availableSeats })}
           </p>
         </div>
         <div>
-          <small>Batas pendaftaran</small>
-          <strong>{dateLabel(activity.registrationClosesAt, true)}</strong>
+          <small>{t("Batas pendaftaran")}</small>
+          <strong>{t(dateLabel(activity.registrationClosesAt, true, intlLocale))}</strong>
         </div>
       </div>
       <div className={s.detailLayout}>
         <section className={s.card}>
           <div className={s.sectionHeading}>
-            <h2>Daftar peserta</h2>
+            <h2>{t("Daftar peserta")}</h2>
             <button
               className={s.secondary}
               disabled={loading || busy}
               onClick={() => setEpoch((x) => x + 1)}
             >
-              Muat ulang
-            </button>
+              {t("Muat ulang")}</button>
           </div>
-          <nav className={s.tabs} aria-label="Filter status peserta">
+          <nav className={s.tabs} aria-label={t("Filter status peserta")}>
             <button
               className={!status ? s.activeTab : ""}
               onClick={() => setStatus("")}
             >
-              Semua
-            </button>
+              {t("Semua")}</button>
             {Object.entries(memberLabels).map(([value, label]) => (
               <button
                 key={value}
                 className={status === value ? s.activeTab : ""}
                 onClick={() => setStatus(value as MemberStatus)}
               >
-                {label}
+                {t(label)}
               </button>
             ))}
           </nav>
           <label className={s.search}>
             <Search size={19} />
             <input
-              aria-label="Cari peserta yang dimuat"
+              aria-label={t("Cari peserta yang dimuat")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari nama peserta yang dimuat…"
+              placeholder={t("Cari nama peserta yang dimuat…")}
             />
           </label>
-          {error && <Notice error>{error}</Notice>}
+          {error && <Notice error>{t(error)}</Notice>}
           {loading ? (
             <Busy />
           ) : !visible.length ? (
-            <Empty title="Belum ada peserta pada daftar ini">
-              Pendaftaran peserta akan ditampilkan sesuai status yang Anda
-              pilih.
-            </Empty>
+            <Empty title={t("Belum ada peserta pada daftar ini")}>
+              {t("Pendaftaran peserta akan ditampilkan sesuai status yang Anda pilih.")}</Empty>
           ) : (
             <div className={s.memberList}>
               {visible.map((m) => (
@@ -267,39 +281,37 @@ export default function ActivityMembers({
                   <span className={s.initials}>{initials(m.displayName)}</span>
                   <span>
                     <strong>{m.displayName}</strong>
-                    <small>Mendaftar {dateLabel(m.createdAt, true)}</small>
+                    <small>{t("Mendaftar")}{" "}{t(dateLabel(m.createdAt, true, intlLocale))}</small>
                     {m.status === "accepted" && (
                       <small>
                         {m.attendance === "present"
-                          ? "Hadir"
+                          ? t("Hadir")
                           : m.attendance === "absent"
-                            ? "Tidak hadir"
-                            : "Kehadiran belum dicatat"}
+                            ? t("Tidak hadir")
+                            : t("Kehadiran belum dicatat")}
                       </small>
                     )}
                   </span>
                   <span
                     className={`${s.badge} ${m.status === "accepted" ? s.green : m.status === "requested" || m.status === "waitlisted" ? s.amber : s.neutral}`}
                   >
-                    {memberLabels[m.status]}
+                    {t(memberLabels[m.status])}
                   </span>
-                  <span className={s.textButton}>Tinjau</span>
+                  <span className={s.textButton}>{t("Tinjau")}</span>
                 </button>
               ))}
             </div>
           )}
           <footer className={s.listFooter}>
             <small>
-              {visible.length} dari {items.length} peserta dimuat · terbaru
-              lebih dahulu
-            </small>
+              {visible.length} {" "}{t("dari")}{" "}{items.length} {" "}{t("peserta dimuat · terbaru lebih dahulu")}</small>
             {cursor && (
               <button
                 className={s.secondary}
                 disabled={more}
                 onClick={() => void loadMore()}
               >
-                {more ? "Memuat…" : "Muat berikutnya"}
+                {more ? t("Memuat…") : t("Muat berikutnya")}
               </button>
             )}
           </footer>
@@ -312,14 +324,14 @@ export default function ActivityMembers({
               </span>
               <h2>{selected.displayName}</h2>
               <span className={`${s.badge} ${s.neutral}`}>
-                {memberLabels[selected.status]}
+                {t(memberLabels[selected.status])}
               </span>
               <p className={s.hint}>
-                Mendaftar {dateLabel(selected.createdAt, true)}
+                {t("Mendaftar")}{" "}{t(dateLabel(selected.createdAt, true, intlLocale))}
               </p>
               {selected.reason && (
                 <p className={s.preserve}>
-                  Catatan sebelumnya: {selected.reason}
+                  {t("Catatan sebelumnya:")}{" "}{selected.reason}
                 </p>
               )}
               {panelError && <Notice error>{panelError}</Notice>}
@@ -329,53 +341,69 @@ export default function ActivityMembers({
                   disabled={busy}
                   onClick={() => void latest()}
                 >
-                  Muat versi terbaru
-                </button>
+                  {t("Muat versi terbaru")}</button>
+              )}
+              {latestMember && (
+                <Notice>
+                  <strong>
+                    {t("Versi terbaru · revisi")}{" "}{latestMember.revision}
+                  </strong>
+                  <p>
+                    {latestMember.displayName} ·{" "}
+                    {t(memberLabels[latestMember.status])} {" "}{t("· kehadiran:")}{" "}
+                    {latestMember.attendance}
+                  </p>
+                  <p>{latestMember.reason}</p>
+                  <button
+                    className={s.secondary}
+                    disabled={busy}
+                    onClick={() => {
+                      setSelected(latestMember);
+                      setLatestMember(null);
+                      setConflict(false);
+                      setPanelError("");
+                    }}
+                  >
+                    {t("Saya sudah meninjau, pertahankan input saya")}</button>
+                </Notice>
               )}
               {transitions.length > 0 ? (
                 <>
-                  <h3>Keputusan peserta</h3>
+                  <h3>{t("Keputusan peserta")}</h3>
                   <label className={s.field}>
-                    Status baru
-                    <select
+                    {t("Status baru")}<select
                       value={transitions.includes(choice) ? choice : ""}
                       onChange={(e) =>
                         setChoice(e.target.value as typeof choice)
                       }
                     >
                       <option value="" disabled>
-                        Pilih keputusan
-                      </option>
+                        {t("Pilih keputusan")}</option>
                       {transitions.map((x) => (
                         <option key={x} value={x}>
-                          {memberLabels[x]}
+                          {t(memberLabels[x])}
                         </option>
                       ))}
                     </select>
                   </label>
                   <label className={s.field}>
-                    Alasan keputusan
-                    <textarea
+                    {t("Alasan keputusan")}<textarea
                       rows={4}
                       minLength={5}
                       maxLength={1000}
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
-                      placeholder="Jelaskan alasan keputusan, minimal 5 karakter."
+                      placeholder={t("Jelaskan alasan keputusan, minimal 5 karakter.")}
                     />
-                    <small>{reason.length}/1000 karakter</small>
+                    <small>{reason.length}{t("/1000 karakter")}</small>
                   </label>
                   {choice === "accepted" && !admitted && (
                     <p className={s.hint}>
-                      Penerimaan tersedia saat pendaftaran dibuka atau ditutup
-                      dan sebelum kegiatan mulai.
-                    </p>
+                      {t("Penerimaan tersedia saat pendaftaran dibuka atau ditutup dan sebelum kegiatan mulai.")}</p>
                   )}
                   {choice === "accepted" && !activity.availableSeats && (
                     <Notice>
-                      Kuota penuh. Peserta dapat dipertimbangkan sebagai
-                      cadangan.
-                    </Notice>
+                      {t("Kuota penuh. Peserta dapat dipertimbangkan sebagai cadangan.")}</Notice>
                   )}
                   <button
                     className={
@@ -393,21 +421,18 @@ export default function ActivityMembers({
                     onClick={() => void save("decision")}
                   >
                     <Check size={18} />
-                    {busy ? "Menyimpan…" : "Simpan keputusan"}
+                    {busy ? t("Menyimpan…") : t("Simpan keputusan")}
                   </button>
                 </>
               ) : (
                 <p className={s.hint}>
-                  Perubahan status tidak tersedia untuk peserta ini pada kondisi
-                  kegiatan sekarang.
-                </p>
+                  {t("Perubahan status tidak tersedia untuk peserta ini pada kondisi kegiatan sekarang.")}</p>
               )}
               {canAttendance && (
                 <section className={s.attendance}>
-                  <h3>Catat kehadiran</h3>
+                  <h3>{t("Catat kehadiran")}</h3>
                   <label className={s.field}>
-                    Kehadiran
-                    <select
+                    {t("Kehadiran")}<select
                       value={attendance}
                       onChange={(e) =>
                         setAttendance(
@@ -415,9 +440,9 @@ export default function ActivityMembers({
                         )
                       }
                     >
-                      <option value="unknown">Belum dicatat</option>
-                      <option value="present">Hadir</option>
-                      <option value="absent">Tidak hadir</option>
+                      <option value="unknown">{t("Belum dicatat")}</option>
+                      <option value="present">{t("Hadir")}</option>
+                      <option value="absent">{t("Tidak hadir")}</option>
                     </select>
                   </label>
                   <button
@@ -427,19 +452,15 @@ export default function ActivityMembers({
                     }
                     onClick={() => void save("attendance")}
                   >
-                    Simpan kehadiran
-                  </button>
+                    {t("Simpan kehadiran")}</button>
                   <small>
-                    Status belum dicatat tidak dihitung sebagai tidak hadir.
-                  </small>
+                    {t("Status belum dicatat tidak dihitung sebagai tidak hadir.")}</small>
                 </section>
               )}
             </>
           ) : (
-            <Empty title="Pilih peserta">
-              Tinjau permintaan, alasan keputusan, dan kehadiran dalam panel
-              ini.
-            </Empty>
+            <Empty title={t("Pilih peserta")}>
+              {t("Tinjau permintaan, alasan keputusan, dan kehadiran dalam panel ini.")}</Empty>
           )}
         </aside>
       </div>

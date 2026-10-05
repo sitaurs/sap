@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "contracts:types": "openapi-typescript ../../contracts/openapi.json -o lib/api/schema.d.ts",
-    "contracts:r1:types": "openapi-typescript ../../contracts/r1/openapi.json -o lib/api/r1-schema.d.ts"
+    "contracts:r1:types": "openapi-typescript ../../contracts/r1/openapi.json -o lib/api/r1-schema.d.ts",
+    "test:r1": "playwright test"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
@@ -20,6 +21,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^22.0.0",

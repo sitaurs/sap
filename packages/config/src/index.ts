@@ -72,7 +72,14 @@ const schema = z.object({
   REDIS_URL: urlWithProtocols(['redis:', 'rediss:']),
   SESSION_SECRET: nonPlaceholder.min(32),
   CSRF_SECRET: nonPlaceholder.min(32),
-  RESEND_API_KEY: nonPlaceholder,
+  // Resend remains the default. Legacy SMTP credentials may be used explicitly
+  // for local development without changing the production mail transport.
+  MAIL_TRANSPORT: z.enum(['resend', 'smtp']).default('resend'),
+  RESEND_API_KEY: z.preprocess(emptyToUndefined, nonPlaceholder.optional()),
+  SMTP_HOST: z.preprocess(emptyToUndefined, nonPlaceholder.optional()),
+  SMTP_PORT: z.preprocess(emptyToUndefined, z.coerce.number().int().min(1).max(65535).optional()),
+  SMTP_USER: z.preprocess(emptyToUndefined, nonPlaceholder.optional()),
+  SMTP_PASSWORD: z.preprocess(emptyToUndefined, nonPlaceholder.optional()),
   MAIL_FROM: nonPlaceholder,
   S3_ENDPOINT: urlWithProtocols(['https:']),
   S3_REGION: z.string().default('auto'),
@@ -133,6 +140,16 @@ const schema = z.object({
   SCAN_LLM_VISION_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
   NEXT_PUBLIC_MAP_STYLE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
 }).superRefine((value, context) => {
+  if (value.MAIL_TRANSPORT === 'smtp') {
+    if (value.NODE_ENV === 'production') {
+      context.addIssue({ code: 'custom', path: ['MAIL_TRANSPORT'], message: 'SMTP is only available outside production' });
+    }
+    for (const field of ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD'] as const) {
+      if (!value[field]) context.addIssue({ code: 'custom', path: [field], message: 'required when MAIL_TRANSPORT is smtp' });
+    }
+  } else if (!value.RESEND_API_KEY) {
+    context.addIssue({ code: 'custom', path: ['RESEND_API_KEY'], message: 'required when MAIL_TRANSPORT is resend' });
+  }
   if (value.SAP_HERMES_ENABLED) {
     for (const field of ['HERMES_REVIEW_URL', 'HERMES_REVIEW_SECRET'] as const) {
       if (!value[field]) context.addIssue({ code:'custom',path:[field],message:'required when SAP_HERMES_ENABLED is true' });
