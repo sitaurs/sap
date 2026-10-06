@@ -4,6 +4,8 @@
 
 Commit lokal disimpan sebelum pull. Perubahan `3fe22ff` dari GitHub kemudian digabung dengan penyelesaian konflik pada sepuluh berkas frontend. Backend, pengujian backend existing, kontrak R1, dan perbaikan media dari teman dipertahankan. Tipe R1 diregenerasi dari OpenAPI terbaru; tidak ada perubahan schema database atau migration yang dijalankan dalam penyelarasan ini.
 
+Selama proses push, GitHub menerima commit tambahan `935c9c5`. Commit tersebut juga dipull dan diselaraskan: tautan kronologi publik tersedia pada laporan berstatus terverifikasi/dalam penanganan/selesai yang memiliki ringkasan publik, walaupun belum memiliki foto publik. Terjemahan, portal dialog, dan pembatasan akses foto tetap digunakan. Push menggunakan akun GitHub **Nexuszzz** sesuai arahan pemilik proyek.
+
 - Foto sumber admin menggunakan adapter terpisah. Peserta diterima memakai `GET /api/v1/activities/{id}/source-photo/url`; pemeriksaan izin tetap dilakukan server. Form koordinator memakai mode non-admin, dan foto privat tidak menjadi fallback publik.
 - Pemilih sumber Instagram menggunakan `GET /api/v1/admin/instagram/reports` untuk pencarian ringkasan, kategori, tanggal, dan ID dengan cursor pagination. Pencarian dibatasi debounce 250 ms, request lama dibatalkan, dan halaman berikutnya tidak digabung ke query baru. Laporan manual tanpa scan tetap dapat ditemukan. Pemeriksaan lifecycle, consent/aset, milestone, sourceRevision, dan riwayat penggantian draf tetap digunakan sebelum pemilihan.
 - Retry terbatas serta pembaruan signed URL pada thumbnail/avatar dipertahankan. Dialog detail laporan memakai portal, kunci scroll, pengembalian fokus, keyboard Tab/Escape, serta format tanggal sesuai locale. Teks dan alt tetap mengikuti Indonesia/English.
