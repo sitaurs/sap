@@ -1,5 +1,13 @@
 # Catatan perubahan frontend SAP
 
+## 6 Oktober 2026 — Startup lokal sebelum sinkronisasi GitHub
+
+Frontend development dijalankan di `http://localhost:3000`, API di `http://localhost:3001`, dan worker melalui script workspace existing. Respons landing, health/readiness API langsung serta melalui proxy frontend, dan endpoint CSRF berhasil diterima. Health melaporkan database dan object storage tersedia. Pemeriksaan ini merupakan probe startup, bukan verifikasi seluruh alur pengguna.
+
+Konfigurasi email lokal memilih `MAIL_TRANSPORT=smtp` karena kredensial SMTP sudah tersedia sementara Resend belum dikonfigurasi. Perubahan tersebut hanya berada dalam `.env` yang diabaikan Git; nilai credential tidak disalin ke contract. Transport production tetap mengikuti aturan config existing.
+
+Worker menemukan penolakan kuota Redis Upstash. Respons Redis PING pada health tidak membuktikan operasi antrean tersedia; status worker perlu diperiksa terpisah. Redis dipasang melalui repository resmi Ubuntu WSL untuk menyiapkan antrean development lokal, setelah startup Docker Desktop gagal. Pada tahap catatan ini worker masih perlu diarahkan ke Redis lokal. Tidak menjalankan migration, mengubah flag rilis, mengirim email, atau memublikasikan Instagram. Script dan log startup disimpan di folder output di luar repo; tidak disertakan dalam commit.
+
 ## 6 Oktober 2026 — Ringkasan perubahan untuk commit dan handoff backend
 
 Perubahan lokal sejak `beebfdd` mencakup:
