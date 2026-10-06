@@ -208,4 +208,5 @@ Pilih hasil yang disetujui|Select approved result
 Bukti berizin dari laporan|Authorised report evidence
 Pilih foto berizin|Select authorised photo
 Belum ada foto berizin yang memenuhi pilihan ini.|No authorised photos meet this selection yet.
+Cari ringkasan, kategori, tanggal, atau ID laporan|Search summary, category, date, or report ID
 `.trim().split("\n").map(line => line.split("|")));

@@ -354,13 +354,18 @@ export const listPublicResults = (
     `/activities/${enc(id)}/public-results?${new URLSearchParams({ limit: "12", ...(cursor ? { cursor } : {}) })}`,
     signal,
   );
-export const sourcePhotoUrl = (
+export const adminSourcePhotoUrl = (
   reportId: string,
   mediaId: string,
   signal?: AbortSignal,
 ) =>
   apiGet<SapMediaUrl>(
     `/admin/reports/${enc(reportId)}/media/${enc(mediaId)}/url`,
+    signal,
+  );
+export const sourcePhotoUrl = (activityId: string, signal?: AbortSignal) =>
+  realApiGet<SapMediaUrl>(
+    `/activities/${enc(activityId)}/source-photo/url`,
     signal,
   );
 export const resultPhotoUrl = (

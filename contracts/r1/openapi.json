@@ -12827,6 +12827,212 @@
         "x-required-role": "admin"
       }
     },
+    "/activities/{id}/source-photo/url": {
+      "get": {
+        "operationId": "r1ActivitiesControllerSourcePhoto",
+        "summary": "ActivitiesController.sourcePhoto",
+        "tags": [
+          "r1-activities"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Short-lived signed URL for source evidence, available only to accepted members of an eligible public activity",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaUrlR1Response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, header, query or cursor",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Active session required",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role, relationship, email verification or CSRF denied",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing resource or inaccessible private resource",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; respect Retry-After",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Feature disabled or dependency unavailable",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "unverified",
+        "x-authorization-policy": "Authenticated actor has accepted membership; source activity and report remain publicly eligible",
+        "x-implementation-handler": "ActivitiesController.sourcePhoto",
+        "x-implementation-file": "apps/api/src/activities/activities.controller.ts"
+      }
+    },
     "/activities/{id}/results/{resultId}/media/{mediaId}/url": {
       "get": {
         "operationId": "r1ActivitiesControllerMedia",
@@ -32749,6 +32955,298 @@
         "x-contract-stage": "draft",
         "x-runtime-readiness": "implemented-locally-unverified-in-production"
       }
+    },
+    "/admin/instagram/reports": {
+      "get": {
+        "operationId": "r1PublicationsControllerReportSources",
+        "summary": "PublicationsController.reportSources",
+        "tags": [
+          "r1-publications"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            },
+            "description": "Opaque signed cursor bound to normalized search. Preserve verbatim; null nextCursor ends pagination."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 150
+            },
+            "description": "Search public summary, category, report ID, or report date."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstagramReportSourcePageR1Response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, header, query or cursor",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Active session required",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role, relationship, email verification or CSRF denied",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Missing resource or inaccessible private resource",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revision, idempotency, transition or source precondition conflict",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Previously public incident withdrawn; no historic content returned",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Evidence, consent, rendition or measurement invalid",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited; respect Retry-After",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Feature disabled or dependency unavailable",
+            "headers": {
+              "X-Contract-Version": {
+                "$ref": "#/components/headers/ContractVersion"
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "unverified",
+        "x-authorization-policy": "A",
+        "x-implementation-handler": "PublicationsController.reportSources",
+        "x-implementation-file": "apps/api/src/publications/publications.controller.ts",
+        "x-required-role": "admin"
+      }
     }
   },
   "components": {
@@ -41735,6 +42233,110 @@
         "properties": {
           "data": {
             "$ref": "#/components/schemas/HealthLivenessR1"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Meta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "InstagramReportSource": {
+        "type": "object",
+        "properties": {
+          "reportId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scanId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "verified",
+              "in_progress",
+              "resolved"
+            ]
+          },
+          "publicSummary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "categoryName": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "mediaIds": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "required": [
+          "reportId",
+          "scanId",
+          "status",
+          "publicSummary",
+          "categoryName",
+          "occurredAt",
+          "createdAt",
+          "mediaIds"
+        ],
+        "additionalProperties": false
+      },
+      "InstagramReportSourcePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstagramReportSource"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "InstagramReportSourcePageR1Response": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InstagramReportSourcePage"
           },
           "meta": {
             "$ref": "#/components/schemas/Meta"

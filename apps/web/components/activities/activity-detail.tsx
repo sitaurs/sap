@@ -45,7 +45,7 @@ import {
   Status,
   useIntentKey,
 } from "./activity-ui";
-import { SourcePhoto } from "./activity-photo";
+import { AdminSourcePhoto, SourcePhoto } from "./activity-photo";
 import DialogShell from "../instagram/dialog-shell";
 import s from "./activities.module.css";
 import d from "./activity-detail.module.css";
@@ -59,12 +59,14 @@ export default function ActivityDetail({
   onChanged,
   onNavigate,
   onReview,
+  admin = false,
 }: {
   activity: Activity;
   onBack: () => void;
   onChanged: (a: Activity) => void;
   onNavigate: (screen: string) => void;
   onReview: (id: string) => void;
+  admin?: boolean;
 }) {
   const { t, intlLocale } = useI18n();
   const [tab, setTab] = useState("summary"),
@@ -277,7 +279,11 @@ export default function ActivityDetail({
           <section className={`${s.card} ${d.overview}`}>
             <div className={d.hero}>
               <div className={`${s.sourceFrame} ${d.heroPhoto}`}>
-                <SourcePhoto reportId={a.reportId} large />
+                {admin ? (
+                  <AdminSourcePhoto reportId={a.reportId} large />
+                ) : (
+                  <SourcePhoto activityId={a.id} allowed={false} large />
+                )}
                 <span>{t("Foto laporan sumber")}</span>
               </div>
               <div className={`${s.titleRow} ${d.heroCopy}`}>

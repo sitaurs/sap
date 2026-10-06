@@ -1,12 +1,25 @@
 # Catatan perubahan frontend SAP
 
+## 6 Oktober 2026 — Pull perbaikan media dan penyelarasan frontend
+
+Commit lokal disimpan sebelum pull. Perubahan `3fe22ff` dari GitHub kemudian digabung dengan penyelesaian konflik pada sepuluh berkas frontend. Backend, pengujian backend existing, kontrak R1, dan perbaikan media dari teman dipertahankan. Tipe R1 diregenerasi dari OpenAPI terbaru; tidak ada perubahan schema database atau migration yang dijalankan dalam penyelarasan ini.
+
+- Foto sumber admin menggunakan adapter terpisah. Peserta diterima memakai `GET /api/v1/activities/{id}/source-photo/url`; pemeriksaan izin tetap dilakukan server. Form koordinator memakai mode non-admin, dan foto privat tidak menjadi fallback publik.
+- Pemilih sumber Instagram menggunakan `GET /api/v1/admin/instagram/reports` untuk pencarian ringkasan, kategori, tanggal, dan ID dengan cursor pagination. Pencarian dibatasi debounce 250 ms, request lama dibatalkan, dan halaman berikutnya tidak digabung ke query baru. Laporan manual tanpa scan tetap dapat ditemukan. Pemeriksaan lifecycle, consent/aset, milestone, sourceRevision, dan riwayat penggantian draf tetap digunakan sebelum pemilihan.
+- Retry terbatas serta pembaruan signed URL pada thumbnail/avatar dipertahankan. Dialog detail laporan memakai portal, kunci scroll, pengembalian fokus, keyboard Tab/Escape, serta format tanggal sesuai locale. Teks dan alt tetap mengikuti Indonesia/English.
+- Desain mobile, halaman Pengaturan bahasa, alur approval/publish R1, dan keputusan penghapusan menu sebelumnya dipertahankan. Tidak mengembalikan Aktivitas warga atau Antrean review.
+
+Typecheck semua workspace, build config/API/worker, dan build produksi frontend berhasil setelah penggabungan. Suite test/E2E tidak dijalankan; test backend dari GitHub tetap disertakan tanpa klaim telah dieksekusi pada sesi ini. Audit staged files sebelum commit memeriksa secret lokal, pola credential, dan file environment. File `.env` asli serta output runtime tidak disertakan; pemeriksaan tidak mencetak credential.
+
 ## 6 Oktober 2026 — Startup lokal sebelum sinkronisasi GitHub
 
 Frontend development dijalankan di `http://localhost:3000`, API di `http://localhost:3001`, dan worker melalui script workspace existing. Respons landing, health/readiness API langsung serta melalui proxy frontend, dan endpoint CSRF berhasil diterima. Health melaporkan database dan object storage tersedia. Pemeriksaan ini merupakan probe startup, bukan verifikasi seluruh alur pengguna.
 
 Konfigurasi email lokal memilih `MAIL_TRANSPORT=smtp` karena kredensial SMTP sudah tersedia sementara Resend belum dikonfigurasi. Perubahan tersebut hanya berada dalam `.env` yang diabaikan Git; nilai credential tidak disalin ke contract. Transport production tetap mengikuti aturan config existing.
 
-Worker menemukan penolakan kuota Redis Upstash. Respons Redis PING pada health tidak membuktikan operasi antrean tersedia; status worker perlu diperiksa terpisah. Redis dipasang melalui repository resmi Ubuntu WSL untuk menyiapkan antrean development lokal, setelah startup Docker Desktop gagal. Pada tahap catatan ini worker masih perlu diarahkan ke Redis lokal. Tidak menjalankan migration, mengubah flag rilis, mengirim email, atau memublikasikan Instagram. Script dan log startup disimpan di folder output di luar repo; tidak disertakan dalam commit.
+Worker menemukan penolakan kuota Redis Upstash. Respons Redis PING pada health tidak membuktikan operasi antrean tersedia; status worker perlu diperiksa terpisah. Redis dipasang melalui repository resmi Ubuntu WSL untuk menyiapkan antrean development lokal, setelah startup Docker Desktop gagal. API/worker kemudian dijalankan dengan override proses `REDIS_URL=redis://127.0.0.1:6380`; Redis hanya bind loopback dan menyimpan data antrean lokal terpisah. URL Redis cloud asli tetap dalam konfigurasi lokal yang diabaikan Git.
+
+**Blocker backend:** sesudah koneksi Redis lokal tersedia, polling worker melaporkan tabel `scan_outbox` belum ada pada database yang dikonfigurasi. Proses worker berjalan, tetapi relay antrean scan belum dapat berfungsi lengkap. Pemilik backend perlu menyiapkan migration yang sesuai pada lingkungan database tujuan; sesi ini tidak menjalankan migration secara otomatis. Tidak mengubah flag rilis, mengirim email, atau memublikasikan Instagram. Script, log, dan data Redis startup disimpan di folder output di luar repo; tidak disertakan dalam commit.
 
 ## 6 Oktober 2026 — Ringkasan perubahan untuk commit dan handoff backend
 

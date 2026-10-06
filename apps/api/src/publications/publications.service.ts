@@ -38,6 +38,33 @@ export class PublicationsService{
   const [total]=await this.store.db`SELECT count(*)::int AS n FROM instagram_posts WHERE (${!reportId} OR report_id=${reportId??'00000000-0000-4000-8000-000000000000'}::uuid) AND (${status===null} OR status=${status??''}) AND created_at>=${cutoff} AND (caption ILIKE ${like} OR source_snapshot->>'title' ILIKE ${like})`;if(!total)fail(500,'RESOURCE_STATE_INVALID');
   const selected=rows.slice(0,page.limit);return {items:await Promise.all(selected.map(r=>this.dto(r))),nextCursor:rows.length>page.limit?page.encode(selected[selected.length-1] as {id:string;created_at:Date}):null,total:total.n};
  }
+ async reportSources(actor:Actor,query:Record<string,unknown>){
+  this.gate(actor);
+  const search=query.search===undefined?'':input.text(query.search,0,150),like='%'+search.replace(/[\\%_]/g,'\\$&')+'%';
+  const page=this.store.cursor(query,{search}),b=page.boundary;
+  const rows=await this.store.db`SELECT r.id,r.scan_id,r.status,r.public_summary,r.occurred_at,r.created_at,c.name_id AS category_name,
+   ARRAY(SELECT a.media_id FROM report_media rm JOIN media_publication_approvals a ON a.report_id=rm.report_id AND a.media_id=rm.media_id
+    JOIN evidence_renditions er ON er.id=a.rendition_id JOIN media_consents mc ON mc.media_id=a.media_id JOIN media m ON m.id=a.media_id
+    WHERE rm.report_id=r.id AND a.subject_type='report' AND a.subject_id=r.id AND a.channel='instagram' AND a.approved
+     AND er.status='ready' AND er.subject_type=a.subject_type AND er.subject_id=a.subject_id AND er.media_id=a.media_id
+     AND 'instagram'=ANY(mc.channels) AND m.state='stored' AND m.deleted_at IS NULL ORDER BY rm.sort_order,rm.created_at,a.media_id) AS media_ids
+   FROM reports r LEFT JOIN categories c ON c.id=r.category_id
+   WHERE r.public_visibility='public' AND r.instagram_allowed AND r.status IN ('verified','in_progress','resolved')
+    AND r.duplicate_of_id IS NULL AND r.public_summary IS NOT NULL AND r.public_summary<>''
+    AND (${search==='' } OR r.public_summary ILIKE ${like} OR COALESCE(c.name_id,'') ILIKE ${like}
+     OR r.id::text ILIKE ${like} OR to_char(COALESCE(r.occurred_at,r.created_at) AT TIME ZONE 'Asia/Jakarta','YYYY-MM-DD') ILIKE ${like})
+    AND EXISTS(SELECT 1 FROM report_media rm JOIN media_publication_approvals a ON a.report_id=rm.report_id AND a.media_id=rm.media_id
+     JOIN evidence_renditions er ON er.id=a.rendition_id JOIN media_consents mc ON mc.media_id=a.media_id JOIN media m ON m.id=a.media_id
+     WHERE rm.report_id=r.id AND a.subject_type='report' AND a.subject_id=r.id AND a.channel='instagram' AND a.approved
+      AND er.status='ready' AND er.subject_type=a.subject_type AND er.subject_id=a.subject_id AND er.media_id=a.media_id
+      AND 'instagram'=ANY(mc.channels) AND m.state='stored' AND m.deleted_at IS NULL)
+    AND (${b===null} OR (r.created_at,r.id)<(${b?.at??new Date().toISOString()}::timestamptz,${b?.id??'00000000-0000-4000-8000-000000000000'}::uuid))
+   ORDER BY r.created_at DESC,r.id DESC LIMIT ${page.limit+1}`;
+  const selected=rows.slice(0,page.limit);
+  return {items:selected.map(r=>({reportId:r.id,scanId:r.scan_id,status:r.status,publicSummary:r.public_summary,
+   categoryName:r.category_name??'Belum dikategorikan',occurredAt:iso(r.occurred_at??r.created_at)!,createdAt:iso(r.created_at)!,mediaIds:r.media_ids as string[]})),
+   nextCursor:rows.length>page.limit?page.encode(selected[selected.length-1] as {id:string;created_at:Date}):null};
+ }
  async get(actor:Actor,id:string){this.gate(actor);return this.dto(await this.post(this.store.db,input.uuid(id)));}
  async preview(actor:Actor,id:string){const post=await this.get(actor,id);return {postId:post.id,revision:post.revision,contentRevision:post.contentRevision,sourceRevision:post.source.sourceRevision,caption:post.caption,altText:post.altText,rendition:post.rendition,approval:post.approval};}
  async create(actor:Actor,key:string,raw:unknown){

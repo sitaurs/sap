@@ -8,6 +8,8 @@ import type {
   PublicationSettings,
   PublicationOperation,
 } from "../../components/instagram/types";
+export type InstagramReportSourcePage = R1["InstagramReportSourcePage"];
+
 const BASE = "/admin/instagram";
 const statuses = [
   "draft",
@@ -82,6 +84,15 @@ export async function getInstagramOverview(
     invalid();
   return v;
 }
+export async function searchInstagramReportSources(search: string, cursor?: string, signal?: AbortSignal): Promise<InstagramReportSourcePage> {
+  const params = new URLSearchParams({ limit: "20" });
+  if (search.trim()) params.set("search", search.trim());
+  if (cursor) params.set("cursor", cursor);
+  const page = await r1Get<InstagramReportSourcePage>(`${BASE}/reports?${params}`, signal);
+  if (!page || !Array.isArray(page.items) || !(page.nextCursor === null || typeof page.nextCursor === "string")) invalid();
+  return page;
+}
+
 export async function listInstagramPosts(
   filters: PublicationQuery,
   signal?: AbortSignal,

@@ -31,7 +31,7 @@ import {
   uniqueItems,
 } from "./activity-utils";
 import { Busy, Empty, Notice, PageHead, useIntentKey } from "./activity-ui";
-import { SourcePhoto } from "./activity-photo";
+import { AdminSourcePhoto } from "./activity-photo";
 import DialogShell from "../instagram/dialog-shell";
 import s from "./activities.module.css";
 import { useI18n } from "../../lib/i18n/provider";
@@ -42,11 +42,13 @@ export default function ActivityForm({
   categories,
   onBack,
   onSaved,
+  admin = true,
 }: {
   activity?: Activity;
   categories: SapCategory[];
   onBack: () => void;
   onSaved: (a: Activity) => void;
+  admin?: boolean;
 }) {
   const { t, intlLocale } = useI18n();
   const [current, setCurrent] = useState(activity),
@@ -295,7 +297,7 @@ export default function ActivityForm({
             </div>
             {activity ? (
               <div className={s.selectedSource}>
-                <SourcePhoto reportId={activity.reportId} />
+                {admin ? <AdminSourcePhoto reportId={activity.reportId} /> : <span className={s.thumbnail}><FileText size={26} /></span>}
                 <div>
                   <strong>{t("Laporan #")}{shortId(activity.reportId)}</strong>
                   <small>
@@ -332,7 +334,7 @@ export default function ActivityForm({
                         onChange={() => setReportId(r.id)}
                         required
                       />
-                      <SourcePhoto reportId={r.id} />
+                      <AdminSourcePhoto reportId={r.id} />
                       <span>
                         <strong>
                           {categories.find((c) => c.id === r.categoryId)
@@ -601,7 +603,7 @@ export default function ActivityForm({
           </section>
           {source && (
             <section className={s.card}>
-              <SourcePhoto reportId={source.id} large />
+              <AdminSourcePhoto reportId={source.id} large />
               <small>{t("Laporan #")}{shortId(source.id)}</small>
               <p className={s.clamp}>{source.description}</p>
             </section>

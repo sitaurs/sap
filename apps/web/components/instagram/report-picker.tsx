@@ -1,21 +1,21 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  listAdminReports,
   type SapCategory,
-  type SapReport,
 } from "../../lib/api/client";
 import { getIncident } from "../../lib/api/community";
-import { reportLifecycle, reportPublications } from "../../lib/api/instagram";
+import { reportLifecycle, reportPublications, searchInstagramReportSources, type InstagramReportSourcePage } from "../../lib/api/instagram";
 import { r1Error, type R1 } from "../../lib/api/r1";
 import PublicationPhoto from "./publication-photo";
 import DialogShell from "./dialog-shell";
 import { Notice } from "./publication-ui";
 import { shortId } from "./publication-utils";
 import type { PostPreview } from "./types";
-import { Empty, Failure, usePage } from "../community/community-ui";
+import { Empty, Failure } from "../community/community-ui";
 import styles from "./instagram.module.css";
 import { useI18n } from "../../lib/i18n/provider";
+
+type ReportSource = InstagramReportSourcePage["items"][number];
 
 export default function ReportPicker({
   categories,
@@ -29,20 +29,47 @@ export default function ReportPicker({
   onModeration: () => void;
 }) {
   const { t } = useI18n();
-  const loader = useCallback(
-      (cursor?: string, signal?: AbortSignal) =>
-        listAdminReports(undefined, cursor, signal),
-      [],
-    ),
-    page = usePage(loader);
   const [search, setSearch] = useState("");
-  const visible = page.items.filter(
-    (r) =>
-      ["verified", "in_progress", "resolved"].includes(r.status) &&
-      `${r.publicSummary ?? ""} ${r.id}`
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-  );
+  const [submittedSearch, setSubmittedSearch] = useState("");
+  const [reports, setReports] = useState<ReportSource[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
+  const request = useRef<AbortController | null>(null);
+  const load = useCallback(async (query: string, next?: string) => {
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
+    setLoading(true);
+    setError(null);
+    if (!next) {
+      setReports([]);
+      setCursor(null);
+    }
+    try {
+      const page = await searchInstagramReportSources(query, next, controller.signal);
+      if (controller.signal.aborted) return;
+      setReports(current => next
+        ? [...new Map([...current, ...page.items].map(report => [report.reportId, report])).values()]
+        : page.items);
+      setCursor(page.nextCursor);
+      setSubmittedSearch(query);
+    } catch (cause) {
+      if (!controller.signal.aborted) setError(cause);
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    request.current?.abort();
+    setLoading(true);
+    const timer = window.setTimeout(() => void load(search.trim()), 250);
+    return () => {
+      window.clearTimeout(timer);
+      request.current?.abort();
+    };
+  }, [load, search]);
+  const searchPending = search.trim() !== submittedSearch;
   return (
     <DialogShell
       wide
@@ -53,7 +80,7 @@ export default function ReportPicker({
       <Notice>
         {t("Daftar laporan bukan bukti izin Instagram. Kelayakan dan versi foto diperiksa melalui lifecycle tiap laporan.")}</Notice>
       <label className={styles.field}>
-        <span>{t("Cari laporan yang dimuat")}</span>
+        <span>{t("Cari ringkasan, kategori, tanggal, atau ID laporan")}</span>
         <input
           type="search"
           value={search}
@@ -62,29 +89,29 @@ export default function ReportPicker({
         />
       </label>
       <div className={styles.sourceList}>
-        {visible.map((report) => (
+        {reports.map((report) => (
           <EligibleSource
-            key={report.id}
+            key={report.reportId}
             report={report}
             categories={categories}
             onChoose={onChoose}
           />
         ))}
       </div>
-      {page.error !== null && (
-        <Failure error={page.error} retry={page.refresh} />
+      {error !== null && (
+        <Failure error={error} retry={() => void load(search.trim())} />
       )}{" "}
-      {page.loading ? (
+      {loading ? (
         <p role="status">{t("Memuat laporan…")}</p>
-      ) : !visible.length && page.error === null ? (
+      ) : !reports.length && error === null ? (
         <Empty>
           {t("Belum ada laporan yang cocok. Tinjau sumber melalui moderasi.")}</Empty>
       ) : null}
-      {page.cursor && (
+      {cursor && (
         <button
           className={styles.secondary}
-          disabled={page.loading}
-          onClick={() => void page.more()}
+          disabled={loading || searchPending}
+          onClick={() => void load(submittedSearch, cursor)}
         >
           {t("Muat laporan berikutnya")}</button>
       )}
@@ -98,7 +125,7 @@ function EligibleSource({
   categories,
   onChoose,
 }: {
-  report: SapReport;
+  report: ReportSource;
   categories: SapCategory[];
   onChoose: (preview: Omit<PostPreview, "caption">) => void;
 }) {
@@ -117,9 +144,9 @@ function EligibleSource({
     setLoading(true);
     setError("");
     Promise.all([
-      reportLifecycle(report.id, c.signal),
-      getIncident(report.id, c.signal),
-      reportPublications(report.id, undefined, c.signal),
+      reportLifecycle(report.reportId, c.signal),
+      getIncident(report.reportId, c.signal),
+      reportPublications(report.reportId, undefined, c.signal),
     ])
       .then(([l, i, p]) => {
         if (c.signal.aborted) return;
@@ -138,7 +165,7 @@ function EligibleSource({
         if (!c.signal.aborted) setLoading(false);
       });
     return () => c.abort();
-  }, [open, report.id]);
+  }, [open, report.reportId]);
   const selected = lifecycle?.publicationMilestones.find(
       (m) => m.id === milestone,
     ),
@@ -186,7 +213,7 @@ function EligibleSource({
           ? replacement.id
           : null,
       source: {
-        reportId: report.id,
+        reportId: report.reportId,
         sourceRevision: lifecycle.sourceRevision,
         scanId: report.scanId,
         status: incident.status,
@@ -197,8 +224,8 @@ function EligibleSource({
             ? `${selected?.outcome === "partial" ? "Penanganan sebagian" : "Hasil penanganan"}: ${incident.title}`
             : incident.title,
         categoryName:
-          categories.find((c) => c.id === report.categoryId)?.name ??
-          "Sampah lainnya",
+          categories.find((c) => c.id === report.categoryName || c.name === report.categoryName)?.name ??
+          report.categoryName ?? t("Sampah lainnya"),
         mediaId,
         publicSummary:
           kind === "resolution" ? selected!.summary : incident.summary,
@@ -207,7 +234,7 @@ function EligibleSource({
   }
   return (
     <article className={styles.sourceCard}>
-      <h3>{report.publicSummary ?? `Laporan #${shortId(report.id)}`}</h3>
+      <h3>{report.publicSummary ?? `Laporan #${shortId(report.reportId)}`}</h3>
       <button className={styles.secondary} onClick={() => setOpen((v) => !v)}>
         {open ? t("Tutup pilihan") : t("Periksa kelayakan publikasi")}
       </button>
@@ -269,7 +296,7 @@ function EligibleSource({
                   >
                     <PublicationPhoto
                       mediaId={asset.mediaId}
-                      reportId={report.id}
+                      reportId={report.reportId}
                       alt={t("Bukti berizin dari laporan")}
                       className={styles.choicePhoto}
                     />

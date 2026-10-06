@@ -35,6 +35,7 @@ export class ActivitiesController {
  @Post(':id/results') @UseGuards(SessionAuthGuard) createResult(@CurrentUser() actor:Actor,@Param('id') id:string,@Headers('idempotency-key') key:string,@Body() body:unknown) {return this.results.create(actor,id,key,body);}
  @Get(':id/results/:resultId') @UseGuards(SessionAuthGuard) result(@CurrentUser() actor:Actor,@Param('id') id:string,@Param('resultId') resultId:string) {return this.results.get(actor,id,resultId);}
  @Patch(':id/results/:resultId') @UseGuards(SessionAuthGuard) editResult(@CurrentUser() actor:Actor,@Param('id') id:string,@Param('resultId') resultId:string,@Headers('if-match') match:string,@Body() body:unknown) {return this.results.edit(actor,id,resultId,revision(match),body);}
+ @Get(':id/source-photo/url') @UseGuards(SessionAuthGuard) sourcePhoto(@CurrentUser() actor:Actor,@Param('id') id:string) {return this.results.sourcePhoto(actor,id);}
  @Get(':id/results/:resultId/media/:mediaId/url') @UseGuards(SessionAuthGuard) media(@CurrentUser() actor:Actor,@Param('id') id:string,@Param('resultId') resultId:string,@Param('mediaId') mediaId:string) {return this.results.privateMedia(actor,id,resultId,mediaId);}
  @Get(':id/public-results') publicResults(@Param('id') id:string,@Query() query:Record<string,unknown>) {return this.results.publicResults(id,query);}
  @Post(':id/measurements') @UseGuards(SessionAuthGuard) createMeasurement(@CurrentUser() actor:Actor,@Param('id') id:string,@Headers('idempotency-key') key:string,@Body() body:unknown) {return this.results.createMeasurement(actor,id,key,body);}

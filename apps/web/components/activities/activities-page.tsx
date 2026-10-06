@@ -36,7 +36,7 @@ import {
   initials,
 } from "./activity-utils";
 import { Busy, Empty, Notice, PageHead, Status } from "./activity-ui";
-import { SourcePhoto } from "./activity-photo";
+import { AdminSourcePhoto } from "./activity-photo";
 import ActivityDetail from "./activity-detail";
 import ActivityForm from "./activity-form";
 import ActivityMembers from "./activity-members";
@@ -371,6 +371,7 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
         ) : (
           <ActivityDetail
             {...common}
+            admin
             onNavigate={(screen) => go(screen, detail.id)}
             onReview={(id) => void openResult(id)}
           />
@@ -519,7 +520,7 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
                       aria-pressed={preview?.id === a.id}
                     >
                       <span className={s.rowHeading}>
-                        <SourcePhoto reportId={a.reportId} />
+                        <AdminSourcePhoto reportId={a.reportId} />
                         <span className={s.rowMain}>
                           <strong>{a.title}</strong>
                           <small>{t("Laporan #")}{shortId(a.reportId)}</small>
@@ -555,7 +556,7 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
               </div>
               {preview ? (
                 <>
-                  <div className={s.sourceFrame}><SourcePhoto reportId={preview.reportId} large /><span>{t("Foto laporan sumber")}</span></div>
+                  <div className={s.sourceFrame}><AdminSourcePhoto reportId={preview.reportId} large /><span>{t("Foto laporan sumber")}</span></div>
                   <div className={s.previewTitle}><h3>{preview.title}</h3><Status status={preview.status} /></div>
                   <div className={s.infoLine}><Link2 size={19} /><span><small>{t("Terhubung ke laporan")}</small>{t("Laporan #")}{shortId(preview.reportId)}</span></div>
                   <div className={s.infoLine}>
@@ -628,7 +629,7 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
                     onClick={() => void openResult(q.subjectId)}
                     disabled={detailLoading}
                   >
-                    <SourcePhoto reportId={q.reportId} />
+                    <AdminSourcePhoto reportId={q.reportId} />
                     <span>
                       <strong>{q.title}</strong>
                       <small>

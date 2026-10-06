@@ -926,6 +926,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/activities/{id}/source-photo/url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ActivitiesController.sourcePhoto */
+        get: operations["r1ActivitiesControllerSourcePhoto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/activities/{id}/results/{resultId}/media/{mediaId}/url": {
         parameters: {
             query?: never;
@@ -1964,6 +1981,23 @@ export interface paths {
         };
         /** Dependency readiness dengan status aman per komponen */
         get: operations["r1GetHealthReadiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/instagram/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** PublicationsController.reportSources */
+        get: operations["r1PublicationsControllerReportSources"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3869,6 +3903,28 @@ export interface components {
         };
         HealthLivenessR1Response: {
             data: components["schemas"]["HealthLivenessR1"];
+            meta: components["schemas"]["Meta"];
+        };
+        InstagramReportSource: {
+            /** Format: uuid */
+            reportId: string;
+            scanId: string | null;
+            /** @enum {string} */
+            status: "verified" | "in_progress" | "resolved";
+            publicSummary: string;
+            categoryName: string;
+            /** Format: date-time */
+            occurredAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            mediaIds: string[];
+        };
+        InstagramReportSourcePage: {
+            items: components["schemas"]["InstagramReportSource"][];
+            nextCursor: string | null;
+        };
+        InstagramReportSourcePageR1Response: {
+            data: components["schemas"]["InstagramReportSourcePage"];
             meta: components["schemas"]["Meta"];
         };
     };
@@ -11280,6 +11336,108 @@ export interface operations {
             };
             /** @description Evidence, consent, rendition or measurement invalid */
             422: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limited; respect Retry-After */
+            429: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server error */
+            500: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Feature disabled or dependency unavailable */
+            503: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    r1ActivitiesControllerSourcePhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Short-lived signed URL for source evidence, available only to accepted members of an eligible public activity */
+            200: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaUrlR1Response"];
+                };
+            };
+            /** @description Invalid body, header, query or cursor */
+            400: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Active session required */
+            401: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Role, relationship, email verification or CSRF denied */
+            403: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Missing resource or inaccessible private resource */
+            404: {
                 headers: {
                     "X-Contract-Version": components["headers"]["ContractVersion"];
                     "Cache-Control"?: "no-store";
@@ -20922,6 +21080,145 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthReadinessR1Response"];
+                };
+            };
+        };
+    };
+    r1PublicationsControllerReportSources: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque signed cursor bound to normalized search. Preserve verbatim; null nextCursor ends pagination. */
+                cursor?: string;
+                /** @description Search public summary, category, report ID, or report date. */
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramReportSourcePageR1Response"];
+                };
+            };
+            /** @description Invalid body, header, query or cursor */
+            400: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Active session required */
+            401: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Role, relationship, email verification or CSRF denied */
+            403: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Missing resource or inaccessible private resource */
+            404: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Revision, idempotency, transition or source precondition conflict */
+            409: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Previously public incident withdrawn; no historic content returned */
+            410: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Evidence, consent, rendition or measurement invalid */
+            422: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limited; respect Retry-After */
+            429: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server error */
+            500: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Feature disabled or dependency unavailable */
+            503: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
         };
