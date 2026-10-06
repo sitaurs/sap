@@ -11,6 +11,7 @@ import {PublicationsService} from './publications.service.js';
 export class PublicationsController{
  constructor(private readonly service:PublicationsService){}
  @Get() overview(@CurrentUser() a:Actor){return this.service.overview(a);}
+ @Get('reports') reportSources(@CurrentUser() a:Actor,@Query() q:Record<string,unknown>){return this.service.reportSources(a,q);}
  @Get('posts') list(@CurrentUser() a:Actor,@Query() q:Record<string,unknown>){return this.service.list(a,q);}
  @Post('posts') @HttpCode(201) create(@CurrentUser() a:Actor,@Headers('idempotency-key') key:string,@Body() b:unknown){return this.service.create(a,key,b);}
  @Get('posts/:id') get(@CurrentUser() a:Actor,@Param('id') id:string){return this.service.get(a,id);}

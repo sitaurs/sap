@@ -161,6 +161,10 @@ export default function SettingsView(props: Props) {
   const [profileError, setProfileError] = useState("");
   const [profileSaved, setProfileSaved] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const [avatarRetry, setAvatarRetry] = useState(0);
+  const avatarAttempts = useRef(0);
+  const avatarRetryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarError, setAvatarError] = useState("");
   const [avatarSuccess, setAvatarSuccess] = useState("");
@@ -174,7 +178,13 @@ export default function SettingsView(props: Props) {
   const [signingOut, setSigningOut] = useState(false);
   useEffect(() => setName(props.displayName), [props.displayName]);
   useEffect(() => {
-    if (!props.avatarMediaId) { setAvatarUrl(null); return; }
+    avatarAttempts.current = 0;
+    setAvatarUrl(null);
+    setAvatarFailed(false);
+    if (avatarRetryTimer.current) clearTimeout(avatarRetryTimer.current);
+  }, [props.avatarMediaId]);
+  useEffect(() => {
+    if (!props.avatarMediaId) return;
     const abort = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     async function resolveAvatar() {
@@ -182,11 +192,42 @@ export default function SettingsView(props: Props) {
         const result = await mediaUrl(props.avatarMediaId!, abort.signal);
         if (abort.signal.aborted) return;
         setAvatarUrl(result.url);
-        timer = setTimeout(() => void resolveAvatar(), Math.max(30000, new Date(result.expiresAt).getTime() - Date.now() - 30000));
-      } catch { if (!abort.signal.aborted) setAvatarUrl(null); }
+        setAvatarFailed(false);
+        timer = setTimeout(() => void resolveAvatar(), Math.max(15000, new Date(result.expiresAt).getTime() - Date.now() - 30000));
+      } catch {
+        if (abort.signal.aborted) return;
+        setAvatarUrl(null);
+        if (avatarAttempts.current < 3) {
+          const delay = 1000 * 2 ** avatarAttempts.current++;
+          timer = setTimeout(() => void resolveAvatar(), delay);
+        } else setAvatarFailed(true);
+      }
     }
-    void resolveAvatar(); return () => { abort.abort(); if (timer) clearTimeout(timer); };
-  }, [props.avatarMediaId]);
+    void resolveAvatar();
+    return () => { abort.abort(); if (timer) clearTimeout(timer); if (avatarRetryTimer.current) clearTimeout(avatarRetryTimer.current); };
+  }, [props.avatarMediaId, avatarRetry]);
+  function retryAvatar() {
+    if (!props.avatarMediaId) return;
+    avatarAttempts.current = 0;
+    if (avatarRetryTimer.current) clearTimeout(avatarRetryTimer.current);
+    setAvatarFailed(false);
+    setAvatarUrl(null);
+    setAvatarRetry(value => value + 1);
+  }
+  function avatarImageError() {
+    if (avatarRetryTimer.current) clearTimeout(avatarRetryTimer.current);
+    if (avatarAttempts.current >= 3) { setAvatarUrl(null); setAvatarFailed(true); return; }
+    avatarAttempts.current += 1;
+    const delay = 1000 * 2 ** (avatarAttempts.current - 1);
+    avatarRetryTimer.current = setTimeout(() => {
+      setAvatarUrl(null);
+      setAvatarFailed(false);
+      setAvatarRetry(value => value + 1);
+    }, delay);
+  }
+  const avatarImage = avatarUrl && !avatarFailed
+    ? <Image className={styles.userPhoto} src={avatarUrl} alt="Foto profil Anda" width={160} height={160} unoptimized onError={avatarImageError} />
+    : <Image className={styles.defaultAvatar} src="/images/settings/profile-botanical.webp" alt="Foto profil Anda" width={160} height={160} />;
   async function saveProfile(event: FormEvent) {
     event.preventDefault(); if (saving) return;
     if (name.trim().length < 2) { setProfileError("Nama lengkap minimal 2 karakter."); return; }
@@ -218,7 +259,7 @@ export default function SettingsView(props: Props) {
   }
   async function signOut() { if (signingOut) return; setSigningOut(true); try { await props.onSignOut(); } finally { setSigningOut(false); } }
   return <div className={styles.page}><header className={styles.pageHeading}><h1>Pengaturan</h1><p>Kelola profil, keamanan, dan preferensi akun SAP.</p></header><div className={styles.grid}>
-    <section className={styles.card}><CardHeading icon={<UserRound size={28} />} title="Profil" description="Kelola informasi akun Anda." /><h3 className={styles.avatarLabel}>Foto profil</h3><div className={styles.avatarRow}><button className={styles.avatarButton} type="button" onClick={() => avatarInput.current?.click()} disabled={avatarBusy} aria-label="Ganti foto profil"><Image className={avatarUrl ? styles.userPhoto : styles.defaultAvatar} src={avatarUrl || "/images/settings/profile-botanical.webp"} alt="Foto profil Anda" width={160} height={160} unoptimized={Boolean(avatarUrl)} /><span><Camera size={21} /></span></button><div className={styles.avatarInfo}><h4>Foto profil</h4><p>Gunakan foto yang jelas untuk memudahkan identifikasi.</p><div className={styles.avatarActions}><button className={styles.outlineButton} type="button" onClick={() => avatarInput.current?.click()} disabled={avatarBusy}>{avatarBusy ? <LoaderCircle className={styles.spinner} size={18} /> : <Camera size={18} />}{avatarBusy ? "Memproses…" : "Ganti foto"}</button>{props.avatarMediaId && <button className={styles.textButton} type="button" onClick={() => void changeAvatar(null)} disabled={avatarBusy}>Hapus foto</button>}</div><small>JPEG, PNG, WebP · maks. 10 MB</small></div></div><input ref={avatarInput} type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void changeAvatar(file); }} /><Feedback error={avatarError} success={avatarSuccess} /><form className={styles.profileForm} onSubmit={saveProfile}><label className={styles.field} htmlFor="settings-name">Nama lengkap<span className={styles.inputWrap}><UserRound size={19} /><input id="settings-name" value={name} onChange={event => { setName(event.target.value); setProfileSaved(false); }} minLength={2} maxLength={80} autoComplete="name" required /></span></label><label className={styles.field} htmlFor="settings-email">Email<span className={`${styles.inputWrap} ${styles.readOnly}`}><Mail size={19} /><input id="settings-email" type="email" value={props.email} readOnly aria-readonly="true" /></span><small>Email belum dapat diubah.</small></label><button className={styles.primaryButton} type="submit" disabled={saving}>{saving ? <LoaderCircle className={styles.spinner} size={18} /> : <Save size={18} />}{saving ? "Menyimpan…" : "Simpan perubahan"}</button><Feedback error={profileError} success={profileSaved ? "Profil berhasil disimpan." : undefined} /></form></section>
+    <section className={styles.card}><CardHeading icon={<UserRound size={28} />} title="Profil" description="Kelola informasi akun Anda." /><h3 className={styles.avatarLabel}>Foto profil</h3><div className={styles.avatarRow}><button className={styles.avatarButton} type="button" onClick={() => avatarInput.current?.click()} disabled={avatarBusy} aria-label="Ganti foto profil">{avatarImage}<span><Camera size={21} /></span></button><div className={styles.avatarInfo}><h4>Foto profil</h4><p>Gunakan foto yang jelas untuk memudahkan identifikasi.</p><div className={styles.avatarActions}><button className={styles.outlineButton} type="button" onClick={() => avatarInput.current?.click()} disabled={avatarBusy}>{avatarBusy ? <LoaderCircle className={styles.spinner} size={18} /> : <Camera size={18} />}{avatarBusy ? "Memproses…" : "Ganti foto"}</button>{props.avatarMediaId && <button className={styles.textButton} type="button" onClick={() => void changeAvatar(null)} disabled={avatarBusy}>Hapus foto</button>}</div><small>JPEG, PNG, WebP · maks. 10 MB</small></div></div><input ref={avatarInput} type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void changeAvatar(file); }} /><Feedback error={avatarError} success={avatarSuccess} /><form className={styles.profileForm} onSubmit={saveProfile}><label className={styles.field} htmlFor="settings-name">Nama lengkap<span className={styles.inputWrap}><UserRound size={19} /><input id="settings-name" value={name} onChange={event => { setName(event.target.value); setProfileSaved(false); }} minLength={2} maxLength={80} autoComplete="name" required /></span></label><label className={styles.field} htmlFor="settings-email">Email<span className={`${styles.inputWrap} ${styles.readOnly}`}><Mail size={19} /><input id="settings-email" type="email" value={props.email} readOnly aria-readonly="true" /></span><small>Email belum dapat diubah.</small></label><button className={styles.primaryButton} type="submit" disabled={saving}>{saving ? <LoaderCircle className={styles.spinner} size={18} /> : <Save size={18} />}{saving ? "Menyimpan…" : "Simpan perubahan"}</button><Feedback error={profileError} success={profileSaved ? "Profil berhasil disimpan." : undefined} /></form></section>
     <section className={styles.card}><CardHeading icon={<ShieldCheck size={28} />} title="Keamanan akun" description="Lindungi akun Anda dengan pengaturan keamanan yang tepat." /><PasswordChange /><MfaSettings /></section>
     <section className={styles.card}><CardHeading icon={<LockKeyhole size={26} />} title="Privasi laporan" description="Pelajari perlindungan data laporan Anda." /><div className={styles.privacyInset}><div><h3>Foto dan koordinat laporan tidak langsung ditampilkan ke publik.</h3><p>Peta publik menampilkan ringkasan data terverifikasi.</p></div><Image src="/images/settings/privacy-report.webp" alt="" width={210} height={210} sizes="(max-width: 600px) 135px, 200px" /></div></section>
     <section className={styles.card}><CardHeading icon={<Image src="/images/sapa/SAPA_Chat_Avatar.png" alt="" width={44} height={44} />} title="Pet SAPA" description="Tampilkan asisten kecil di dashboard." /><div className={styles.sapaInset}><Image className={styles.sapaArtwork} src="/images/settings/sapa-welcome.webp" alt="" width={190} height={190} sizes="(max-width: 600px) 135px, 185px" /><div><p>Pet SAPA membantu Anda menemukan informasi, panduan, dan tips selama menggunakan SAP.</p><label className={styles.toggleRow}><button className={`${styles.toggle} ${props.sapaEnabled ? styles.toggleOn : ""}`} type="button" role="switch" aria-checked={props.sapaEnabled} aria-label="Tampilkan Pet SAPA" disabled={props.sapaSaving} onClick={props.onToggleSapa}><span /></button><span role="status">{props.sapaSaving ? "Menyimpan…" : props.sapaEnabled ? "Aktif" : "Nonaktif"}</span></label><small>Preferensi tersimpan pada akun Anda.</small></div></div></section>

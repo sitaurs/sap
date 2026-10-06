@@ -63,7 +63,9 @@ export default function AdminCommunityReview() {
         if (controller.signal.aborted) return;
         setQueue(page.items);
         setCursor(page.nextCursor);
-        if (!selectedId && page.items[0]) setSelectedId(page.items[0].subjectId);
+        setSelectedId((current) => current && page.items.some((item) => item.subjectId === current)
+          ? current
+          : page.items[0]?.subjectId ?? "");
       })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted) setQueueError(cause instanceof Error ? cause.message : "Antrean komunitas belum dapat dimuat.");
@@ -71,6 +73,31 @@ export default function AdminCommunityReview() {
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [refresh]);
+
+  useEffect(() => {
+    setQueue((current) => current.map((item) => {
+      if (item.subjectId !== update?.id) return item;
+      return { ...item, latestReview: update.latestReview };
+    }));
+  }, [update?.id, update?.latestReview]);
+
+  useEffect(() => {
+    if (!update || update.status === "submitted") return;
+    setQueue((current) => current.filter((item) => item.subjectId !== update.id));
+    setSelectedId((current) => current === update.id ? "" : current);
+  }, [update?.id, update?.status]);
+
+  useEffect(() => {
+    if (!selectedId || !queue.length || queue.some((item) => item.subjectId === selectedId)) return;
+    setSelectedId(queue[0]?.subjectId ?? "");
+  }, [queue, selectedId]);
+
+  useEffect(() => {
+    if (!selectedId || !cursor) return;
+    const timer = setInterval(() => setRefresh((value) => value + 1), 10000);
+    return () => clearInterval(timer);
+  }, [selectedId, cursor]);
+
 
   useEffect(() => {
     if (!selectedId) { setUpdate(null); setMedia([]); return; }

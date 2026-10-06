@@ -19,6 +19,7 @@ import {
   type PublicActivityDetail,
 } from "../../lib/api/activities";
 import ActivityDetail from "./activity-detail";
+import { SourcePhoto } from "./activity-photo";
 import ActivityMembers from "./activity-members";
 import ActivityResultForm from "./activity-result-form";
 import ActivityForm from "./activity-form";
@@ -170,7 +171,7 @@ export default function VolunteerActivitiesPage({ categories }: { categories: Sa
   if (screen === "members" && managed)
     return <div className={s.page}><ActivityMembers activity={managed} onBack={() => setScreen("manage")} onChanged={setManaged} /></div>;
   if (screen === "edit" && managed)
-    return <div className={s.page}><ActivityForm activity={managed} categories={categories} onBack={() => setScreen("manage")} onSaved={(updated) => { setManaged(updated); setScreen("manage"); setMessage("Rencana kegiatan diperbarui."); refresh(); }} /></div>;
+    return <div className={s.page}><ActivityForm activity={managed} categories={categories} admin={false} onBack={() => setScreen("manage")} onSaved={(updated) => { setManaged(updated); setScreen("manage"); setMessage("Rencana kegiatan diperbarui."); refresh(); }} /></div>;
   if (screen === "result-new" && managed)
     return <div className={s.page}><ActivityResultForm activity={managed} onBack={() => setScreen("manage")} onChanged={setManaged} onSaved={() => { setMessage("Hasil kegiatan dikirim ke antrean moderator."); setScreen("manage"); refresh(); }} /></div>;
   if (screen === "manage" && managed)
@@ -225,7 +226,14 @@ export default function VolunteerActivitiesPage({ categories }: { categories: Sa
       <div className={s.activityDialog}><button type="button" className={s.dialogClose} onClick={() => setScreen("list")}>Tutup</button>
         {busy && !selectedPublic ? <Busy /> : selectedPublic?.kind === "activity" ? <>
           <p className={s.eyebrow}>KEGIATAN RELAWAN</p><h2>{selectedPublic.title}</h2><Status status={selectedPublic.status} />
-          <p>{selectedPublic.description}</p><dl><div><dt>Waktu</dt><dd>{dateLabel(selectedPublic.startsAt)} — {dateLabel(selectedPublic.endsAt)}</dd></div><div><dt>Koordinator</dt><dd>{selectedPublic.coordinatorDisplayName}</dd></div><div><dt>Tempat tersedia</dt><dd>{selectedPublic.availableSeats} dari kapasitas {selectedPublic.capacity}</dd></div></dl>
+          <p>{selectedPublic.description}</p>
+          {viewer?.membership?.status === "accepted" && (
+            <div className={`${s.sourceFrame} ${s.volunteerSourceFrame}`}>
+              <SourcePhoto activityId={selectedPublic.id} allowed large />
+              <span>Foto laporan sumber</span>
+            </div>
+          )}
+          <dl><div><dt>Waktu</dt><dd>{dateLabel(selectedPublic.startsAt)} — {dateLabel(selectedPublic.endsAt)}</dd></div><div><dt>Koordinator</dt><dd>{selectedPublic.coordinatorDisplayName}</dd></div><div><dt>Tempat tersedia</dt><dd>{selectedPublic.availableSeats} dari kapasitas {selectedPublic.capacity}</dd></div></dl>
           {selectedPublic.equipment.length > 0 && <p><strong>Perlengkapan:</strong> {selectedPublic.equipment.join(", ")}</p>}
           {selectedPublic.accessibilityNotes && <p><strong>Aksesibilitas:</strong> {selectedPublic.accessibilityNotes}</p>}
           {selectedPublic.wasteHandoverPlan && <p><strong>Rencana serah-terima:</strong> {selectedPublic.wasteHandoverPlan}</p>}

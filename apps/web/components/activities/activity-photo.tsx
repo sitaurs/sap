@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Camera, FileText } from "lucide-react";
 import { type SapReport } from "../../lib/api/client";
 import {
+  adminSourcePhotoUrl,
   getActivitySourceReport,
   sourcePhotoUrl,
   resultPhotoUrl,
@@ -14,31 +15,64 @@ import {
 import MediaThumbnail from "../media-thumbnail";
 import s from "./activities.module.css";
 
+/** Source photos for volunteers are authorized by activity membership on the server. */
 export function SourcePhoto({
+  activityId,
+  allowed,
+  large = false,
+}: {
+  activityId: string;
+  allowed: boolean;
+  large?: boolean;
+}) {
+  const load = useCallback(
+    (_key: string, signal?: AbortSignal) => sourcePhotoUrl(activityId, signal),
+    [activityId],
+  );
+  return (
+    <MediaThumbnail
+      mediaId={allowed ? activityId : null}
+      alt="Foto laporan sumber kegiatan"
+      className={large ? s.cover : s.thumbnail}
+      loadUrl={load}
+      fallback={<FileText size={large ? 42 : 26} />}
+    />
+  );
+}
+
+/** Admin-only source-photo lookup; report and media IDs never go to the volunteer endpoint. */
+export function AdminSourcePhoto({
   reportId,
+  allowed = true,
   large = false,
 }: {
   reportId: string;
+  allowed?: boolean;
   large?: boolean;
 }) {
   const [report, setReport] = useState<SapReport | null>(null);
   useEffect(() => {
-    const c = new AbortController();
+    if (!allowed) {
+      setReport(null);
+      return;
+    }
+    const controller = new AbortController();
     setReport(null);
-    void getActivitySourceReport(reportId, c.signal)
-      .then((r) => {
-        if (!c.signal.aborted) setReport(r);
+    void getActivitySourceReport(reportId, controller.signal)
+      .then((value) => {
+        if (!controller.signal.aborted) setReport(value);
       })
       .catch(() => {});
-    return () => c.abort();
-  }, [reportId]);
+    return () => controller.abort();
+  }, [allowed, reportId]);
   const load = useCallback(
-    (id: string, signal?: AbortSignal) => sourcePhotoUrl(reportId, id, signal),
+    (mediaId: string, signal?: AbortSignal) =>
+      adminSourcePhotoUrl(reportId, mediaId, signal),
     [reportId],
   );
   return (
     <MediaThumbnail
-      mediaId={report?.mediaIds[0]}
+      mediaId={allowed ? report?.mediaIds[0] : null}
       alt="Foto laporan sumber kegiatan"
       className={large ? s.cover : s.thumbnail}
       loadUrl={load}

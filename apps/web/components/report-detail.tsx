@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CalendarDays, FileText, MapPin, X } from "lucide-react";
 import { ApiError, getReport, mediaUrl, updateReport, type SapCategory, type SapReport } from "../lib/api/client";
 import styles from "./report-detail.module.css";
@@ -17,6 +18,37 @@ export default function ReportDetail({ id, categories, onClose, onUpdated }: { i
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const closeRef = useRef(onClose);
+  const busyRef = useRef(busy);
+
+  useEffect(() => { setPortalTarget(document.body); }, []);
+  useEffect(() => { closeRef.current = onClose; busyRef.current = busy; }, [onClose, busy]);
+  useEffect(() => {
+    if (!portalTarget) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialogRef.current?.focus();
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !busyRef.current) { event.preventDefault(); closeRef.current(); }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
+      ) ?? []).filter((node) => node.getClientRects().length > 0);
+      if (!focusable.length) { event.preventDefault(); return; }
+      const index = focusable.indexOf(document.activeElement as HTMLElement);
+      if (event.shiftKey && index <= 0) { event.preventDefault(); focusable.at(-1)?.focus(); }
+      else if (!event.shiftKey && (index < 0 || index === focusable.length - 1)) { event.preventDefault(); focusable[0]?.focus(); }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previous?.isConnected) previous.focus();
+    };
+  }, [portalTarget]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -43,8 +75,10 @@ export default function ReportDetail({ id, categories, onClose, onUpdated }: { i
     } finally { setBusy(false); }
   }
 
-  return <div className={styles.backdrop} role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="report-detail-title">
+  if (!portalTarget) return null;
+
+  return createPortal(<div className={styles.backdrop} role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <section ref={dialogRef} className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="report-detail-title" tabIndex={-1}>
       <div className={styles.heading}><div><span>DETAIL LAPORAN</span><h2 id="report-detail-title">Laporan saya</h2></div><button type="button" onClick={onClose} aria-label="Tutup detail laporan"><X size={22} /></button></div>
       {error && <p className={styles.error} role="alert">{error}</p>}
       {!report ? <p className={styles.loading}>Memuat laporan…</p> : <>
@@ -56,5 +90,5 @@ export default function ReportDetail({ id, categories, onClose, onUpdated }: { i
         <div className={styles.timeline}><h3>Riwayat status</h3>{report.timeline.map(event => <div key={event.id}><strong>{statusLabels[event.status]}</strong><time>{new Date(event.createdAt).toLocaleString("id-ID")}</time>{event.note && <p>{event.note}</p>}</div>)}</div>
       </>}
     </section>
-  </div>;
+  </div>, document.body);
 }

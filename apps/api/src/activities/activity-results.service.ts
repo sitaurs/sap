@@ -95,6 +95,21 @@ export class ActivityResultsService {
    await this.reviews.supersede(tx,'activity_result',id);await this.store.audit(tx,actor.id,`activity_result_${action}`,'activity_result',id,{revision,outcome,reason});await this.store.event(tx,'activity.result.decided',id,revision,{reportId:row.report_id,activityId:activity.id,authorId:row.author_id,status:next});return this.dto(tx,await this.result(tx,id));
   });
  }
+ async sourcePhoto(actor:Actor,activityId:string) {
+  requireFeature('activities');uuid(activityId);
+  return this.store.db.begin(async tx=>{
+   const activity=await this.activities.load(tx,activityId,true);
+   if(!activity.public_ever||!this.activities.sourcePublic(activity))fail(404,'NOT_FOUND');
+   const [member]=await tx<{status:string}[]>`SELECT status FROM activity_memberships WHERE activity_id=${activityId} AND user_id=${actor.id} FOR SHARE`;
+   if(member?.status!=='accepted')fail(404,'NOT_FOUND');
+   const [media]=await tx<{object_key:string}[]>`SELECT m.object_key FROM report_media rm JOIN media m ON m.id=rm.media_id
+    WHERE rm.report_id=${activity.report_id} AND rm.kind='evidence' AND m.purpose='report' AND m.state='stored' AND m.deleted_at IS NULL
+    ORDER BY rm.sort_order,rm.media_id LIMIT 1 FOR SHARE OF m`;
+   if(!media)fail(404,'NOT_FOUND');
+   const signed=await this.objects.createSignedGetUrl(media.object_key,60);
+   return {url:signed.url,expiresAt:signed.expiresAt.toISOString()};
+  });
+ }
  async privateMedia(actor:Actor,activityId:string,resultId:string,mediaId:string) {
   requireFeature('activities');uuid(mediaId);const row=await this.result(this.store.db,resultId);if(row.activity_id!==activityId)fail(404,'NOT_FOUND');this.activities.scoped(await this.activities.load(this.store.db,activityId),actor);
   const [media]=await this.store.db<{object_key:string}[]>`SELECT m.object_key FROM media m JOIN evidence_links el ON el.media_id=m.id WHERE el.subject_type='activity_result' AND el.subject_id=${resultId} AND m.id=${mediaId} AND m.state='stored' AND m.deleted_at IS NULL`;if(!media)fail(404,'NOT_FOUND');const signed=await this.objects.createSignedGetUrl(media.object_key);return {url:signed.url,expiresAt:signed.expiresAt.toISOString()};

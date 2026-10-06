@@ -5,6 +5,7 @@ type Schemas = components["schemas"];
 export type InstagramOverview = Schemas["InstagramOverview"];
 export type InstagramPost = Schemas["InstagramPost"];
 export type PublicationPage = Schemas["PublicationPage"];
+export type InstagramReportSourcePage = Schemas["InstagramReportSourcePage"];
 export type PublicationSettings = Schemas["PublicationSettings"];
 export type PublicationOperation = Schemas["PublicationOperation"];
 export type PublicationPreview = Schemas["PublicationPreview"];
@@ -126,6 +127,15 @@ function validateOperation(value: PublicationOperation): PublicationOperation {
 
 export async function getInstagramOverview(signal?: AbortSignal) {
   return validateOverview(await apiGet<InstagramOverview>(BASE, signal));
+}
+
+export async function searchInstagramReportSources(search: string, cursor?: string, signal?: AbortSignal) {
+  const params = new URLSearchParams({ limit: "20" });
+  if (search.trim()) params.set("search", search.trim());
+  if (cursor) params.set("cursor", cursor);
+  const page = await apiGet<InstagramReportSourcePage>(`${BASE}/reports?${params}`, signal);
+  if (!page || !Array.isArray(page.items) || !(page.nextCursor === null || typeof page.nextCursor === "string")) invalid();
+  return page;
 }
 
 export async function listInstagramPosts(query: PublicationQuery, signal?: AbortSignal) {

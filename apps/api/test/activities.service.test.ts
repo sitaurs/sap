@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { HttpException } from '@nestjs/common';
 import { ActivitiesService } from '../src/activities/activities.service.js';
+import { ActivityResultsService } from '../src/activities/activity-results.service.js';
 import type { ActivityRow, MembershipRow } from '../src/activities/activities.types.js';
 
 const ACTIVITY_ID = '11111111-1111-4111-8111-111111111111';
@@ -9,6 +10,135 @@ const REPORT_ID = '22222222-2222-4222-8222-222222222222';
 const COORDINATOR_ID = '33333333-3333-4333-8333-333333333333';
 const MEMBER_ID = '44444444-4444-4444-8444-444444444444';
 const MEMBERSHIP_ID = '55555555-5555-4555-8555-555555555555';
+const SOURCE_MEDIA_ID = '66666666-6666-4666-8666-666666666666';
+const SOURCE_MEMBER_ID = '77777777-7777-4777-8777-777777777777';
+
+Object.assign(process.env, {
+  NODE_ENV: 'test', LOG_LEVEL: 'fatal', PORT: '3001',
+  APP_ORIGIN: 'http://localhost:3000', API_INTERNAL_URL: 'http://localhost:3001',
+  CONTRACT_VERSION: '1.1.0', DATABASE_URL: 'postgresql://u:p@localhost/db',
+  REDIS_URL: 'rediss://default:p@localhost:6379', SESSION_SECRET: 's'.repeat(32),
+  CSRF_SECRET: 'c'.repeat(32), RESEND_API_KEY: 're_test_key', MAIL_FROM: 'SAP <sap@localhost>',
+  S3_ENDPOINT: 'https://r2.invalid', S3_REGION: 'auto', S3_BUCKET: 'sap',
+  S3_ACCESS_KEY_ID: 'key', S3_SECRET_ACCESS_KEY: 'secret',
+  ML_INFERENCE_URL: 'https://ml.invalid', ML_API_NAME: '/predict_gradio',
+  ML_USERNAME: 'ecolens', ML_PASSWORD: 'password', ML_TIMEOUT_MS: '90000',
+  SAP_EXTENSION_ENABLED: 'true', SAP_ACTIVITIES_ENABLED: 'true',
+});
+
+function sourcePhotoHarness(options: {
+  membershipStatus?: string | null;
+  mediaAvailable?: boolean;
+  activityOverrides?: Record<string, unknown>;
+} = {}) {
+  const row = {
+    id: ACTIVITY_ID,
+    report_id: REPORT_ID,
+    public_ever: true,
+    public_visibility: 'public',
+    duplicate_of_id: null,
+    report_status: 'verified',
+    ...options.activityOverrides,
+  };
+  const statements: string[] = [];
+  const queryValues: unknown[][] = [];
+  const signed: unknown[][] = [];
+  const tx = async (parts: TemplateStringsArray, ...values: unknown[]) => {
+    const sql = parts.join(' ').replace(/\\s+/g, ' ').trim();
+    statements.push(sql);
+    queryValues.push(values);
+    if (sql.includes('SELECT status FROM activity_memberships'))
+      return options.membershipStatus ? [{ status: options.membershipStatus }] : [];
+    if (sql.includes('SELECT m.object_key FROM report_media rm JOIN media m'))
+      return options.mediaAvailable === false ? [] : [{ object_key: 'private/source-photo.jpg' }];
+    return [];
+  };
+  const store = { db: { begin: async (work: (executor: typeof tx) => Promise<unknown>) => work(tx) } };
+  const activities = {
+    load: async (_executor: unknown, id: string, lock: boolean) => {
+      assert.equal(id, ACTIVITY_ID);
+      assert.equal(lock, true, 'source-photo authorization must read under the activity lock');
+      return row;
+    },
+    sourcePublic: (activity: typeof row) => activity.public_visibility === 'public' &&
+      activity.duplicate_of_id === null && ['verified', 'in_progress', 'resolved'].includes(String(activity.report_status)),
+  };
+  const objects = {
+    createSignedGetUrl: async (key: string, ttlSeconds: number) => {
+      signed.push([key, ttlSeconds]);
+      return { url: 'https://signed.invalid/private-photo', expiresAt: new Date('2026-10-06T12:01:00.000Z') };
+    },
+  };
+  const service = new ActivityResultsService(store as never, activities as never, objects as never, {} as never);
+  const actor = { id: SOURCE_MEMBER_ID, role: 'user', emailVerified: true } as Parameters<ActivityResultsService['sourcePhoto']>[0];
+  return { service, actor, statements, queryValues, signed };
+}
+
+function sourcePhotoErrorCode(error: unknown): string | undefined {
+  const body = (error as HttpException).getResponse?.();
+  return typeof body === 'object' && body !== null ? (body as { code?: string }).code : undefined;
+}
+
+ test('source photo URL is issued only for accepted membership and omits source identifiers', async () => {
+  const h = sourcePhotoHarness({ membershipStatus: 'accepted' });
+  const result = await h.service.sourcePhoto(h.actor, ACTIVITY_ID);
+
+  assert.deepEqual(result, {
+    url: 'https://signed.invalid/private-photo',
+    expiresAt: '2026-10-06T12:01:00.000Z',
+  });
+  assert.deepEqual(h.signed, [['private/source-photo.jpg', 60]]);
+  const membershipQuery = h.statements.findIndex(sql => sql.includes('SELECT status FROM activity_memberships'));
+  const mediaQuery = h.statements.findIndex(sql => sql.includes('SELECT m.object_key FROM report_media rm JOIN media m'));
+  assert.ok(membershipQuery >= 0 && mediaQuery > membershipQuery, 'membership is checked before source media lookup');
+  assert.ok(h.queryValues[membershipQuery]!.includes(SOURCE_MEMBER_ID), 'membership lookup is scoped to the authenticated actor');
+  assert.equal(JSON.stringify(result).includes(SOURCE_MEDIA_ID), false);
+  assert.equal(JSON.stringify(result).includes(REPORT_ID), false);
+});
+
+test('source photo rejects requested, waitlisted, and missing memberships without signing', async () => {
+  for (const status of ['requested', 'waitlisted', null]) {
+    const h = sourcePhotoHarness({ membershipStatus: status });
+    await assert.rejects(
+      h.service.sourcePhoto(h.actor, ACTIVITY_ID),
+      (error: unknown) => sourcePhotoErrorCode(error) === 'NOT_FOUND',
+    );
+    assert.equal(h.signed.length, 0, `${status ?? 'nonmember'} must not receive a signed URL`);
+    assert.equal(h.statements.some(sql => sql.includes('SELECT m.object_key FROM report_media rm JOIN media m')), false);
+  }
+});
+
+test('source photo rejects a non-public or unpublished source before checking membership', async () => {
+  for (const activityOverrides of [
+    { public_ever: false },
+    { public_visibility: 'withdrawn' },
+    { report_status: 'rejected' },
+    { duplicate_of_id: REPORT_ID },
+  ]) {
+    const h = sourcePhotoHarness({ membershipStatus: 'accepted', activityOverrides });
+    await assert.rejects(
+      h.service.sourcePhoto(h.actor, ACTIVITY_ID),
+      (error: unknown) => sourcePhotoErrorCode(error) === 'NOT_FOUND',
+    );
+    assert.equal(h.signed.length, 0);
+    assert.equal(h.statements.some(sql => sql.includes('SELECT status FROM activity_memberships')), false);
+  }
+});
+
+test('source photo does not sign missing or unavailable report evidence', async () => {
+  const h = sourcePhotoHarness({ membershipStatus: 'accepted', mediaAvailable: false });
+  await assert.rejects(
+    h.service.sourcePhoto(h.actor, ACTIVITY_ID),
+    (error: unknown) => sourcePhotoErrorCode(error) === 'NOT_FOUND',
+  );
+  assert.equal(h.signed.length, 0);
+  const query = h.statements.find(sql => sql.includes('SELECT m.object_key FROM report_media rm JOIN media m'))!;
+  assert.match(query, /rm\.report_id=/);
+  assert.match(query, /rm\.kind='evidence'/);
+  assert.match(query, /m\.purpose='report'/);
+  assert.match(query, /m\.state='stored'/);
+  assert.match(query, /m\.deleted_at IS NULL/);
+});
 
 function exceptionCode(error: unknown): string | undefined {
   const body = (error as HttpException).getResponse?.();
