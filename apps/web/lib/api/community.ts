@@ -281,6 +281,12 @@ export const getCommunityUpdatePhotoUrl = (updateId: string, mediaId: string, si
     signal,
   );
 
+export const getReportPhotoUrl = (reportId: string, mediaId: string, signal?: AbortSignal) =>
+  apiGet<R1["MediaUrl"]>(
+    `/admin/reports/${enc(reportId)}/media/${enc(mediaId)}/url`,
+    signal,
+  );
+
 export async function listEvidenceRenditions(
   mediaId: string,
   subjectId: string,
@@ -301,6 +307,26 @@ export async function listEvidenceRenditions(
   );
 }
 
+export async function listReportEvidenceRenditions(
+  mediaId: string,
+  reportId: string,
+  cursor?: string,
+  signal?: AbortSignal,
+) {
+  const params = new URLSearchParams({
+    subjectType: "report",
+    subjectId: reportId,
+    limit: "20",
+    ...(cursor ? { cursor } : {}),
+  });
+  return checkPage(
+    await apiGet<CursorPage<EvidenceRendition>>(
+      `/admin/media/${enc(mediaId)}/renditions?${params}`,
+      signal,
+    ),
+  );
+}
+
 export const requestEvidenceRendition = (
   update: AdminCommunityUpdate,
   mediaId: string,
@@ -310,6 +336,31 @@ export const requestEvidenceRendition = (
     body: { subjectType: "community_update", subjectId: update.id, redactions: [] },
     headers: { "if-match": String(update.revision), "idempotency-key": key },
   });
+
+export const requestReportEvidenceRendition = (
+  report: { id: string; revision: number },
+  mediaId: string,
+  key: string,
+) =>
+  apiMutate<EvidenceRendition>("POST", `/admin/media/${enc(mediaId)}/renditions`, {
+    body: { subjectType: "report", subjectId: report.id, redactions: [] },
+    headers: { "if-match": String(report.revision), "idempotency-key": key },
+  });
+
+export const approveReportEvidence = (
+  report: { id: string; revision: number },
+  mediaId: string,
+  body: R1["EvidenceApprovalInput"],
+  key: string,
+) =>
+  apiMutate<R1["ReportLifecycle"]>(
+    "PUT",
+    `/admin/reports/${enc(report.id)}/media/${enc(mediaId)}/approvals`,
+    {
+      body,
+      headers: { "if-match": String(report.revision), "idempotency-key": key },
+    },
+  );
 
 export type CommunityUpdateDecisionInput = R1["CommunityUpdateDecision"];
 export const decideCommunityUpdate = (

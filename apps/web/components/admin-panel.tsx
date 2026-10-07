@@ -12,6 +12,13 @@ import {
   type DecisionInput, type SapAdminStats, type SapAuditEvent, type SapCategory,
   type SapDuplicateCandidate, type SapReport, type SapReportStatus, type SapScanSettings,
 } from "../lib/api/client";
+import {
+  approveReportEvidence,
+  getReportPhotoUrl,
+  listReportEvidenceRenditions,
+  requestReportEvidenceRendition,
+  type EvidenceRendition,
+} from "../lib/api/community";
 import { useI18n } from "../lib/i18n/provider";
 
 
@@ -280,6 +287,12 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
   const [duplicates, setDuplicates] = useState<SapDuplicateCandidate[] | null>(null);
   const [resolutionIds, setResolutionIds] = useState<string[]>([]);
   const [publishIds, setPublishIds] = useState<string[]>([]);
+  const [reportRevision, setReportRevision] = useState(report.revision);
+  const [mediaReview, setMediaReview] = useState<{ mediaId: string; url: string; renditions: EvidenceRendition[] }[]>([]);
+  const [renditionChoice, setRenditionChoice] = useState<Record<string, string>>({});
+  const [evidenceMessage, setEvidenceMessage] = useState("");
+  const [evidenceError, setEvidenceError] = useState("");
+  const [evidenceBusy, setEvidenceBusy] = useState("");
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -323,6 +336,97 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
     && (!isInitialVerify || publicSummary.trim().length > 0)
     && (!needsResolutionMedia || resolutionIds.length > 0);
 
+  useEffect(() => {
+    setReportRevision(report.revision);
+  }, [report.id, report.revision]);
+
+  useEffect(() => {
+    if (!canPublish || report.mediaIds.length === 0) { setMediaReview([]); return; }
+    const controller = new AbortController();
+    setEvidenceError("");
+    void Promise.all(report.mediaIds.map(async (mediaId) => {
+      const [photo, page] = await Promise.all([
+        getReportPhotoUrl(report.id, mediaId, controller.signal),
+        listReportEvidenceRenditions(mediaId, report.id, undefined, controller.signal),
+      ]);
+      return { mediaId, url: photo.url, renditions: page.items };
+    })).then((items) => {
+      if (controller.signal.aborted) return;
+      setMediaReview(items);
+      setRenditionChoice((old) => {
+        const nextChoice = { ...old };
+        for (const item of items) {
+          if (!item.renditions.some((rendition) => rendition.id === nextChoice[item.mediaId])) {
+            nextChoice[item.mediaId] = item.renditions.find((rendition) => rendition.status === "ready")?.id ?? "";
+          }
+        }
+        return nextChoice;
+      });
+    }).catch((cause) => {
+      if (!controller.signal.aborted) setEvidenceError(cause instanceof Error ? cause.message : "Bukti laporan belum dapat dimuat.");
+    });
+    return () => controller.abort();
+  }, [canPublish, report.id, report.mediaIds]);
+
+  async function refreshReportEvidence() {
+    try {
+      const items = await Promise.all(report.mediaIds.map(async (mediaId) => {
+        const [photo, page] = await Promise.all([
+          getReportPhotoUrl(report.id, mediaId),
+          listReportEvidenceRenditions(mediaId, report.id),
+        ]);
+        return { mediaId, url: photo.url, renditions: page.items };
+      }));
+      setMediaReview(items);
+      setRenditionChoice((old) => {
+        const nextChoice = { ...old };
+        for (const item of items) {
+          if (!item.renditions.some((rendition) => rendition.id === nextChoice[item.mediaId])) {
+            nextChoice[item.mediaId] = item.renditions.find((rendition) => rendition.status === "ready")?.id ?? "";
+          }
+        }
+        return nextChoice;
+      });
+    } catch (cause) {
+      setEvidenceError(cause instanceof Error ? cause.message : "Bukti laporan belum dapat dimuat.");
+    }
+  }
+
+  async function renderReportEvidence(mediaId: string) {
+    if (evidenceBusy) return;
+    setEvidenceBusy(mediaId);
+    setEvidenceError("");
+    setEvidenceMessage("");
+    try {
+      await requestReportEvidenceRendition({ id: report.id, revision: reportRevision }, mediaId, crypto.randomUUID());
+      setEvidenceMessage("Versi bukti sedang disiapkan. Muat ulang daftar bukti sebentar lagi.");
+      await refreshReportEvidence();
+    } catch (cause) {
+      setEvidenceError(cause instanceof Error ? cause.message : "Versi bukti belum dapat dibuat.");
+    } finally { setEvidenceBusy(""); }
+  }
+
+  async function approveMedia(mediaId: string, channel: "web" | "instagram") {
+    const renditionId = renditionChoice[mediaId];
+    if (!renditionId || evidenceBusy) return;
+    setEvidenceBusy(`${mediaId}:${channel}`);
+    setEvidenceError("");
+    setEvidenceMessage("");
+    try {
+      const lifecycle = await approveReportEvidence(
+        { id: report.id, revision: reportRevision },
+        mediaId,
+        { channel, approved: true, renditionId, reason: "Disetujui moderator untuk publikasi bukti laporan." },
+        crypto.randomUUID(),
+      );
+      setReportRevision(lifecycle.sourceRevision);
+      setEvidenceMessage(channel === "web" ? "Foto disetujui untuk halaman publik SAP." : "Foto disetujui untuk Instagram SAP.");
+      await refreshReportEvidence();
+    } catch (cause) {
+      setEvidenceError(cause instanceof Error ? cause.message : "Persetujuan foto belum tersimpan. Pastikan pemilik foto sudah memberi izin kanal ini.");
+    } finally { setEvidenceBusy(""); }
+  }
+
   async function submit() {
     if (!canSubmit) return;
     setBusy(true); setError("");
@@ -332,7 +436,7 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
     if (canPublish && publicSummary.trim().length > 0) input.publicSummary = publicSummary.trim();
     if (canPublish && publishIds.length > 0) input.publishMediaIds = publishIds;
     try {
-      await decideReport(report.id, report.revision, input);
+      await decideReport(report.id, reportRevision, input);
       onDecided();
     } catch (cause) {
       if (cause instanceof ApiError && cause.status === 409) setError("Laporan sudah berubah sejak dimuat. Tutup dan muat ulang antrean.");
@@ -380,13 +484,37 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
         </label>}
 
         {canPublish && report.mediaIds.length > 0 && <div className={admin.field}>
-          <span>{t("Publikasikan foto")}{" "}<small>{t("(opsional; foto laporan yang boleh tampil publik)")}</small></span>
-          <div className={admin.checkRow}>{report.mediaIds.map((id, index) => (
-            <button key={id} type="button" className={admin.checkChip} data-active={publishIds.includes(id)}
-              onClick={() => setPublishIds(current => current.includes(id) ? current.filter(x => x !== id) : [...current, id])}>
-              {publishIds.includes(id) && <Check size={14} />}{t("Foto")}{" "}{index + 1}
-            </button>
-          ))}</div>
+          <span>{t("Bukti publik")}{" "}<small>{t("siapkan versi aman, lalu setujui kanal publik setelah pemilik memberi izin.")}</small></span>
+          {evidenceMessage && <small style={{ color: "#08764f" }}>{t(evidenceMessage)}</small>}
+          {evidenceError && <small style={{ color: "#c0392b" }}>{t(evidenceError)}</small>}
+          <div className={admin.evidenceGrid}>{mediaReview.map((item, index) => {
+            const ready = item.renditions.filter(rendition => rendition.status === "ready");
+            return <article key={item.mediaId} className={admin.evidenceCard}>
+              <img src={item.url} alt={t("Bukti laporan {0}", { "0": index + 1 })} />
+              <strong>{t("Foto")}{" "}{index + 1}</strong>
+              <select value={renditionChoice[item.mediaId] ?? ""} onChange={event => setRenditionChoice(old => ({ ...old, [item.mediaId]: event.target.value }))}>
+                <option value="">{t("Pilih versi siap")}</option>
+                {item.renditions.map(rendition => <option key={rendition.id} value={rendition.id} disabled={rendition.status !== "ready"}>
+                  {rendition.status} · r{rendition.revision}
+                </option>)}
+              </select>
+              {!ready.length && <button type="button" className={styles.outlineButton} onClick={() => void renderReportEvidence(item.mediaId)} disabled={!!evidenceBusy}>
+                {evidenceBusy === item.mediaId ? t("Menyiapkan…") : t("Siapkan pratinjau bukti")}
+              </button>}
+              {ready.length > 0 && <div className={admin.checkRow}>
+                <button type="button" className={admin.checkChip} onClick={() => void approveMedia(item.mediaId, "web")} disabled={!renditionChoice[item.mediaId] || !!evidenceBusy}>
+                  <Check size={14} />{t("Setujui web")}
+                </button>
+                <button type="button" className={admin.checkChip} onClick={() => void approveMedia(item.mediaId, "instagram")} disabled={!renditionChoice[item.mediaId] || !!evidenceBusy}>
+                  <Check size={14} />Instagram
+                </button>
+              </div>}
+              <button key={item.mediaId} type="button" className={admin.checkChip} data-active={publishIds.includes(item.mediaId)}
+                onClick={() => setPublishIds(current => current.includes(item.mediaId) ? current.filter(x => x !== item.mediaId) : [...current, item.mediaId])}>
+                {publishIds.includes(item.mediaId) && <Check size={14} />}{t("Tandai untuk publikasi")}
+              </button>
+            </article>;
+          })}</div>
         </div>}
 
         {needsResolutionMedia && <div className={admin.field}>
@@ -418,5 +546,4 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
     </div>
   </div>;
 }
-
 
