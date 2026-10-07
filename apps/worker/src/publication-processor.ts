@@ -174,7 +174,7 @@ export class PublicationProcessor{
    const retry=!action&&code==='META_RATE_LIMITED'&&op.attempt_count<this.config.EXTENSION_JOB_MAX_ATTEMPTS;
    const channels={...current.channels,instagram:action?'needs_action':current.channels.instagram};
    const status=retry?'queued':action?'needs_action':'failed',wait=Math.min(300,15*2**Math.max(0,op.attempt_count-1));
-   await tx`UPDATE instagram_operations SET status=${status},stage=${publishUncertain?'uncertain':current.stage},error_code=${code},message=${retry?'Provider membatasi permintaan; percobaan ulang dijadwalkan.':action?'Memerlukan tindakan admin; hasil provider belum dikonfirmasi.':'Proses gagal; periksa prasyarat sebelum mencoba lagi.'},channels=${tx.json(channels)},next_retry_at=${retry?new Date(Date.now()+wait*1000):null},updated_at=now() WHERE id=${op.id} AND lease_owner=${op.lease_owner}`;
+   await tx`UPDATE instagram_operations SET status=${status},stage=${publishUncertain?'uncertain':current.stage},error_code=${code},message=${retry?'Provider membatasi permintaan; percobaan ulang dijadwalkan.':action?'Memerlukan tindakan admin; hasil provider belum dikonfirmasi.':code==='META_PERMISSION_REQUIRED'?'Meta menolak akses publikasi. Periksa pembatasan API aplikasi di Meta Developer dan izin akun, lalu hubungkan ulang Instagram.':'Proses gagal; periksa prasyarat sebelum mencoba lagi.'},channels=${tx.json(channels)},next_retry_at=${retry?new Date(Date.now()+wait*1000):null},updated_at=now() WHERE id=${op.id} AND lease_owner=${op.lease_owner}`;
    if(op.post_id){
     const [retraction]=await tx`SELECT id FROM instagram_operations WHERE post_id=${op.post_id} AND kind='retract' AND status NOT IN ('succeeded','cancelled') LIMIT 1`;
     await tx`UPDATE instagram_posts SET status=CASE WHEN status IN ('cancelled','retracted') THEN status ELSE ${action?'needs_action':retraction?'retracting':retry?'publishing':'failed'} END,publish_error=${code},revision=revision+1,updated_at=now() WHERE id=${op.post_id}`;
@@ -274,7 +274,7 @@ export class PublicationProcessor{
    if(!accepted)await this.discardRendered(objectKey,post.media_id);
   }catch(error){
    if(objectKey)await this.discardRendered(objectKey,post.media_id);
-   const allowed=new Set(['MAP_PROVIDER_UNCONFIGURED','MAP_GEOMETRY_UNAVAILABLE','MAP_LOCATION_UNAVAILABLE','MAP_PROVIDER_UNAVAILABLE','MAP_DAILY_BUDGET_EXHAUSTED','RENDER_DISABLED','POSTER_TEXT_OVERFLOW','POSTER_SOURCE_INVALID','POSTER_TEXT_INVALID','POSTER_SIZE_EXCEEDED','SOURCE_NOT_APPROVED','SOURCE_REVISION_CHANGED']);
+   const allowed=new Set(['MAP_PROVIDER_UNCONFIGURED','MAP_GEOMETRY_UNAVAILABLE','MAP_LOCATION_UNAVAILABLE','MAP_PROVIDER_UNAVAILABLE','MAP_DAILY_BUDGET_EXHAUSTED','RENDER_DISABLED','POSTER_FONT_UNAVAILABLE','POSTER_TEXT_OVERFLOW','POSTER_SOURCE_INVALID','POSTER_TEXT_INVALID','POSTER_SIZE_EXCEEDED','SOURCE_NOT_APPROVED','SOURCE_REVISION_CHANGED']);
    const code=error instanceof Error&&allowed.has(error.message)?error.message:'RENDITION_FAILED';
    await this.sql`UPDATE instagram_posts SET rendition_status='failed',publish_error=${code},revision=revision+1,updated_at=now() WHERE id=${post.id} AND content_revision=${post.content_revision} AND rendition_id=${post.rendition_id} AND rendition_status<>'ready' AND status IN ('draft','failed')`;
   }

@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import { access } from 'node:fs/promises';
 import type { Sql } from 'postgres';
 import sharp from 'sharp';
 import type { AppConfig } from '@sap/config';
@@ -11,18 +12,32 @@ export type PosterSource = {
   mediaId:string;publicSummary:string;
 };
 export type PosterInput = {source:PosterSource;photo:Buffer;outcome:'initial'|'partial'|'complete';reportCode:string};
-export type RenderedPoster = {bytes:Buffer;source:PosterSource;map:MapMetadata;mapData:MapData;templateVersion:'sap-feed-reference-v2'};
+export type RenderedPoster = {bytes:Buffer;source:PosterSource;map:MapMetadata;mapData:MapData;templateVersion:'sap-feed-reference-v3'};
 const WIDTH=1080, HEIGHT=1350, CREAM='#f8f4e7', GREEN='#115239';
-const BLACK_FONT=fileURLToPath(new URL('../../assets/fonts/Roboto-Black.ttf',import.meta.url));
-const BODY_FONT=fileURLToPath(new URL('../../assets/fonts/RobotoCondensed-Bold.ttf',import.meta.url));
+const BLACK_FONT=fileURLToPath(new URL('./assets/fonts/Roboto-Black.ttf',import.meta.resolve('@sap/worker/package.json')));
+const BODY_FONT=fileURLToPath(new URL('./assets/fonts/RobotoCondensed-Bold.ttf',import.meta.resolve('@sap/worker/package.json')));
 type Layer={input:Buffer;left:number;top:number};
+
+// Missing fonts can silently render every letter as the same square in Pango.
+export async function assertPosterFonts(): Promise<void> {
+  try {
+    for (const [fontfile, font] of [[BLACK_FONT, 'Roboto Black'], [BODY_FONT, 'Roboto Condensed Bold']] as const) {
+      await access(fontfile!);
+      const wide = await sharp({text:{text:'WWW',font:`${font} 48`,fontfile,rgba:true}}).metadata();
+      const narrow = await sharp({text:{text:'iii',font:`${font} 48`,fontfile,rgba:true}}).metadata();
+      if (!wide.width || !narrow.width || wide.width < narrow.width * 1.5) throw new Error();
+    }
+  } catch { throw new Error('POSTER_FONT_UNAVAILABLE'); }
+}
 
 /** The template uses real approved photo bytes and actual OSM geometry. No illustrative fallback. */
 export class PosterRenderer {
   private readonly maps:MapSnapshotService;
+  private fontsReady:Promise<void>|undefined;
   constructor(sql:Sql,private readonly config:AppConfig){this.maps=new MapSnapshotService(sql,config);}
   async render(input:PosterInput):Promise<RenderedPoster> {
     if(!this.config.SAP_INSTAGRAM_RENDER_ENABLED)throw new Error('RENDER_DISABLED');
+    await (this.fontsReady ??= assertPosterFonts().catch(error => {this.fontsReady=undefined;throw error;}));
     const original=input.source;
     if(!['verified','in_progress','resolved'].includes(original.status)||!Number.isFinite(Date.parse(original.occurredAt))||
       !/^SAP-\d{3,15}$/.test(input.reportCode)||!original.publicSummary.trim()||input.photo.length===0)throw new Error('POSTER_SOURCE_INVALID');
@@ -73,7 +88,7 @@ export class PosterRenderer {
     </svg>`;
     const bytes=await sharp(Buffer.from(base),{limitInputPixels:25000000}).composite(layers).flatten({background:CREAM}).toColourspace('srgb').jpeg({quality:93,mozjpeg:true}).toBuffer();
     if(bytes.length>7*1024*1024)throw new Error('POSTER_SIZE_EXCEEDED');
-    return {bytes,source,map:map.metadata,mapData:map.data,templateVersion:'sap-feed-reference-v2'};
+    return {bytes,source,map:map.metadata,mapData:map.data,templateVersion:'sap-feed-reference-v3'};
   }
   private async text(value:string,size:number,color:string,left:number,top:number,width:number,height:number,black:boolean):Promise<Layer> {
     if([...value].length>250)throw new Error('POSTER_TEXT_INVALID');

@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import sharp from 'sharp';
 import { cellToLatLng, latLngToCell } from 'h3-js';
-import { PosterRenderer } from '../src/poster/poster-renderer.js';
+import { PosterRenderer, assertPosterFonts } from '../src/poster/poster-renderer.js';
+import { MapSnapshotService } from '../src/poster/map-snapshot.js';
 import type { MapData } from '../src/poster/map-snapshot.js';
 
 const cellId = latLngToCell(-7.98, 112.63, 9);
@@ -24,7 +25,7 @@ const mapData: MapData = {
   osmTimestamp: '2026-10-04T20:00:00Z',
 };
 
-function makeRenderer(): PosterRenderer {
+function dependencies() {
   const sql = Object.assign(async (parts: TemplateStringsArray) => {
     const statement = parts.join(' ').replace(/\s+/g, ' ');
     if (statement.includes('FROM publication_map_snapshots')) {
@@ -40,14 +41,33 @@ function makeRenderer(): PosterRenderer {
     POSTER_MAP_CACHE_HOURS: 24,
     POSTER_MAP_DAILY_LIMIT: 100,
   };
-  return new PosterRenderer(sql as never, config as never);
+  return {sql:sql as never,config:config as never};
 }
+
+test('bundled fonts render distinct Latin glyphs rather than missing-font squares', assertPosterFonts);
+
+test('map preserves OSM geometry, labels roads, and marks the public area without an exact GPS pin', async () => {
+  const {sql,config}=dependencies();
+  const [latitude,longitude]=cellToLatLng(cellId);
+  const road={type:'way',id:6,tags:{highway:'residential',name:'Jalan Uji & Kota'},geometry:[
+    {lat:latitude+0.0015,lon:longitude+0.001}, {lat:latitude+0.0015,lon:longitude+0.002},
+  ]};
+  mapData.elements.push(road);
+  try {
+    const result=await new MapSnapshotService(sql,config).get(cellId);
+    assert.match(result.svg.toString(),/Jalan Uji &amp; Kota/);
+    assert.match(result.svg.toString(),/Area kejadian/);
+    assert.match(result.svg.toString(),/stroke-dasharray="6 3"/);
+    assert.equal(result.metadata.styleVersion,'sap-osm-area-v2');
+  } finally {mapData.elements.pop();}
+});
 
 test('renders a design-sized sRGB poster and uses local plus city names from OSM admin levels 7 and 5', async () => {
   const photo = await sharp({
     create: { width: 1400, height: 900, channels: 3, background: '#54825e' },
   }).png().toBuffer();
-  const rendered = await makeRenderer().render({
+  const {sql,config}=dependencies();
+  const rendered = await new PosterRenderer(sql,config).render({
     source: {
       reportId: '11111111-1111-4111-8111-111111111111',
       sourceRevision: 3,
@@ -71,7 +91,7 @@ test('renders a design-sized sRGB poster and uses local plus city names from OSM
   assert.equal(metadata.height, 1350);
   assert.equal(metadata.space, 'srgb');
   assert.ok(rendered.bytes.length <= 7 * 1024 * 1024);
-  assert.equal(rendered.templateVersion, 'sap-feed-reference-v2');
+  assert.equal(rendered.templateVersion, 'sap-feed-reference-v3');
   assert.equal(rendered.map.areaLabel, 'Kauman, Kota Malang');
   assert.equal(rendered.map.locality, 'Kauman');
   assert.equal(rendered.map.locationMode, 'public_area');
