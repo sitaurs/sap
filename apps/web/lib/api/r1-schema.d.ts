@@ -755,6 +755,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/public/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** IncidentsController.list */
+        get: operations["r1IncidentsControllerList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/incidents/{id}": {
         parameters: {
             query?: never;
@@ -2853,6 +2870,31 @@ export interface components {
             observedAt: string | null;
             caption: string;
         };
+        PublicIncidentListItem: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            summary: string;
+            /** @enum {string} */
+            status: "verified" | "in_progress" | "resolved";
+            categoryId: components["schemas"]["CategoryId"] | null;
+            area: {
+                cellId: string;
+                label: string;
+            };
+            /** Format: date-time */
+            occurredAt: string;
+            lastObservedAt: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+            evidence: components["schemas"]["PublicEvidence"][];
+            supportCount: number;
+            canonicalPath: string;
+        };
+        PublicIncidentPage: {
+            items: components["schemas"]["PublicIncidentListItem"][];
+            nextCursor: string | null;
+        };
         PublicIncident: {
             /** @constant */
             kind: "incident";
@@ -3703,6 +3745,10 @@ export interface components {
             /** @enum {string} */
             scope: "all" | "instagram";
             operations: components["schemas"]["PublicationOperation"][];
+        };
+        PublicIncidentPageR1Response: {
+            data: components["schemas"]["PublicIncidentPage"];
+            meta: components["schemas"]["Meta"];
         };
         PublicIncidentResultR1Response: {
             data: components["schemas"]["PublicIncidentResult"];
@@ -9845,6 +9891,147 @@ export interface operations {
             503: {
                 headers: {
                     "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    r1IncidentsControllerList: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description Opaque signed cursor bound to filters. Preserve verbatim; null nextCursor ends pagination. */
+                cursor?: string;
+                /** @description Searches the public summary, area cell, or incident id. */
+                search?: string;
+                status?: "verified" | "in_progress" | "resolved";
+                categoryId?: components["schemas"]["CategoryId"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicIncidentPageR1Response"];
+                };
+            };
+            /** @description Invalid body, header, query or cursor */
+            400: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Active session required */
+            401: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Role, relationship, email verification or CSRF denied */
+            403: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Missing resource or inaccessible private resource */
+            404: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Revision, idempotency, transition or source precondition conflict */
+            409: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Previously public incident withdrawn; no historic content returned */
+            410: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Evidence, consent, rendition or measurement invalid */
+            422: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rate limited; respect Retry-After */
+            429: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected server error */
+            500: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Feature disabled or dependency unavailable */
+            503: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    "Cache-Control"?: "no-store";
                     [name: string]: unknown;
                 };
                 content: {

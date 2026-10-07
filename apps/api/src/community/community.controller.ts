@@ -10,6 +10,7 @@ import { ReviewService } from './review.service.js';
 @Controller('public/incidents')
 export class IncidentsController {
   constructor(private readonly community: CommunityService) {}
+  @Get() list(@Query() query: Record<string, unknown>) { return this.community.listIncidents(query); }
   @Get(':id') get(@Param('id') id: string) { return this.community.incident(uuid(id)); }
   @Get(':id/timeline') timeline(@Param('id') id: string,@Query() query: Record<string,unknown>) { return this.community.timeline(uuid(id),query); }
   @Get(':id/viewer') @UseGuards(SessionAuthGuard)

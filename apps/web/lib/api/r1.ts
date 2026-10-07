@@ -112,6 +112,9 @@ export function permissionReason(code: string | null | undefined): string {
     REGISTRATION_CLOSED: "Pendaftaran telah ditutup.",
     ACTIVITY_FULL: "Kuota kegiatan sudah penuh.",
     INCIDENT_CLOSED: "Kejadian sudah ditutup untuk tindakan ini.",
+    SUPPORT_CLOSED: "Dukungan baru telah ditutup karena kejadian sudah selesai.",
+    EMAIL_NOT_VERIFIED: "Verifikasi email diperlukan sebelum mengirim kontribusi.",
+    EMAIL_UNVERIFIED: "Verifikasi email diperlukan sebelum mengirim kontribusi.",
     INVALID_TRANSITION: "Tindakan belum tersedia pada status saat ini.",
     NOT_COORDINATOR: "Akun ini bukan koordinator kegiatan.",
   };

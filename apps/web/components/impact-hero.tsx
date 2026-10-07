@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, ChevronRight, Clock3, FileText, MapPin } from "lucide-react";
+import { Camera, ChevronRight, Clock3, FileText, MapPin, MessageSquarePlus } from "lucide-react";
 import styles from "./impact-hero.module.css";
 import MobileHeroContent from "./landing/mobile-hero-content";
 import { useI18n } from "../lib/i18n/provider";
@@ -40,7 +40,7 @@ export default function ImpactHero() {
           <p>{t("Dari satu foto, mulai langkah yang lebih tepat")}<br className={styles.desktopBreak} /> {" "}{t("untuk lingkungan sekitar.")}</p>
           <div className={styles.actions}>
             <a className={`${styles.button} ${styles.primary}`} href="/dashboard?view=scan"><Camera className={styles.mobileActionIcon} aria-hidden="true" />{t("Mulai scan")}</a>
-            <a className={`${styles.button} ${styles.secondary}`} href="#peta"><MapPin className={styles.mobileActionIcon} aria-hidden="true" />{t("Lihat peta")}</a>
+            <a className={`${styles.button} ${styles.secondary}`} href="/incidents"><MessageSquarePlus className={styles.mobileActionIcon} aria-hidden="true" />{t("Kejadian publik")}</a>
           </div>
         </div>
         <MobileHeroContent />

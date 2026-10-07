@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ApiError } from "../../lib/api/client";
@@ -8,6 +8,7 @@ import {
   getIncident,
   incidentTimeline,
   incidentViewer,
+  publicIncidents,
   supportIncident,
 } from "../../lib/api/community";
 import { permissionReason, type R1 } from "../../lib/api/r1";
@@ -20,9 +21,173 @@ import {
   Failure,
   Heading,
   PublicShell,
+  usePage,
 } from "./community-ui";
 import s from "./community.module.css";
 import { useI18n } from "../../lib/i18n/provider";
+
+type IncidentCard = R1["PublicIncidentListItem"];
+type IncidentStatus = IncidentCard["status"];
+type IncidentCategory = NonNullable<IncidentCard["categoryId"]>;
+
+const statusLabels: Record<IncidentStatus, string> = {
+  verified: "Terverifikasi",
+  in_progress: "Dalam penanganan",
+  resolved: "Selesai",
+};
+const categoryLabels: Record<IncidentCategory, string> = {
+  battery: "Baterai",
+  biological: "Organik",
+  cardboard: "Kardus",
+  clothes: "Pakaian",
+  glass: "Kaca",
+  metal: "Logam",
+  paper: "Kertas",
+  plastic: "Plastik",
+  shoes: "Sepatu",
+  trash: "Residu",
+};
+const categories = Object.entries(categoryLabels) as [IncidentCategory, string][];
+
+export function IncidentExplore() {
+  const { t, intlLocale } = useI18n();
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<IncidentStatus | "">("");
+  const [categoryId, setCategoryId] = useState<IncidentCategory | "">("");
+  const [filters, setFilters] = useState({
+    search: "",
+    status: "" as IncidentStatus | "",
+    categoryId: "" as IncidentCategory | "",
+  });
+  const loader = useCallback(
+    (cursor?: string, signal?: AbortSignal) =>
+      publicIncidents(
+        {
+          cursor,
+          search: filters.search || undefined,
+          status: filters.status || undefined,
+          categoryId: filters.categoryId || undefined,
+        },
+        signal,
+      ),
+    [filters],
+  );
+  const page = usePage(loader);
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFilters({ search: search.trim(), status, categoryId });
+  }
+  function reset() {
+    const next = { search: "", status: "" as IncidentStatus | "", categoryId: "" as IncidentCategory | "" };
+    setSearch(next.search);
+    setStatus(next.status);
+    setCategoryId(next.categoryId);
+    setFilters(next);
+  }
+  return (
+    <PublicShell>
+      <Heading title={t("Kejadian publik dan kontribusi warga")}>
+        {t("Lihat laporan publik yang sudah diverifikasi, lalu bantu kirim kondisi terbaru atau foto bukti untuk ditinjau moderator.")}</Heading>
+      <section className={`${s.card} ${s.highlightCard}`}>
+        <h2>{t("Akses publik tidak perlu login")}</h2>
+        <p className={s.muted}>
+          {t("Semua orang bisa membaca kejadian publik. Login dan verifikasi email hanya diperlukan saat ingin mendukung, mengikuti kabar, atau mengirim pembaruan dengan foto.")}</p>
+        <div className={s.actions}>
+          <a className={s.button} href="#daftar-kejadian">
+            {t("Lihat daftar kejadian")}</a>
+          <Link className={s.secondary} href={loginDestination("/incidents")}>
+            {t("Masuk untuk berkontribusi")}</Link>
+        </div>
+      </section>
+      <form id="daftar-kejadian" className={`${s.card} ${s.filterPanel}`} onSubmit={submit}>
+        <div>
+          <h2>{t("Daftar kejadian publik")}</h2>
+          <p className={s.muted}>
+            {t("Cari berdasarkan ringkasan, area, atau ID kejadian. Hanya kejadian publik yang terverifikasi, sedang ditangani, atau selesai yang tampil di sini.")}</p>
+        </div>
+        <div className={s.filters}>
+          <label className={s.field}>
+            {t("Cari kejadian")}
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t("Contoh: plastik, sungai, area")}
+            />
+          </label>
+          <label className={s.field}>
+            {t("Status")}
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value as IncidentStatus | "")}
+            >
+              <option value="">{t("Semua status")}</option>
+              {Object.entries(statusLabels).map(([value, label]) => (
+                <option key={value} value={value}>{t(label)}</option>
+              ))}
+            </select>
+          </label>
+          <label className={s.field}>
+            {t("Kategori")}
+            <select
+              value={categoryId}
+              onChange={(event) => setCategoryId(event.target.value as IncidentCategory | "")}
+            >
+              <option value="">{t("Semua kategori")}</option>
+              {categories.map(([value, label]) => (
+                <option key={value} value={value}>{t(label)}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className={s.actions}>
+          <button className={s.button} type="submit" disabled={page.loading}>
+            {t("Terapkan filter")}</button>
+          <button className={s.secondary} type="button" onClick={reset} disabled={page.loading}>
+            {t("Reset filter")}</button>
+        </div>
+      </form>
+      {page.error !== null && <Failure error={page.error} retry={page.refresh} />}
+      <div className={s.cards}>
+        {page.items.map((incident) => (
+          <article className={s.card} key={incident.id}>
+            <div className={s.meta}>
+              <span className={s.badge}>{t(statusLabels[incident.status])}</span>
+              {incident.categoryId && <span>{t(categoryLabels[incident.categoryId])}</span>}
+            </div>
+            <h2>{incident.title}</h2>
+            <p className={s.muted}>{incident.area.label}</p>
+            <p>{date(incident.lastObservedAt ?? incident.occurredAt, intlLocale)}</p>
+            <p className={s.pre}>{incident.summary || t("Ringkasan publik belum tersedia.")}</p>
+            {incident.evidence.length ? (
+              <Evidence items={incident.evidence} />
+            ) : (
+              <p className={s.muted}>{t("Bukti publik belum tersedia; pembaruan warga masih bisa dikirim untuk ditinjau.")}</p>
+            )}
+            <p className={s.muted}>
+              {incident.supportCount} {t("dukungan warga")}</p>
+            <div className={s.actions}>
+              <Link className={s.button} href={`${incident.canonicalPath}#kontribusi-warga`}>
+                {t("Lihat detail & kontribusi")}</Link>
+            </div>
+          </article>
+        ))}
+      </div>
+      {page.loading ? (
+        <p role="status">{t("Memuat kejadian…")}</p>
+      ) : !page.items.length && page.error === null ? (
+        <Empty>{t("Belum ada kejadian publik untuk filter ini.")}</Empty>
+      ) : null}
+      {page.cursor && (
+        <button
+          disabled={page.loading}
+          className={s.secondary}
+          onClick={() => void page.more()}
+        >
+          {t("Muat kejadian berikutnya")}</button>
+      )}
+    </PublicShell>
+  );
+}
 
 export default function IncidentPage({ id }: { id: string }) {
   const { t, intlLocale } = useI18n();
@@ -37,7 +202,8 @@ export default function IncidentPage({ id }: { id: string }) {
     [error, setError] = useState<unknown>(null),
     [timelineError, setTimelineError] = useState<unknown>(null),
     [epoch, setEpoch] = useState(0),
-    [form, setForm] = useState(false);
+    [form, setForm] = useState(false),
+    [contributionMessage, setContributionMessage] = useState("");
   const actionBlocked =
     busy ||
     (timelineError instanceof ApiError &&
@@ -53,6 +219,7 @@ export default function IncidentPage({ id }: { id: string }) {
     setViewer(null);
     setGuest(false);
     setForm(false);
+    setContributionMessage("");
     void getIncident(id, c.signal)
       .then(async (value) => {
         if (c.signal.aborted) return;
@@ -170,15 +337,7 @@ export default function IncidentPage({ id }: { id: string }) {
             <div className={s.page}>
               <section className={s.card}>
                 <div className={s.meta}>
-                  <span className={s.badge}>
-                    {
-                      {
-                        verified: t("Terverifikasi"),
-                        in_progress: t("Dalam penanganan"),
-                        resolved: t("Selesai"),
-                      }[incident.status]
-                    }
-                  </span>
+                  <span className={s.badge}>{t(statusLabels[incident.status])}</span>
                   <span>{date(incident.occurredAt, intlLocale)}</span>
                 </div>
                 <p className={s.pre}>{incident.summary}</p>
@@ -187,8 +346,57 @@ export default function IncidentPage({ id }: { id: string }) {
                   className={s.secondary}
                   onClick={() => setEpoch((v) => v + 1)}
                 >
-                  {t("Perbarui informasi dan foto")}</button>
+                  {t("Muat ulang informasi")}</button>
               </section>
+              <section className={`${s.card} ${s.contributionCard}`} id="kontribusi-warga">
+                <span className={s.eyebrow}>{t("Kontribusi Warga")}</span>
+                <h2>{t("Kirim kondisi terbaru atau foto bukti")}</h2>
+                <p className={s.muted}>
+                  {t("Pembaruan warga masuk ke antrean moderator/admin. Foto yang Anda unggah menjadi bukti privat dulu, lalu hanya tampil publik jika disetujui.")}</p>
+                {guest ? (
+                  <div className={s.actions}>
+                    <Link className={s.button} href={loginDestination(`/incidents/${id}#kontribusi-warga`)}>
+                      {t("Masuk untuk kirim pembaruan")}</Link>
+                    <Link className={s.secondary} href="/incidents">
+                      {t("Lihat kejadian publik lain")}</Link>
+                  </div>
+                ) : viewer ? (
+                  <>
+                    <div className={s.actions}>
+                      <button
+                        className={s.button}
+                        disabled={busy || !viewer.actions.update.allowed}
+                        onClick={() => setForm(true)}
+                      >
+                        {t("Kirim pembaruan warga")}</button>
+                      <Link className={s.secondary} href="/incidents">
+                        {t("Lihat kejadian publik lain")}</Link>
+                    </div>
+                    {!viewer.actions.update.allowed && viewer.actions.update.reasonCode && (
+                      <small className={s.muted}>
+                        {t(permissionReason(viewer.actions.update.reasonCode))}</small>
+                    )}
+                  </>
+                ) : (
+                  <p className={s.muted}>{t("Memeriksa akses kontribusi…")}</p>
+                )}
+              </section>
+              {form && (
+                <ConditionForm
+                  incidentId={id}
+                  onSaved={() => {
+                    setForm(false);
+                    setContributionMessage(
+                      "Pembaruan terkirim untuk ditinjau. Moderator akan memutuskan sebelum foto atau ringkasan tampil publik.",
+                    );
+                  }}
+                  onClose={() => setForm(false)}
+                />
+              )}
+              {contributionMessage && (
+                <p role="status" className={s.notice}>
+                  {t(contributionMessage)}</p>
+              )}
               <section className={s.card}>
                 <h2>{t("Perjalanan kejadian")}</h2>
                 {events.length ? (
@@ -213,13 +421,6 @@ export default function IncidentPage({ id }: { id: string }) {
                     {t("Muat kabar berikutnya")}</button>
                 )}
               </section>
-              {form && (
-                <ConditionForm
-                  incidentId={id}
-                  onSaved={() => setForm(false)}
-                  onClose={() => setForm(false)}
-                />
-              )}
             </div>
             <aside className={s.card}>
               <h2>{t("Ikut peduli")}</h2>
@@ -230,7 +431,7 @@ export default function IncidentPage({ id }: { id: string }) {
               {guest ? (
                 <Link
                   className={s.button}
-                  href={loginDestination(`/incidents/${id}`)}
+                  href={loginDestination(`/incidents/${id}#kontribusi-warga`)}
                 >
                   {t("Masuk untuk berkontribusi")}</Link>
               ) : viewer ? (

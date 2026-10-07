@@ -26,6 +26,8 @@ Kuota telah penuh. Muat peserta terbaru atau pilih cadangan.|Capacity is full. L
 Laporan sumber belum memenuhi syarat publikasi atau izinnya sudah berubah.|The source report does not meet publishing requirements or its consent has changed.
 Laporan ini sudah memiliki kegiatan aktif. Kelola kegiatan tersebut terlebih dahulu.|This report already has an active activity. Manage that activity first.
 Tindakan ini tidak tersedia pada status terbaru. Muat ulang informasinya.|This action is unavailable for the latest status. Reload the information.
+Dukungan baru telah ditutup karena kejadian sudah selesai.|New support is closed because the incident is resolved.
+Verifikasi email diperlukan sebelum mengirim kontribusi.|Email verification is required before submitting a contribution.
 Tunda kegiatan terlebih dahulu sebelum mengganti koordinator.|Postpone the activity before changing its coordinator.
 Periksa hubungan foto, versi publik, dan izin pemilik sebelum menyimpan.|Review photo links, public versions, and owner consent before saving.
 Hasil selesai memerlukan foto sesudah untuk web yang siap dan mempunyai izin pemilik.|Completed results require a ready after photo for the web with owner consent.

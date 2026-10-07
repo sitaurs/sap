@@ -1,5 +1,18 @@
 import { enc, query, r1Get, r1Mutate, type R1, type Page } from "./r1";
 import { ApiError, apiGet, apiMutate } from "./client";
+export const publicIncidents = (
+  filters: {
+    cursor?: string;
+    search?: string;
+    status?: R1["PublicIncidentListItem"]["status"];
+    categoryId?: NonNullable<R1["PublicIncidentListItem"]["categoryId"]>;
+  },
+  signal?: AbortSignal,
+) =>
+  r1Get<R1["PublicIncidentPage"]>(
+    `/public/incidents?${query({ limit: 20, ...filters })}`,
+    signal,
+  );
 export const getIncident = (id: string, signal?: AbortSignal) =>
   r1Get<R1["PublicIncidentResult"]>(`/public/incidents/${enc(id)}`, signal);
 export const incidentTimeline = (

@@ -29,6 +29,16 @@ function deviceDate(value?: string) {
     .toISOString()
     .slice(0, 16);
 }
+const currentDeviceDate = () => deviceDate(new Date().toISOString());
+function DraftPhotoPreview({ file, alt }: { file: File; alt: string }) {
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    const next = URL.createObjectURL(file);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [file]);
+  return url ? <img className={s.privatePhoto} src={url} alt={alt} /> : null;
+}
 export default function ConditionForm({
   incidentId,
   previous,
@@ -45,7 +55,9 @@ export default function ConditionForm({
       previous?.kind ?? "still_present",
     ),
     [description, setDescription] = useState(previous?.description ?? ""),
-    [observed, setObserved] = useState(deviceDate(previous?.observedAt)),
+    [observed, setObserved] = useState(
+      previous?.observedAt ? deviceDate(previous.observedAt) : currentDeviceDate(),
+    ),
     [correction, setCorrection] = useState<
       NonNullable<R1["CommunityUpdateInput"]["correctionField"]>
     >(previous?.correctionField ?? "other");
@@ -343,6 +355,12 @@ export default function ConditionForm({
             <strong>
               {t("Foto")}{" "}{i + 1}: {photo.file?.name ?? t("Bukti yang pernah diunggah")}
             </strong>
+            {photo.file && (
+              <DraftPhotoPreview
+                file={photo.file}
+                alt={t("Pratinjau foto bukti yang dipilih")}
+              />
+            )}
             {(["web", "instagram"] as const).map((channel) => (
               <label className={s.check} key={channel}>
                 <input

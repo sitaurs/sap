@@ -149,7 +149,33 @@ Input Anda tetap disimpan. Periksa perbedaan sebelum menyimpan ulang.|Your input
 Saya sudah meninjau versi terbaru|I have reviewed the latest version
 Tujuan kejadian canonical tidak valid.|The canonical incident destination is invalid.
 Memuat kejadian publik…|Loading public incident…
-Perbarui informasi dan foto|Refresh information and photos
+Kejadian publik dan kontribusi warga|Public incidents and community contributions
+Lihat laporan publik yang sudah diverifikasi, lalu bantu kirim kondisi terbaru atau foto bukti untuk ditinjau moderator.|View verified public reports, then help submit the latest condition or evidence photos for moderator review.
+Akses publik tidak perlu login|Public access does not require sign-in
+Semua orang bisa membaca kejadian publik. Login dan verifikasi email hanya diperlukan saat ingin mendukung, mengikuti kabar, atau mengirim pembaruan dengan foto.|Anyone can read public incidents. Sign-in and email verification are only needed to support, follow updates, or submit an update with photos.
+Lihat daftar kejadian|View incident list
+Daftar kejadian publik|Public incident list
+Cari berdasarkan ringkasan, area, atau ID kejadian. Hanya kejadian publik yang terverifikasi, sedang ditangani, atau selesai yang tampil di sini.|Search by summary, area, or incident ID. Only public incidents that are verified, in progress, or resolved are shown here.
+Cari kejadian|Search incidents
+Contoh: plastik, sungai, area|Example: plastic, river, area
+Status|Status
+Semua status|All statuses
+Kategori|Category
+Semua kategori|All categories
+Terapkan filter|Apply filters
+Reset filter|Reset filters
+Ringkasan publik belum tersedia.|Public summary is not available yet.
+Bukti publik belum tersedia; pembaruan warga masih bisa dikirim untuk ditinjau.|Public evidence is not available yet; community updates can still be submitted for review.
+Lihat detail & kontribusi|View details & contribute
+Belum ada kejadian publik untuk filter ini.|No public incidents match this filter.
+Kontribusi Warga|Community Contribution
+Kirim kondisi terbaru atau foto bukti|Submit the latest condition or evidence photos
+Pembaruan warga masuk ke antrean moderator/admin. Foto yang Anda unggah menjadi bukti privat dulu, lalu hanya tampil publik jika disetujui.|Community updates go to the moderator/admin queue. Photos you upload stay private evidence first and are only shown publicly if approved.
+Masuk untuk kirim pembaruan|Sign in to submit an update
+Lihat kejadian publik lain|View other public incidents
+Kirim pembaruan warga|Submit community update
+Memeriksa akses kontribusi…|Checking contribution access…
+Muat ulang informasi|Reload information
 Perjalanan kejadian|Incident timeline
 Belum ada kabar publik untuk kejadian ini.|No public updates for this incident yet.
 Muat kabar berikutnya|Load more updates
@@ -165,4 +191,7 @@ Kegiatan terkait|Related activities
 Lihat kegiatan relawan →|View volunteer activities →
 Belum ada kegiatan publik.|No public activities yet.
 Informasi kejadian belum tersedia.|Incident information is not available yet.
+Pembaruan terkirim untuk ditinjau. Moderator akan memutuskan sebelum foto atau ringkasan tampil publik.|Your update was submitted for review. A moderator will decide before photos or summaries appear publicly.
+Pratinjau foto bukti yang dipilih|Preview of the selected evidence photo
+Kejadian publik lain|Other public incidents
 `.trim().split("\n").map(line => line.split("|")));

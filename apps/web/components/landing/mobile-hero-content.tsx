@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Camera, ChevronDown, FileText, GraduationCap, MapPin } from "lucide-react";
+import { Camera, ChevronDown, FileText, MapPin, MessageSquarePlus } from "lucide-react";
 import styles from "./mobile-hero-content.module.css";
 import { useI18n } from "../../lib/i18n/provider";
 
@@ -9,8 +9,8 @@ import { useI18n } from "../../lib/i18n/provider";
 const features = [
   { title: "Scan dari foto", description: "Kenali jenis material", href: "/dashboard?view=scan", icon: Camera, green: false },
   { title: "Buat laporan", description: "Foto, lokasi, dan waktu", href: "/dashboard?view=reports", icon: FileText, green: true },
-  { title: "Peta area", description: "Laporan terverifikasi", href: "#peta", icon: MapPin, green: false },
-  { title: "Edukasi", description: "Belajar memilah sampah", href: "#edukasi", icon: GraduationCap, green: true },
+  { title: "Kejadian publik", description: "Kirim pembaruan warga", href: "/incidents", icon: MessageSquarePlus, green: false },
+  { title: "Peta area", description: "Laporan terverifikasi", href: "#peta", icon: MapPin, green: true },
 ] as const;
 
 export default function MobileHeroContent() {

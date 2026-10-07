@@ -9,7 +9,8 @@ import { ReviewService } from './review.service.js';
 import type { Tx } from '../infrastructure/idempotency.store.js';
 
 type Row = Record<string, any>;
-const eligibleStatuses = ['verified', 'in_progress', 'resolved'];
+const eligibleStatuses = ['verified', 'in_progress', 'resolved'] as const;
+const publicCategoryIds = ['battery', 'biological', 'cardboard', 'clothes', 'glass', 'metal', 'paper', 'plastic', 'shoes', 'trash'] as const;
 const updateKinds = ['still_present', 'reduced', 'looks_clean', 'information_wrong'] as const;
 const updateStates = ['submitted', 'needs_evidence', 'approved', 'rejected'] as const;
 
@@ -52,8 +53,9 @@ export class CommunityService {
     return report;
   }
 
-  async publicEvidence(reportId: string, mediaIds?: string[], tx: Executor = this.store.db): Promise<unknown[]> {
+  async publicEvidence(reportId: string, mediaIds?: string[], tx: Executor = this.store.db, limit?: number): Promise<unknown[]> {
     const filter = mediaIds === undefined ? tx`` : tx`AND m.id=ANY(${mediaIds}::uuid[])`;
+    const capped = limit === undefined ? tx`` : tx`LIMIT ${limit}`;
     const rows = await tx<Row[]>`SELECT a.id,a.media_id,er.object_key,are.observed_at FROM media_publication_approvals a
       JOIN reports r ON r.id=a.report_id JOIN media m ON m.id=a.media_id
       JOIN evidence_renditions er ON er.id=a.rendition_id JOIN media_consents mc ON mc.media_id=m.id
@@ -69,11 +71,45 @@ export class CommunityService {
           OR (a.subject_type='activity_result' AND EXISTS(SELECT 1 FROM activity_results ar JOIN evidence_links el ON el.subject_id=ar.id
             AND el.subject_type='activity_result' AND el.media_id=m.id WHERE ar.id=a.subject_id AND ar.report_id=r.id AND ar.status='approved'))
         )
-        AND 'web'=ANY(mc.channels) ${filter} ORDER BY a.updated_at,a.id`;
+        AND 'web'=ANY(mc.channels) ${filter} ORDER BY a.updated_at,a.id ${capped}`;
     return Promise.all(rows.map(async row => {
       const signed = await this.objects.createSignedGetUrl(row.object_key);
       return { id: row.id, url: signed.url, expiresAt: signed.expiresAt.toISOString(), observedAt: iso(row.observed_at ?? null), caption: 'Bukti yang disetujui SAP' };
     }));
+  }
+
+  async listIncidents(query: Record<string, unknown>): Promise<unknown> {
+    this.enabled(); return this.store.db.begin(async tx=>{
+      const data = input.object(query, ['limit','cursor','search','status','categoryId']);
+      const rawSearch = data.search === undefined ? '' : input.text(data.search, 0, 80).trim();
+      const search = rawSearch || null;
+      const status = data.status === undefined ? null : input.enumeration(data.status, eligibleStatuses);
+      const categoryId = data.categoryId === undefined ? null : input.enumeration(data.categoryId, publicCategoryIds);
+      const page = this.store.cursor(data, { type: 'public_incidents', search, status, categoryId });
+      const after = page.boundary ? tx`AND (COALESCE(r.last_observed_at,r.updated_at,r.occurred_at,r.created_at),r.id)<(${page.boundary.at}::timestamptz,${page.boundary.id}::uuid)` : tx``;
+      const searchTerm = search ? `%${search.replace(/[\\%_]/g, '\\$&')}%` : null;
+      const rows = await tx<Row[]>`SELECT r.id,r.revision,r.public_summary,r.status,r.category_id,r.h3_cell,r.occurred_at,r.last_observed_at,r.updated_at,
+          COALESCE(r.last_observed_at,r.updated_at,r.occurred_at,r.created_at) AS sort_at,
+          count(s.user_id)::integer AS support_count
+        FROM reports r
+        LEFT JOIN incident_supports s ON s.report_id=r.id AND s.supported AND EXISTS(SELECT 1 FROM users u WHERE u.id=s.user_id AND u.deleted_at IS NULL)
+        WHERE r.public_visibility='public' AND r.status IN ('verified','in_progress','resolved') AND r.duplicate_of_id IS NULL
+          AND (${status}::text IS NULL OR r.status=${status})
+          AND (${categoryId}::text IS NULL OR r.category_id=${categoryId})
+          AND (${searchTerm}::text IS NULL OR r.public_summary ILIKE ${searchTerm} ESCAPE '\\' OR r.h3_cell ILIKE ${searchTerm} ESCAPE '\\' OR r.id::text ILIKE ${searchTerm} ESCAPE '\\')
+          ${after}
+        GROUP BY r.id
+        ORDER BY COALESCE(r.last_observed_at,r.updated_at,r.occurred_at,r.created_at) DESC,r.id DESC
+        LIMIT ${page.limit+1}`;
+      const chosen = rows.slice(0,page.limit);
+      return { items: await Promise.all(chosen.map(async row => {
+        const evidence = await this.publicEvidence(row.id,undefined,tx,1);
+        return { id: row.id, title: row.public_summary || 'Kejadian lingkungan', summary: row.public_summary || '', status: row.status,
+          categoryId: row.category_id, area: { cellId: row.h3_cell, label: `Area ${row.h3_cell}` }, occurredAt: iso(row.occurred_at ?? row.sort_at),
+          lastObservedAt: iso(row.last_observed_at), updatedAt: iso(row.updated_at), evidence, supportCount: row.support_count ?? 0,
+          canonicalPath: `/incidents/${row.id}` };
+      })), nextCursor: rows.length>page.limit ? page.encode({ id: chosen[chosen.length-1]!.id, created_at: chosen[chosen.length-1]!.sort_at }) : null };
+    });
   }
 
   async incident(id: string): Promise<unknown> {

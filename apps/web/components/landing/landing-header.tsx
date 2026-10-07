@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronRight, GraduationCap, House, Info, LayoutGrid, Leaf, MapPin, Menu, X } from "lucide-react";
+import { ChevronRight, FileText, GraduationCap, House, Info, LayoutGrid, Leaf, MapPin, Menu, X } from "lucide-react";
 import BrandLogo from "../brand-logo";
 import styles from "./landing-header.module.css";
 import { useI18n } from "../../lib/i18n/provider";
@@ -12,6 +12,7 @@ const links = [
   { label: "Tentang", href: "#cara-kerja", icon: Info },
   { label: "Fitur", href: "#fitur", icon: LayoutGrid },
   { label: "Peta Laporan", href: "#peta", icon: MapPin },
+  { label: "Kejadian Publik", href: "/incidents", icon: FileText },
   { label: "Edukasi", href: "#edukasi", icon: GraduationCap },
 ] as const;
 

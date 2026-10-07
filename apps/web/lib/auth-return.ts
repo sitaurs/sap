@@ -11,7 +11,7 @@ export function safeReturnTo(value: string | null | undefined): string {
     const url = new URL(value, "https://sap.invalid");
     if (
       url.origin !== "https://sap.invalid" ||
-      !/^\/(dashboard(?:\/|$)|incidents\/|activities(?:\/|$))/.test(
+      !/^\/(dashboard(?:\/|$)|incidents(?:\/|$)|activities(?:\/|$))/.test(
         url.pathname,
       )
     )

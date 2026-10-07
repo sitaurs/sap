@@ -25,6 +25,8 @@ export function PublicShell({ children }: { children: ReactNode }) {
           <BrandLogo width={165} />
         </Link>
         <nav aria-label={t("Navigasi publik")}>
+          <Link className={s.link} href="/incidents">
+            {t("Kejadian publik")}</Link>
           <Link className={s.link} href="/activities">
             {t("Kegiatan relawan")}</Link>
           <Link className={s.secondary} href="/dashboard">
