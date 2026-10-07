@@ -14,11 +14,14 @@ import {
 } from "../lib/api/client";
 import {
   approveReportEvidence,
+  getReportLifecycle,
   getReportPhotoUrl,
   listReportEvidenceRenditions,
   requestReportEvidenceRendition,
   type EvidenceRendition,
+  type ReportLifecycle,
 } from "../lib/api/community";
+import { r1Error } from "../lib/api/r1";
 import { useI18n } from "../lib/i18n/provider";
 
 
@@ -56,6 +59,15 @@ function fmt(value: string, locale = "id-ID") {
 function StatusBadge({ status }: { status: SapReportStatus }) {
   const { t } = useI18n();
   return <span className={admin.badge} style={{ background: STATUS_COLOR[status] }}>{t(STATUS_LABEL[status])}</span>;
+}
+
+function evidenceErrorText(cause: unknown, fallback: string) {
+  if (cause instanceof ApiError && cause.code === "EVIDENCE_INVALID") {
+    return cause.message === "Permintaan tidak dapat diproses."
+      ? "Bukti belum bisa disetujui. Pastikan pemilik foto sudah memberi izin kanal ini di Laporan saya, pilih versi bukti ready, lalu muat ulang jika laporan baru berubah."
+      : cause.message;
+  }
+  return r1Error(cause) || fallback;
 }
 
 export default function AdminPanel({ section, categories }: { section: "moderation" | "settings"; categories: SapCategory[] }) {
@@ -290,6 +302,7 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
   const [reportRevision, setReportRevision] = useState(report.revision);
   const [mediaReview, setMediaReview] = useState<{ mediaId: string; url: string; renditions: EvidenceRendition[] }[]>([]);
   const [renditionChoice, setRenditionChoice] = useState<Record<string, string>>({});
+  const [publicationAssets, setPublicationAssets] = useState<ReportLifecycle["publicationAssets"]>([]);
   const [evidenceMessage, setEvidenceMessage] = useState("");
   const [evidenceError, setEvidenceError] = useState("");
   const [evidenceBusy, setEvidenceBusy] = useState("");
@@ -338,20 +351,36 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
 
   useEffect(() => {
     setReportRevision(report.revision);
+    setPublicationAssets([]);
   }, [report.id, report.revision]);
+
+  function applyLifecycle(lifecycle: ReportLifecycle) {
+    setReportRevision(lifecycle.sourceRevision);
+    setPublicationAssets(lifecycle.publicationAssets);
+  }
+
+  function approvedFor(mediaId: string, renditionId: string | undefined, channel: "web" | "instagram") {
+    return Boolean(renditionId && publicationAssets.some(asset =>
+      asset.mediaId === mediaId && asset.renditionId === renditionId && asset.channels.includes(channel),
+    ));
+  }
 
   useEffect(() => {
     if (!canPublish || report.mediaIds.length === 0) { setMediaReview([]); return; }
     const controller = new AbortController();
     setEvidenceError("");
-    void Promise.all(report.mediaIds.map(async (mediaId) => {
-      const [photo, page] = await Promise.all([
-        getReportPhotoUrl(report.id, mediaId, controller.signal),
-        listReportEvidenceRenditions(mediaId, report.id, undefined, controller.signal),
-      ]);
-      return { mediaId, url: photo.url, renditions: page.items };
-    })).then((items) => {
+    void Promise.all([
+      getReportLifecycle(report.id, controller.signal),
+      Promise.all(report.mediaIds.map(async (mediaId) => {
+        const [photo, page] = await Promise.all([
+          getReportPhotoUrl(report.id, mediaId, controller.signal),
+          listReportEvidenceRenditions(mediaId, report.id, undefined, controller.signal),
+        ]);
+        return { mediaId, url: photo.url, renditions: page.items };
+      })),
+    ]).then(([lifecycle, items]) => {
       if (controller.signal.aborted) return;
+      applyLifecycle(lifecycle);
       setMediaReview(items);
       setRenditionChoice((old) => {
         const nextChoice = { ...old };
@@ -363,20 +392,24 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
         return nextChoice;
       });
     }).catch((cause) => {
-      if (!controller.signal.aborted) setEvidenceError(cause instanceof Error ? cause.message : "Bukti laporan belum dapat dimuat.");
+      if (!controller.signal.aborted) setEvidenceError(evidenceErrorText(cause, "Bukti laporan belum dapat dimuat."));
     });
     return () => controller.abort();
   }, [canPublish, report.id, report.mediaIds]);
 
   async function refreshReportEvidence() {
     try {
-      const items = await Promise.all(report.mediaIds.map(async (mediaId) => {
-        const [photo, page] = await Promise.all([
-          getReportPhotoUrl(report.id, mediaId),
-          listReportEvidenceRenditions(mediaId, report.id),
-        ]);
-        return { mediaId, url: photo.url, renditions: page.items };
-      }));
+      const [lifecycle, items] = await Promise.all([
+        getReportLifecycle(report.id),
+        Promise.all(report.mediaIds.map(async (mediaId) => {
+          const [photo, page] = await Promise.all([
+            getReportPhotoUrl(report.id, mediaId),
+            listReportEvidenceRenditions(mediaId, report.id),
+          ]);
+          return { mediaId, url: photo.url, renditions: page.items };
+        })),
+      ]);
+      applyLifecycle(lifecycle);
       setMediaReview(items);
       setRenditionChoice((old) => {
         const nextChoice = { ...old };
@@ -388,7 +421,7 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
         return nextChoice;
       });
     } catch (cause) {
-      setEvidenceError(cause instanceof Error ? cause.message : "Bukti laporan belum dapat dimuat.");
+      setEvidenceError(evidenceErrorText(cause, "Bukti laporan belum dapat dimuat."));
     }
   }
 
@@ -402,7 +435,7 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
       setEvidenceMessage("Versi bukti sedang disiapkan. Muat ulang daftar bukti sebentar lagi.");
       await refreshReportEvidence();
     } catch (cause) {
-      setEvidenceError(cause instanceof Error ? cause.message : "Versi bukti belum dapat dibuat.");
+      setEvidenceError(evidenceErrorText(cause, "Versi bukti belum dapat dibuat."));
     } finally { setEvidenceBusy(""); }
   }
 
@@ -419,11 +452,11 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
         { channel, approved: true, renditionId, reason: "Disetujui moderator untuk publikasi bukti laporan." },
         crypto.randomUUID(),
       );
-      setReportRevision(lifecycle.sourceRevision);
+      applyLifecycle(lifecycle);
       setEvidenceMessage(channel === "web" ? "Foto disetujui untuk halaman publik SAP." : "Foto disetujui untuk Instagram SAP.");
       await refreshReportEvidence();
     } catch (cause) {
-      setEvidenceError(cause instanceof Error ? cause.message : "Persetujuan foto belum tersimpan. Pastikan pemilik foto sudah memberi izin kanal ini.");
+      setEvidenceError(evidenceErrorText(cause, "Persetujuan foto belum tersimpan. Pastikan pemilik foto sudah memberi izin kanal ini."));
     } finally { setEvidenceBusy(""); }
   }
 
@@ -489,6 +522,9 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
           {evidenceError && <small style={{ color: "#c0392b" }}>{t(evidenceError)}</small>}
           <div className={admin.evidenceGrid}>{mediaReview.map((item, index) => {
             const ready = item.renditions.filter(rendition => rendition.status === "ready");
+            const selectedRenditionId = renditionChoice[item.mediaId];
+            const webApproved = approvedFor(item.mediaId, selectedRenditionId, "web");
+            const instagramApproved = approvedFor(item.mediaId, selectedRenditionId, "instagram");
             return <article key={item.mediaId} className={admin.evidenceCard}>
               <img src={item.url} alt={t("Bukti laporan {0}", { "0": index + 1 })} />
               <strong>{t("Foto")}{" "}{index + 1}</strong>
@@ -502,11 +538,11 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
                 {evidenceBusy === item.mediaId ? t("Menyiapkan…") : t("Siapkan pratinjau bukti")}
               </button>}
               {ready.length > 0 && <div className={admin.checkRow}>
-                <button type="button" className={admin.checkChip} onClick={() => void approveMedia(item.mediaId, "web")} disabled={!renditionChoice[item.mediaId] || !!evidenceBusy}>
-                  <Check size={14} />{t("Setujui web")}
+                <button type="button" className={admin.checkChip} data-active={webApproved} onClick={() => void approveMedia(item.mediaId, "web")} disabled={!selectedRenditionId || !!evidenceBusy || webApproved} aria-pressed={webApproved}>
+                  <Check size={14} />{t(webApproved ? "Web disetujui" : "Setujui web")}
                 </button>
-                <button type="button" className={admin.checkChip} onClick={() => void approveMedia(item.mediaId, "instagram")} disabled={!renditionChoice[item.mediaId] || !!evidenceBusy}>
-                  <Check size={14} />Instagram
+                <button type="button" className={admin.checkChip} data-active={instagramApproved} onClick={() => void approveMedia(item.mediaId, "instagram")} disabled={!selectedRenditionId || !!evidenceBusy || instagramApproved} aria-pressed={instagramApproved}>
+                  <Check size={14} />{t(instagramApproved ? "Instagram disetujui" : "Instagram")}
                 </button>
               </div>}
               <button key={item.mediaId} type="button" className={admin.checkChip} data-active={publishIds.includes(item.mediaId)}
@@ -546,4 +582,3 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
     </div>
   </div>;
 }
-

@@ -188,6 +188,7 @@ export type ReviewQueueItem = R1["ReviewQueueItem"];
 export type ReviewRun = R1["ReviewRun"];
 export type EvidenceRendition = R1["EvidenceRendition"];
 export type EvidencePublicationInput = R1["EvidencePublicationInput"];
+export type ReportLifecycle = R1["ReportLifecycle"];
 export type ReviewRecommendation = NonNullable<ReviewRun["result"]>;
 export type CursorPage<T> = { items: T[]; nextCursor: string | null };
 
@@ -286,6 +287,9 @@ export const getReportPhotoUrl = (reportId: string, mediaId: string, signal?: Ab
     `/admin/reports/${enc(reportId)}/media/${enc(mediaId)}/url`,
     signal,
   );
+
+export const getReportLifecycle = (reportId: string, signal?: AbortSignal) =>
+  apiGet<ReportLifecycle>(`/admin/reports/${enc(reportId)}/lifecycle`, signal);
 
 export async function listEvidenceRenditions(
   mediaId: string,
