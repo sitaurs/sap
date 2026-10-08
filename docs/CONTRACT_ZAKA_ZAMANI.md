@@ -428,6 +428,7 @@ type ActivityInput = {
   meetingPoint: { instructions: string; latitude: number | null; longitude: number | null } | null;
   equipment: string[]; accessibilityNotes: string; wasteHandoverPlan: string;
 };
+type RegistrationClosedReason = 'deadline_passed'|'manually_closed'|'activity_not_open'|'source_unavailable'|null;
 type PublicActivity = {
   kind: 'activity'; id: string; reportId: string; revision: number; title: string; description: string;
   status: 'registration_open'|'registration_closed'|'in_progress'|'awaiting_result'|'completed'|'on_hold'|'cancelled';
@@ -435,6 +436,7 @@ type PublicActivity = {
   area: { cellId: string; label: string }; coordinatorDisplayName: string;
   startsAt: string; endsAt: string; registrationClosesAt: string; timezone: 'Asia/Jakarta'; capacity: number;
   acceptedCount: number; availableSeats: number; registrationOpen: boolean;
+  registrationClosedReason: RegistrationClosedReason;
   equipment: string[]; accessibilityNotes: string; wasteHandoverPlan: string;
   resultOutcome: 'partial'|'complete'|null; canonicalPath: string;
 };
@@ -446,7 +448,8 @@ type ActivityViewer = {
 };
 type ManagedActivity = ActivityInput & {
   id: string; revision: number; status: ActivityStatus; coordinatorAcceptedAt: string | null;
-  acceptedCount: number; availableSeats: number; holdReason: string | null;
+  acceptedCount: number; availableSeats: number; registrationOpen: boolean;
+  registrationClosedReason: RegistrationClosedReason; holdReason: string | null;
   priorState: ActivityStatus | null; createdAt: string; updatedAt: string;
   actions: {
     publish: ActionPermission; edit: ActionPermission; cancel: ActionPermission;
@@ -539,6 +542,8 @@ type PublicActivityResult = {
   verifiedMeasurement: { valueKg: number; unit: 'kg'; stage: ImpactMeasurement['stage'] } | null;
 };
 ```
+
+`registrationOpen` adalah status efektif yang dihitung server untuk waktu respons dan identik pada DTO publik serta terkelola; nilai ini tidak mengubah lifecycle `status` yang tersimpan. Ketika `status=registration_open` tetapi batas pendaftaran sudah lewat, API mengembalikan `registrationOpen=false` dan `registrationClosedReason='deadline_passed'`. Reason lain membedakan penutupan manual, lifecycle yang bukan pendaftaran terbuka, atau sumber yang tidak lagi terbuka. UI menampilkan pendaftaran sebagai ditutup tanpa menyimulasikan transisi lifecycle.
 
 R1 menerima satu paket hasil aktif per kegiatan; revisi melengkapi submitted/needs_evidence. Upload paket oleh koordinator/admin; upload langsung peserta lain adalah tahap lanjut. beforeMediaIds+beforePublicEvidenceIds total 1–3, afterMediaIds 1–3; reuse evidence publik harus dari kejadian terkait dan izinnya masih berlaku. Media baru purpose activity_evidence, milik aktor pengirim. Description 20–2000, observedAt tidak future. Foto timbang <=3; sourceReference 1–150 karakter. Measurement boleh null; valueKg 0–100000, maksimum 3 desimal, angka ini batas input operasional dan bukan asumsi berat kejadian.
 

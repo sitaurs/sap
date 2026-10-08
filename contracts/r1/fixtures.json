@@ -357,8 +357,10 @@
       "instagramAllowed": false,
       "latestReview": null,
       "approvedResolutionEvidence": [],
+      "resolutionReviewRequired": false,
       "publicationAssets": [],
       "publicationMilestones": [],
+      "instagramPublicationSeries": [],
       "actions": {
         "moderate": {
           "allowed": false,
@@ -524,7 +526,8 @@
       "accessibilityNotes": "DATA CONTOH SINTETIS",
       "wasteHandoverPlan": "DATA CONTOH SINTETIS",
       "resultOutcome": null,
-      "canonicalPath": "/activities/bbb8d146-0bd7-4423-a427-c53ebea0cd51"
+      "canonicalPath": "/activities/bbb8d146-0bd7-4423-a427-c53ebea0cd51",
+      "registrationClosedReason": null
     },
     "ActivityViewer": {
       "activityId": "58857036-2ffd-4ada-95d2-011add87a403",
@@ -604,7 +607,9 @@
           "allowed": false,
           "reasonCode": "FEATURE_UNAVAILABLE"
         }
-      }
+      },
+      "registrationOpen": false,
+      "registrationClosedReason": null
     },
     "Membership": {
       "id": "5f128398-28eb-4fb7-97f3-6a3df4aff337",

@@ -44,6 +44,13 @@ function scanTitle(scan: SapScan, categories: SapCategory[]) {
   if (scan.outcome === "no_waste") return "Tidak ada sampah terdeteksi";
   return categoryName(scan.categoryId, categories);
 }
+function scanExplanation(scan: SapScan) {
+  if (recognized(scan)) return "Hasil scan mengenali kategori material. Laporan lokasi tetap perlu ditinjau.";
+  if (pending(scan)) return "Pemindaian masih berlangsung. Kategori material belum tersedia.";
+  if (scan.status === "failed") return "Pemindaian gagal, sehingga kategori material belum dapat dikenali.";
+  if (scan.outcome === "no_waste") return "Tidak ada sampah terdeteksi pada foto ini.";
+  return "Material pada foto belum berhasil dikenali.";
+}
 function statusLabel(scan: SapScan) {
   if (scan.status === "failed") return "Gagal diproses";
   if (scan.status === "queued") return "Dalam antrean";
@@ -146,7 +153,7 @@ function ScanDetail({ initial, categories, onClose, onOpenReport, onScanAgain, o
             <Metadata icon={<Clock3 size={22} />} label={t("Waktu")}><time dateTime={scan.createdAt}>{displayTime(scan.createdAt)}</time></Metadata>
           </dl>
           <p className={styles.infoStrip} role="status"><Leaf size={19} /><span>{t(points.text, { "0": points.points ?? 0 })}</span></p>
-          <p className={styles.infoStrip}><Info size={19} /><span>{t("Hasil scan mengenali kategori material. Laporan lokasi tetap perlu ditinjau.")}</span></p>
+          <p className={styles.infoStrip}><Info size={19} /><span>{t(scanExplanation(scan))}</span></p>
           {scan.status === "failed" && <p className={styles.failureNote} role="status">{scan.errorCode ? errorMessages[scan.errorCode] : t("Foto belum berhasil diproses. Anda dapat mencoba scan lagi.")}</p>}
           {pending(scan) && <p className={styles.processNote} role="status"><LoaderCircle size={17} className={styles.spin} />{t("Hasil diperbarui otomatis selama pemindaian diproses.")}</p>}
           <section className={styles.guideCard}><Image src="/images/history/guide.webp" alt="" width={100} height={90} /><div><h3>{t("Panduan hasil scan")}</h3><p>{t("Pahami hasil dan langkah berikutnya.")}</p></div><button className={styles.outlineButton} type="button" onClick={() => chooseTab("guide")}>{t("Buka panduan")}<ChevronRight size={17} /></button></section>

@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { safeReturnTo } from "../lib/auth-return";
 import {
   activityView,
+  activity,
   fixtureApi,
   failure,
   ids,
@@ -55,7 +56,7 @@ test("guest sees public detail and login returns to the incident", async ({
     .getByLabel("Kata sandi", { exact: true })
     .fill("synthetic-password-for-test");
   await page.getByRole("button", { name: "Masuk", exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/incidents/${ids.incident}$`));
+  await expect(page).toHaveURL(new RegExp(`/incidents/${ids.incident}(?:#kontribusi-warga)?$`));
   expect(
     requests.filter(
       (r) =>
@@ -237,6 +238,29 @@ test("join request remains requested, never accepted optimistically", async ({
   expect(
     requests.filter((r) => r.path.endsWith("/membership"))[0].body,
   ).toEqual({ participating: true });
+});
+test("expired activity deadline displays closed registration and its reason", async ({
+  page,
+}) => {
+  await fixtureApi(page, {
+    handler: async (route, path) => {
+      if (path === `/activities/${ids.activity}`) {
+        await json(route, {
+          ...activity,
+          registrationOpen: false,
+          registrationClosedReason: "deadline_passed",
+        });
+        return true;
+      }
+      return false;
+    },
+  });
+  await page.goto(`/activities/${ids.activity}`);
+  await expect(page.getByText("Pendaftaran ditutup", { exact: true })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText(
+    "karena batas waktu pendaftaran telah lewat",
+  );
+  await expect(page.getByRole("button", { name: "Ajukan ikut kegiatan" })).toBeDisabled();
 });
 test("coordinator assignment uses explicit name consent and revision", async ({
   page,

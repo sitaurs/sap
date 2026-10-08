@@ -23,6 +23,30 @@ export const memberLabels: Record<MemberStatus, string> = {
   rejected: "Ditolak",
   cancelled: "Dibatalkan",
 };
+type RegistrationView = {
+  status: ActivityStatus;
+  registrationOpen: boolean;
+  registrationClosedReason: "deadline_passed" | "manually_closed" | "activity_not_open" | "source_unavailable" | null;
+  registrationClosesAt: string | null;
+};
+export function displayedActivityStatus(activity: RegistrationView): ActivityStatus {
+  return activity.status === "registration_open" && !activity.registrationOpen
+    ? "registration_closed"
+    : activity.status;
+}
+export function registrationClosedMessage(
+  activity: RegistrationView,
+  locale = "id-ID",
+): string | null {
+  if (activity.registrationOpen) return null;
+  if (activity.registrationClosedReason === "deadline_passed")
+    return `Pendaftaran ditutup otomatis pada ${dateLabel(activity.registrationClosesAt, true, locale)} karena batas waktu pendaftaran telah lewat.`;
+  if (activity.registrationClosedReason === "manually_closed")
+    return "Pendaftaran ditutup oleh pengelola.";
+  if (activity.registrationClosedReason === "source_unavailable")
+    return "Pendaftaran ditutup karena laporan sumber tidak lagi terbuka untuk kegiatan.";
+  return null;
+}
 export const commands: {
   action: ActivityCommand;
   permission: keyof Activity["actions"];

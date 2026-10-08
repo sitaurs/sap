@@ -1,11 +1,12 @@
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { plainToInstance } from 'class-transformer';
 import type { HttpException } from '@nestjs/common';
 import { ReportsService } from '../src/reports/reports.service.js';
 import { isOccurredAtValid, type ReportRecord } from '../src/reports/report.types.js';
 import { toH3Cell } from '../src/reports/geo.js';
-import type { ReportInputDto, ReportUpdateInputDto } from '../src/reports/dto.js';
+import { ReportUpdateInputDto, type ReportInputDto } from '../src/reports/dto.js';
 import type { UpdateReportResult } from '../src/reports/report.repository.js';
 
 function errorCode(error: unknown): string {
@@ -46,7 +47,7 @@ function record(over: Partial<ReportRecord> = {}): ReportRecord {
 interface Stub {
   service: ReportsService;
   state: { created: number };
-  updateArgs: Array<{ reportId: string; revision: number }>;
+  updateArgs: Array<{ reportId: string; revision: number; changes: Record<string, unknown> }>;
 }
 
 function makeService(opts: {
@@ -60,7 +61,7 @@ function makeService(opts: {
   recentCount?: number;
 } = {}): Stub {
   const state = { created: 0 };
-  const updateArgs: Array<{ reportId: string; revision: number }> = [];
+  const updateArgs: Array<{ reportId: string; revision: number; changes: Record<string, unknown> }> = [];
   const media = {
     findStoredForOwner: async (id: string) => (opts.ownedMedia === false ? null : { id, ownerId: 'u1', purpose: opts.mediaPurpose ?? 'report' }),
   };
@@ -75,8 +76,8 @@ function makeService(opts: {
     },
     findForViewer: async () => opts.found ?? null,
     listByOwner: async (_u: string, limit: number) => (opts.listRows ?? []).slice(0, limit),
-    updateOwnedSubmitted: async (reportId: string, _u: string, revision: number) => {
-      updateArgs.push({ reportId, revision });
+    updateOwnedSubmitted: async (reportId: string, _u: string, revision: number, changes: Record<string, unknown>) => {
+      updateArgs.push({ reportId, revision, changes });
       return opts.updateResult ?? ({ ok: true, record: record() } as UpdateReportResult);
     },
     countRecentForUser: async (_u: string, _since: Date) => ({
@@ -221,5 +222,30 @@ test('updateReport surfaces an unknown/foreign report as NOT_FOUND', async () =>
 test('updateReport passes the If-Match revision through and validates new media', async () => {
   const stub = makeService();
   await stub.service.updateReport('u1', REPORT, 7, { mediaIds: [MEDIA] } as ReportUpdateInputDto);
-  assert.deepEqual(stub.updateArgs, [{ reportId: REPORT, revision: 7 }]);
+  assert.equal(stub.updateArgs[0]?.reportId, REPORT);
+  assert.equal(stub.updateArgs[0]?.revision, 7);
+  assert.deepEqual(stub.updateArgs[0]?.changes, { mediaIds: [MEDIA] });
+});
+
+test('updateReport ignores an own categoryId property whose transformed value is undefined', async () => {
+  const stub = makeService();
+  const dto = plainToInstance(ReportUpdateInputDto, {
+    description: 'Updated report description with enough length.',
+  });
+  assert.equal(Object.prototype.hasOwnProperty.call(dto, 'categoryId'), true);
+  assert.equal(dto.categoryId, undefined);
+
+  await stub.service.updateReport('u1', REPORT, 1, dto);
+
+  assert.deepEqual(stub.updateArgs[0]?.changes, { description: 'Updated report description with enough length.' });
+});
+
+test('updateReport allows explicitly clearing or changing categoryId', async () => {
+  const cleared = makeService();
+  await cleared.service.updateReport('u1', REPORT, 1, { categoryId: null } as ReportUpdateInputDto);
+  assert.deepEqual(cleared.updateArgs[0]?.changes, { categoryId: null });
+
+  const changed = makeService();
+  await changed.service.updateReport('u1', REPORT, 1, { categoryId: 'plastic' } as ReportUpdateInputDto);
+  assert.deepEqual(changed.updateArgs[0]?.changes, { categoryId: 'plastic' });
 });

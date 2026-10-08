@@ -37790,6 +37790,9 @@
           "canonicalPath": {
             "type": "string",
             "pattern": "^/"
+          },
+          "registrationClosedReason": {
+            "$ref": "#/components/schemas/RegistrationClosedReason"
           }
         },
         "required": [
@@ -37811,6 +37814,7 @@
           "acceptedCount",
           "availableSeats",
           "registrationOpen",
+          "registrationClosedReason",
           "equipment",
           "accessibilityNotes",
           "wasteHandoverPlan",
@@ -39359,6 +39363,12 @@
               "requestResult"
             ],
             "additionalProperties": false
+          },
+          "registrationOpen": {
+            "type": "boolean"
+          },
+          "registrationClosedReason": {
+            "$ref": "#/components/schemas/RegistrationClosedReason"
           }
         },
         "required": [
@@ -39381,6 +39391,8 @@
           "coordinatorAcceptedAt",
           "acceptedCount",
           "availableSeats",
+          "registrationOpen",
+          "registrationClosedReason",
           "holdReason",
           "priorState",
           "createdAt",
@@ -40134,6 +40146,65 @@
               "additionalProperties": false
             }
           },
+          "instagramPublicationSeries": {
+            "type": "array",
+            "description": "Existing series only. If a kind/milestone pair is absent, its first generation can be created when the overall action is allowed.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "initial",
+                    "resolution"
+                  ]
+                },
+                "milestoneId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                },
+                "latestPostId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "generation": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "status": {
+                  "$ref": "#/components/schemas/PublicationStatus"
+                },
+                "canCreate": {
+                  "type": "boolean",
+                  "description": "True only when the latest generation is cancelled or retracted; active and unresolved generations must be managed first."
+                },
+                "reasonCode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "const": "INVALID_TRANSITION"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "kind",
+                "milestoneId",
+                "latestPostId",
+                "generation",
+                "status",
+                "canCreate",
+                "reasonCode"
+              ],
+              "additionalProperties": false
+            }
+          },
           "actions": {
             "type": "object",
             "properties": {
@@ -40169,6 +40240,7 @@
           "resolutionReviewRequired",
           "publicationAssets",
           "publicationMilestones",
+          "instagramPublicationSeries",
           "actions"
         ],
         "additionalProperties": false
@@ -42795,6 +42867,29 @@
           "meta"
         ],
         "additionalProperties": false
+      },
+      "RegistrationClosedReason": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "deadline_passed"
+          },
+          {
+            "type": "string",
+            "const": "manually_closed"
+          },
+          {
+            "type": "string",
+            "const": "activity_not_open"
+          },
+          {
+            "type": "string",
+            "const": "source_unavailable"
+          },
+          {
+            "type": "null"
+          }
+        ]
       }
     },
     "securitySchemes": {

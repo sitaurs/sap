@@ -17,6 +17,9 @@ const statusLabels: Record<SapReport["status"], string> = {
 type PhotoConsent = {
   mediaId: string;
   url: string;
+  urlRetries: number;
+  refreshingUrl: boolean;
+  photoError: string;
   channels: R1["MediaConsents"]["channels"];
   revision: number | null;
   saving: boolean;
@@ -74,6 +77,9 @@ export default function ReportDetail({ id, categories, onClose, onUpdated }: { i
         return {
           mediaId,
           url: url.url,
+          urlRetries: 0,
+          refreshingUrl: false,
+          photoError: "",
           channels: consent?.channels ?? [],
           revision: consent?.revision ?? null,
           saving: false,
@@ -84,6 +90,37 @@ export default function ReportDetail({ id, categories, onClose, onUpdated }: { i
     }).catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Detail laporan belum tersedia."); });
     return () => controller.abort();
   }, [id]);
+
+  async function refreshPhotoUrl(mediaId: string) {
+    const photo = photos.find(item => item.mediaId === mediaId);
+    if (!photo || photo.refreshingUrl || photo.urlRetries >= 2) {
+      if (photo && photo.urlRetries >= 2) {
+        setPhotos(current => current.map(item => item.mediaId === mediaId
+          ? { ...item, photoError: "Foto belum dapat dimuat. Tutup lalu buka kembali detail laporan." }
+          : item));
+      }
+      return;
+    }
+    setPhotos(current => current.map(item => item.mediaId === mediaId
+      ? { ...item, refreshingUrl: true, urlRetries: item.urlRetries + 1, photoError: "" }
+      : item));
+    try {
+      const signed = await mediaUrl(mediaId);
+      setPhotos(current => current.map(item => item.mediaId === mediaId
+        ? { ...item, url: signed.url, refreshingUrl: false }
+        : item));
+    } catch {
+      setPhotos(current => current.map(item => item.mediaId === mediaId
+        ? { ...item, refreshingUrl: false, photoError: "Foto belum dapat dimuat. Tutup lalu buka kembali detail laporan." }
+        : item));
+    }
+  }
+
+  function photoLoaded(mediaId: string) {
+    setPhotos(current => current.map(item => item.mediaId === mediaId
+      ? { ...item, urlRetries: 0, photoError: "" }
+      : item));
+  }
 
   async function toggleConsent(mediaId: string, channel: "web" | "instagram", enabled: boolean) {
     const photo = photos.find(item => item.mediaId === mediaId);
@@ -129,7 +166,9 @@ export default function ReportDetail({ id, categories, onClose, onUpdated }: { i
         {report.publicSummary && ["verified", "in_progress", "resolved"].includes(report.status) && <a className={styles.publicLink} href={`/incidents/${encodeURIComponent(report.id)}`}>{t("Buka kronologi publik dan kirim pembaruan warga")} ↗</a>}
         <div className={styles.facts}><span><CalendarDays size={18} />{new Date(report.occurredAt).toLocaleString(intlLocale)}</span><span><MapPin size={18} />{report.location.latitude.toFixed(5)}, {report.location.longitude.toFixed(5)}</span><span><FileText size={18} />{categories.find(item => item.id === report.categoryId)?.name || t("Tanpa kategori")} {" "}{t("· Tumpukan")}{" "}{report.reportedSeverity}</span></div>
         {photos.length > 0 && <div className={styles.photos}>{photos.map((photo, index) => <figure key={photo.mediaId} className={styles.photoConsent}>
-          <img src={photo.url} alt={t("Bukti laporan {0}", { "0": index + 1 })} />
+          <img src={photo.url} alt={t("Bukti laporan {0}", { "0": index + 1 })} onLoad={() => photoLoaded(photo.mediaId)} onError={() => void refreshPhotoUrl(photo.mediaId)} />
+          {photo.refreshingUrl && <small role="status">{t("Memuat ulang foto…")}</small>}
+          {photo.photoError && <small role="alert">{t(photo.photoError)}</small>}
           <figcaption>
             <strong>{t("Izin foto")}{" "}{index + 1}</strong>
             {(["web", "instagram"] as const).map(channel => <label key={channel}>

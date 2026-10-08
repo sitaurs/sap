@@ -36,6 +36,8 @@ import {
   shortId,
   uniqueItems,
   initials,
+  displayedActivityStatus,
+  registrationClosedMessage,
 } from "./activity-utils";
 import {
   Busy,
@@ -288,7 +290,7 @@ export default function ActivityDetail({
               </div>
               <div className={`${s.titleRow} ${d.heroCopy}`}>
                 <div>
-                  <Status status={a.status} />
+                  <Status status={displayedActivityStatus(a)} />
                   <h1 className={s.activityTitle}>{a.title}</h1>
                   <p className={s.preserve}>{a.description}</p>
                   <span className={s.meta}>
@@ -519,7 +521,8 @@ export default function ActivityDetail({
           <section className={`${s.card} ${d.statusCard}`}>
             <h2>
               <Leaf size={22} /> {" "}{t("Status kegiatan")}</h2>
-            <Status status={a.status} />
+            <Status status={displayedActivityStatus(a)} />
+            {registrationClosedMessage(a, intlLocale) && <p role="status">{t(registrationClosedMessage(a, intlLocale)!)}</p>}
             <dl className={s.facts}>
               <div>
                 <dt>{t("Pendaftaran ditutup")}</dt>

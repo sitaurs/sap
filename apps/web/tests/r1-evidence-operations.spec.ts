@@ -219,6 +219,7 @@ test("coordinator member decisions use the coordinator endpoint and revision", a
   await page.goto(`/activities/${ids.activity}/manage`);
   await page.getByRole("button", { name: "Kelola peserta" }).click();
   await page.getByRole("button", { name: /Relawan sintetis/ }).click();
+  await page.getByLabel("Status baru").selectOption("accepted");
   await page
     .getByLabel("Alasan keputusan")
     .fill("Peserta sesuai kebutuhan kegiatan sintetis.");

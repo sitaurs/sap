@@ -61,6 +61,39 @@ const testimonials = [
 
 const legalLabels = ["Kebijakan Privasi", "Ketentuan Layanan", "Pengaturan Cookie"] as const;
 
+type LegalSection = { heading: string; paragraphs: readonly string[]; bullets?: readonly string[] };
+type LegalDocument = { notice: string; intro: string; sections: readonly LegalSection[] };
+
+const legalDocuments: Record<string, LegalDocument> = {
+  "Kebijakan Privasi": {
+    notice: "DRAF UNTUK DITINJAU · 8 OKTOBER 2026. Nama badan hukum pengelola, kontak resmi, dan jadwal retensi rinci perlu dikonfirmasi sebelum dokumen ini ditetapkan sebagai kebijakan final.",
+    intro: "Kebijakan ini menjelaskan bagaimana Sustainable AI Platform (SAP) mengumpulkan, menggunakan, menyimpan, dan membagikan data saat Anda memakai situs dan layanan SAP.",
+    sections: [
+      { heading: "Data yang diproses", paragraphs: ["Bergantung pada fitur yang Anda gunakan, SAP dapat memproses nama tampilan, alamat email, kredensial autentikasi yang tersimpan dalam bentuk terlindungi, status verifikasi akun, preferensi keamanan/MFA, serta informasi sesi dan perangkat yang diperlukan untuk keamanan layanan.", "Untuk scan dan laporan, SAP dapat memproses foto, hasil identifikasi otomatis, kategori, deskripsi, waktu pengamatan, lokasi yang Anda pilih, komentar atau pembaruan warga, serta riwayat status dan keputusan moderasi. Jika Anda menghubungi SAPA, pesan dan konteks yang Anda berikan diproses untuk menjawab permintaan tersebut.", "Unggahan gambar dinormalisasi sebelum disimpan; metadata gambar seperti koordinat EXIF dihapus dari hasil pemrosesan. SAP tetap dapat menyimpan koordinat yang Anda pilih secara terpisah untuk memeriksa dan mengelola laporan."] },
+      { heading: "Tujuan penggunaan", paragraphs: ["Data digunakan untuk membuat dan mengamankan akun, menerima scan/laporan, membantu klasifikasi material, menampilkan status dan peta, menghubungkan warga dengan kegiatan, memoderasi konten, menyediakan dukungan SAPA, mencegah penyalahgunaan, memelihara layanan, dan memenuhi kewajiban yang berlaku.", "Fitur otomatis dan AI dapat membantu mengenali material atau menyusun rekomendasi bagi moderator. Hasil otomatis bukan keputusan final dan dapat keliru; keputusan publikasi dan moderasi tetap mengikuti alur serta pemeriksaan manusia yang berlaku."] },
+      { heading: "Data privat dan informasi publik", paragraphs: ["Koordinat presisi, foto mentah, dan rincian laporan tidak otomatis menjadi informasi publik. Laporan yang memenuhi syarat dapat menampilkan ringkasan serta area geografis yang digeneralisasi. Foto hanya dapat dipublikasikan pada kanal tertentu setelah izin kanal yang sesuai diberikan dan moderator menyetujui bukti tersebut.", "Persetujuan untuk web dan Instagram terpisah. Publikasi Instagram memerlukan proses persetujuan dan tindakan admin; setelah dipublikasikan, konten dapat disalin atau disimpan pihak lain. Pencabutan izin menghentikan penggunaan baru dan memulai proses penarikan yang didukung, tetapi tidak selalu dapat menghapus salinan pihak ketiga atau menjamin penghapusan seketika."] },
+      { heading: "Penerima data", paragraphs: ["Akses internal dibatasi sesuai tugas, misalnya untuk moderator dan pengelola layanan. SAP juga dapat menggunakan penyedia hosting, basis data, penyimpanan berkas, pengiriman email, keamanan, dan pemrosesan AI yang diperlukan untuk menjalankan fitur. Data hanya dibagikan sejauh diperlukan untuk tujuan layanan dan sesuai konfigurasi penyedia.", "Jika Anda meminta publikasi Instagram dan konten disetujui serta diterbitkan, media dan informasi publikasi yang diperlukan akan dikirim ke Meta/Instagram. Konten publik dapat dilihat pengguna internet. Layanan pihak ketiga tunduk pula pada ketentuan dan kebijakan privasi mereka sendiri.", "Sebagian penyedia mungkin memproses data dari luar Indonesia. Pengelola perlu memastikan lokasi pemrosesan, perlindungan transfer, daftar penyedia, dan pengaturan kontraktual sebelum draf ini disahkan."] },
+      { heading: "Penyimpanan dan penghapusan", paragraphs: ["Data disimpan selama diperlukan untuk menyediakan layanan, menjaga keamanan, menangani moderasi, menyelesaikan sengketa, dan memenuhi kewajiban yang berlaku. Jadwal retensi spesifik untuk setiap kategori data dan cadangan perlu ditetapkan oleh pengelola.", "Anda dapat mengajukan penghapusan akun dari Pengaturan. Permintaan yang diterima segera menonaktifkan akun dan sesi, lalu memasukkan penghapusan ke proses pembersihan. Data atau catatan terbatas mungkin tetap disimpan sejauh diperlukan untuk keamanan, audit, penyelesaian permintaan yang berjalan, atau kewajiban hukum; pengelola harus menetapkan batas dan jadwalnya secara transparan."] },
+      { heading: "Pilihan dan hak Anda", paragraphs: ["Anda dapat memperbarui informasi akun melalui fitur yang tersedia, memilih secara terpisah apakah bukti boleh digunakan pada kanal publik, dan mengajukan pencabutan izin atau permintaan terkait data kepada pengelola SAP. Permintaan dapat memerlukan verifikasi identitas untuk mencegah akses tanpa hak. Hak dan pengecualian mengikuti peraturan yang berlaku.", "Jangan unggah data pribadi orang lain, wajah, dokumen identitas, atau informasi sensitif yang tidak diperlukan. Pastikan Anda berhak mengirim foto dan informasi yang Anda berikan."] },
+      { heading: "Keamanan dan cookie", paragraphs: ["SAP menerapkan kontrol teknis dan operasional yang dirancang untuk membatasi akses, melindungi sesi, mengamankan unggahan, dan mengurangi data sensitif pada log. Tidak ada sistem yang dapat dijamin bebas risiko; segera hubungi pengelola jika Anda menduga akun atau data disalahgunakan.", "Cookie dan penyimpanan browser digunakan untuk fungsi yang diperlukan, seperti sesi login, perlindungan permintaan, dan pilihan bahasa. Versi landing page ini tidak memasang cookie analitik atau iklan berdasarkan pemeriksaan kode saat draf dibuat. Perubahan fitur atau penyedia dapat mengubah praktik tersebut dan perlu diperbarui dalam pemberitahuan ini."] },
+      { heading: "Perubahan dan dasar rujukan", paragraphs: ["Perubahan penting pada kebijakan akan ditampilkan melalui SAP. Draf ini disusun sebagai dasar informasi pengguna dan tetap memerlukan pemeriksaan pengelola serta penasihat hukum sebelum diberlakukan sebagai kebijakan resmi."] },
+    ],
+  },
+  "Ketentuan Layanan": {
+    notice: "DRAF UNTUK DITINJAU · 8 OKTOBER 2026. Identitas badan hukum pengelola, kontak resmi, dan yurisdiksi penyelesaian sengketa perlu dikonfirmasi sebelum dokumen ini ditetapkan sebagai ketentuan final.",
+    intro: "Ketentuan ini mengatur penggunaan SAP, termasuk fitur scan, laporan lingkungan, kontribusi warga, kegiatan relawan, SAPA, dan publikasi Instagram.",
+    sections: [
+      { heading: "Akun dan penggunaan yang wajar", paragraphs: ["Berikan informasi akun yang benar, jaga kerahasiaan kata sandi dan kode pemulihan, serta segera amankan akun jika ada dugaan akses tanpa izin. Anda bertanggung jawab atas aktivitas yang dilakukan melalui sesi akun Anda.", "Gunakan SAP secara sah dan dengan itikad baik. Dilarang mengirim laporan palsu dengan sengaja, mengganggu layanan, mencoba mengakses data orang lain, mengunggah malware, melecehkan orang, atau menggunakan SAP untuk melanggar hak dan keselamatan pihak lain."] },
+      { heading: "Laporan, foto, dan kontribusi warga", paragraphs: ["Kirim informasi yang akurat sejauh pengetahuan Anda dan tandai perkiraan sebagai perkiraan. Anda menyatakan memiliki hak atau izin yang diperlukan atas foto, teks, dan materi yang dikirim serta tidak memasukkan informasi pribadi orang lain yang tidak diperlukan.", "Anda tetap memiliki hak atas materi yang Anda kirim. Untuk menjalankan layanan, Anda memberi SAP izin terbatas, non-eksklusif, dan selama diperlukan untuk menyimpan, memproses, meninjau, serta menampilkan materi kepada Anda dan moderator. Izin untuk menampilkan materi kepada publik hanya berlaku jika persetujuan kanal diberikan secara terpisah dan moderator menyetujuinya.", "SAP dapat membatasi, menyamarkan, meminta perbaikan, atau menolak materi yang tidak aman, melanggar hak, tidak relevan, atau tidak memenuhi standar bukti. Pengiriman laporan tidak menjamin laporan diverifikasi, ditangani pada jangka waktu tertentu, atau menghasilkan tindakan dari pihak lain."] },
+      { heading: "AI, peta, dan informasi publik", paragraphs: ["Hasil identifikasi material, ringkasan, rekomendasi Hermes, dan jawaban SAPA dapat tidak lengkap atau salah. Gunakan sebagai bantuan, bukan pengganti penilaian profesional, instruksi darurat, atau keputusan moderator. SAP tidak menjamin setiap laporan atau jawaban akan ditinjau dalam waktu tertentu.", "Peta dan kronologi publik dapat menggunakan ringkasan serta area lokasi yang digeneralisasi. Jangan mengandalkannya sebagai koordinat navigasi, pernyataan resmi pemerintah, atau bukti bahwa area tanpa laporan bebas masalah. Untuk keadaan darurat, hubungi layanan darurat atau otoritas setempat."] },
+      { heading: "Kegiatan relawan", paragraphs: ["Informasi kegiatan, kapasitas, titik kumpul, dan instruksi dapat berubah. Ikuti arahan koordinator, aturan lokasi, dan ketentuan keselamatan. Jangan melakukan aktivitas yang berbahaya atau di luar kemampuan Anda; hentikan partisipasi dan laporkan kondisi tidak aman kepada koordinator.", "SAP adalah sarana koordinasi dan tidak menjamin ketersediaan kegiatan, penerimaan pendaftaran, hasil lingkungan, atau tindakan pengelola lokasi. Poin dan lencana, bila tersedia, adalah fitur pencatatan partisipasi sesuai aturan program; bukan uang, aset, atau jaminan hadiah kecuali suatu program secara tegas menyatakan sebaliknya."] },
+      { heading: "Publikasi Instagram dan layanan pihak ketiga", paragraphs: ["Draf Instagram bukan posting yang sudah terbit. Publikasi hanya dilakukan setelah syarat bukti dan izin terpenuhi, konten ditinjau serta disetujui admin, akun Instagram yang diperlukan terhubung, dan admin menjalankan tindakan publikasi. Meta/Instagram dapat menolak, membatasi, atau menghapus konten berdasarkan kebijakan mereka.", "Tautan atau integrasi pihak ketiga memiliki ketentuan sendiri. SAP tidak mengendalikan ketersediaan maupun kebijakan layanan tersebut. Penarikan melalui SAP memulai proses yang didukung, tetapi salinan, cache, tangkapan layar, atau unggahan ulang pihak lain mungkin tetap ada."] },
+      { heading: "Ketersediaan, pembatasan, dan perubahan", paragraphs: ["SAP dapat mengalami pemeliharaan, gangguan, atau perubahan fitur. Pengelola dapat membatasi akses sementara atau menangguhkan akun jika diperlukan untuk keamanan, kepatuhan, investigasi penyalahgunaan, atau perlindungan pengguna, dengan mempertimbangkan pemberitahuan dan peninjauan yang wajar.", "Pengelola dapat memperbarui layanan dan ketentuan ini. Perubahan material akan diberitahukan melalui platform bila memungkinkan. Penggunaan setelah tanggal berlakunya perubahan tunduk pada ketentuan yang diperbarui, sepanjang diperbolehkan oleh hukum."] },
+      { heading: "Penghapusan akun dan pertanyaan", paragraphs: ["Anda dapat meminta penghapusan akun melalui Pengaturan. Permintaan memerlukan konfirmasi keamanan, menonaktifkan akun dan sesi, lalu diproses melalui antrean penghapusan. Penghapusan dari SAP tidak otomatis menarik salinan yang sudah diterbitkan oleh pihak ketiga.", "Untuk pertanyaan, laporan pelanggaran, atau permintaan terkait akun dan data, hubungi pengelola melalui kanal bantuan yang tersedia di SAP. Identitas badan hukum, kontak resmi, serta aturan hukum dan penyelesaian sengketa harus dilengkapi sebelum draf ini ditetapkan sebagai ketentuan resmi."] },
+    ],
+  },
+};
+
 export type BottomDetail =
   | { kind: "testimonial"; index: number; variant?: "mobile" }
   | { kind: "footer"; label: string };
@@ -200,9 +233,7 @@ const footerDetails: Record<string, { description: string; href?: string; action
   Webinar: { description: "Jadwal webinar belum tersedia. Anda dapat menjelajahi contoh fitur dan alur pelaporan terlebih dahulu.", href: "#fitur", action: "Jelajahi fitur" },
   Karir: { description: "Informasi lowongan belum tersedia di landing page ini." },
   "Hubungi Kami": { description: "Informasi kontak resmi belum tersedia di landing page ini." },
-  "Kebijakan Privasi": { description: "Dokumen kebijakan privasi resmi belum tersedia pada versi landing page ini." },
-  "Ketentuan Layanan": { description: "Dokumen ketentuan layanan resmi belum tersedia pada versi landing page ini." },
-  "Pengaturan Cookie": { description: "Landing page ini belum memakai cookie analitik atau iklan. Tidak ada preferensi pelacakan tambahan yang perlu diubah." },
+  "Pengaturan Cookie": { description: "Cookie dan penyimpanan browser mendukung sesi login, perlindungan permintaan, dan pilihan bahasa. Landing page tidak memasang cookie analitik atau iklan pada versi ini." },
 };
 
 export function SiteFooter({ onOpen }: { onOpen: OpenDetail }) {
@@ -274,9 +305,21 @@ export function DetailDialog({ detail, onClose }: { detail: BottomDetail | null;
     </>;
   } else {
     const info = footerDetails[detail.label];
+    const legal = legalDocuments[detail.label];
     eyebrow = "Informasi";
     title = t(detail.label);
-    content = <>
+    content = legal ? <div className={styles.legalDocument}>
+      <p className={styles.legalDraftNotice} role="note">{legal.notice}</p>
+      <p className={styles.legalIntro}>{legal.intro}</p>
+      <div className={styles.legalSections}>
+        {legal.sections.map(section => <section key={section.heading}>
+          <h3>{section.heading}</h3>
+          {section.paragraphs.map(paragraph => <p key={paragraph}>{paragraph}</p>)}
+          {section.bullets && <ul>{section.bullets.map(item => <li key={item}>{item}</li>)}</ul>}
+        </section>)}
+        {detail.label === "Kebijakan Privasi" && <p className={styles.legalReferences}>Rujukan untuk pemeriksaan: <a href="https://peraturan.bpk.go.id/Details/229798/uu-no-27-" target="_blank" rel="noreferrer">UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi</a> dan <a href="https://peraturan.bpk.go.id/Home/Details/122030/pp-no-71-" target="_blank" rel="noreferrer">PP No. 71 Tahun 2019 tentang Penyelenggaraan Sistem dan Transaksi Elektronik</a>.</p>}
+      </div>
+    </div> : <>
       <p>{t(info?.description ?? t("Informasi untuk bagian ini sedang disiapkan."))}</p>
       {info?.href && <a className={styles.detailAction} href={info.href} onClick={() => dialogRef.current?.close()}>{t(info.action ?? "Lihat detail")} <ArrowRight size={18} aria-hidden="true" /></a>}
     </>;

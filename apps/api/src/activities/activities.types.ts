@@ -3,6 +3,7 @@ import { fail } from '../extensions/extension.store.js';
 
 export const activityStates = ['draft','registration_open','registration_closed','in_progress','awaiting_result','completed','on_hold','cancelled'] as const;
 export type ActivityState = typeof activityStates[number];
+export type RegistrationClosedReason = 'deadline_passed'|'manually_closed'|'activity_not_open'|'source_unavailable'|null;
 export type ActivityInput = {
  reportId:string;title:string;description:string;coordinatorId:string|null;startsAt:string|null;endsAt:string|null;registrationClosesAt:string|null;
  timezone:'Asia/Jakarta';capacity:number|null;meetingPoint:{instructions:string;latitude:number|null;longitude:number|null}|null;

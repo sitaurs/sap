@@ -10,7 +10,7 @@ import PublicationPhoto from "./publication-photo";
 import DialogShell from "./dialog-shell";
 import { Notice } from "./publication-ui";
 import { shortId } from "./publication-utils";
-import type { PostPreview } from "./types";
+import { publicationLabels, type PostPreview } from "./types";
 import { Empty, Failure } from "../community/community-ui";
 import styles from "./instagram.module.css";
 import { useI18n } from "../../lib/i18n/provider";
@@ -169,6 +169,12 @@ function EligibleSource({
   const selected = lifecycle?.publicationMilestones.find(
       (m) => m.id === milestone,
     ),
+    currentSeries = lifecycle?.instagramPublicationSeries.find(
+      (series) =>
+        series.kind === kind &&
+        series.milestoneId === (kind === "resolution" ? selected?.id ?? null : null),
+    ),
+    seriesBlocked = currentSeries !== undefined && !currentSeries.canCreate,
     eligible =
       lifecycle?.actions.createInstagramDraft.allowed &&
       lifecycle.instagramAllowed &&
@@ -194,6 +200,7 @@ function EligibleSource({
   function choose(mediaId: string) {
     if (
       !eligible ||
+      seriesBlocked ||
       !incident ||
       !lifecycle ||
       (kind === "resolution" && !selected)
@@ -264,7 +271,11 @@ function EligibleSource({
                     setMilestone("");
                   }}
                 >
-                  <option value="initial">{t("Kejadian awal")}</option>
+                  <option value="initial" disabled={lifecycle!.instagramPublicationSeries.some(
+                    (series) => series.kind === "initial" && !series.canCreate,
+                  )}>{t("Kejadian awal")}{lifecycle!.instagramPublicationSeries.some(
+                    (series) => series.kind === "initial" && !series.canCreate,
+                  ) ? ` · ${t("generation aktif")}` : ""}</option>
                   <option value="resolution">
                     {t("Hasil penanganan yang disetujui")}</option>
                 </select>
@@ -278,20 +289,32 @@ function EligibleSource({
                   >
                     <option value="">{t("Pilih hasil yang disetujui")}</option>
                     {lifecycle!.publicationMilestones.map((m) => (
-                      <option key={m.id} value={m.id}>
+                      <option key={m.id} value={m.id} disabled={lifecycle!.instagramPublicationSeries.some(
+                        (series) => series.kind === "resolution" && series.milestoneId === m.id && !series.canCreate,
+                      )}>
                         {m.outcome === "partial" ? "Sebagian" : "Lengkap"} ·{" "}
-                        {m.summary}
+                        {m.summary}{lifecycle!.instagramPublicationSeries.some(
+                          (series) => series.kind === "resolution" && series.milestoneId === m.id && !series.canCreate,
+                        ) ? ` · ${t("generation aktif")}` : ""}
                       </option>
                     ))}
                   </select>
                 </label>
+              )}
+              {seriesBlocked && currentSeries && (
+                <Notice warning>
+                  {t("Generation {0} seri ini masih berstatus {1}. Kelola postingan yang ada di tab Postingan; batalkan draf/gagal atau tarik posting yang sudah terbit sebelum membuat generation baru.", {
+                    "0": currentSeries.generation,
+                    "1": t(publicationLabels[currentSeries.status]),
+                  })}
+                </Notice>
               )}
               <div className={styles.sourcePhotos}>
                 {assets.map((asset, index) => (
                   <button
                     className={styles.photoChoice}
                     key={asset.mediaId}
-                    disabled={kind === "resolution" && !selected}
+                    disabled={seriesBlocked || (kind === "resolution" && !selected)}
                     onClick={() => choose(asset.mediaId)}
                   >
                     <PublicationPhoto

@@ -58,6 +58,15 @@ function derive(a: Activity) {
     reasonCode: allowed ? null : reasonCode,
   });
   a.availableSeats = Math.max(0, (a.capacity ?? 0) - a.acceptedCount);
+  a.registrationOpen = a.status === "registration_open" &&
+    !!a.registrationClosesAt && Date.parse(a.registrationClosesAt) > Date.now();
+  a.registrationClosedReason = a.registrationOpen
+    ? null
+    : a.status === "registration_closed"
+      ? "manually_closed"
+      : a.status === "registration_open"
+        ? "deadline_passed"
+        : "activity_not_open";
   a.actions = {
     edit: set(active),
     cancel: set(active),
@@ -67,7 +76,7 @@ function derive(a: Activity) {
         ? "ACTIVITY_NOT_READY"
         : "COORDINATOR_NOT_ACCEPTED",
     ),
-    closeRegistration: set(a.status === "registration_open"),
+    closeRegistration: set(a.registrationOpen),
     start: set(
       ["registration_open", "registration_closed"].includes(a.status) &&
         !!a.startsAt &&
@@ -164,6 +173,8 @@ function seed(): Store {
         "Sampah dipilah dan diserahkan kepada pengelola bank sampah setempat.",
       acceptedCount: counts[i],
       availableSeats: 0,
+      registrationOpen: false,
+      registrationClosedReason: null,
       holdReason: null,
       priorState: null,
       createdAt: date(-3, 10),
@@ -487,7 +498,10 @@ async function executeMockRequest<T>(
         .map(derive)
         .filter(
           (a) =>
-            (!q.get("status") || a.status === q.get("status")) &&
+            (!q.get("status") ||
+              (a.status === "registration_open" && !a.registrationOpen
+                ? "registration_closed"
+                : a.status) === q.get("status")) &&
             (!q.get("reportId") || a.reportId === q.get("reportId")),
         ),
       q,
@@ -514,6 +528,8 @@ async function executeMockRequest<T>(
       coordinatorAcceptedAt: null,
       acceptedCount: 0,
       availableSeats: 0,
+      registrationOpen: false,
+      registrationClosedReason: null,
       holdReason: null,
       priorState: null,
       createdAt: now(),
@@ -710,7 +726,6 @@ async function executeMockRequest<T>(
           )
         ],
         area: { cellId: "mock", label: "Area contoh" },
-        registrationOpen: a.status === "registration_open",
         resultOutcome: null,
         canonicalPath: `/dashboard?view=admin-activities&activityScreen=detail&activity=${a.id}`,
       };

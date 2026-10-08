@@ -23,6 +23,7 @@ import { Busy, Empty, Notice, PageHead, Status } from "./activity-ui";
 import s from "./activities.module.css";
 import { useI18n } from "../../lib/i18n/provider";
 
+type MemberDecision = Extract<MemberStatus, "accepted" | "waitlisted" | "rejected" | "cancelled">;
 
 export default function ActivityMembers({
   activity,
@@ -56,12 +57,11 @@ export default function ActivityMembers({
     [cursor, setCursor] = useState<string | null>(null),
     [epoch, setEpoch] = useState(0);
   const [selected, setSelected] = useState<ActivityMember | null>(null),
-    [choice, setChoice] = useState<
-      "accepted" | "waitlisted" | "rejected" | "cancelled"
-    >("accepted"),
+    [choice, setChoice] = useState<MemberDecision | "">(""),
     [reason, setReason] = useState(""),
     [attendance, setAttendance] =
       useState<ActivityMember["attendance"]>("unknown");
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(true),
     [more, setMore] = useState(false),
     [busy, setBusy] = useState(false),
@@ -100,7 +100,7 @@ export default function ActivityMembers({
   const canAttendance =
     selected?.status === "accepted" &&
     ["in_progress", "awaiting_result", "completed"].includes(activity.status);
-  const transitions: (typeof choice)[] =
+  const transitions: MemberDecision[] =
     selected?.status === "requested" || selected?.status === "waitlisted"
       ? (["accepted", "waitlisted", "rejected", "cancelled"] as const).filter(
           (x) => x !== selected.status,
@@ -112,11 +112,12 @@ export default function ActivityMembers({
   function select(m: ActivityMember) {
     setSelected(m);
     setAttendance(m.attendance);
-    setChoice(m.status === "accepted" ? "cancelled" : "accepted");
+    setChoice("");
     setReason("");
     setPanelError("");
     setConflict(false);
     setLatestMember(null);
+    setCancelConfirmOpen(false);
   }
   async function loadMore() {
     if (!cursor || more || loading) return;
@@ -133,14 +134,18 @@ export default function ActivityMembers({
       setMore(false);
     }
   }
-  async function save(kind: "decision" | "attendance") {
-    if (!selected || conflict || latestMember) return;
+  async function save(kind: "decision" | "attendance", cancellationConfirmed = false) {
+    if (!selected || conflict || latestMember || (kind === "decision" && !choice)) return;
+    if (kind === "decision" && selected.status === "accepted" && choice === "cancelled" && !cancellationConfirmed) {
+      setCancelConfirmOpen(true);
+      return;
+    }
     setBusy(true);
     setPanelError("");
     try {
       const saved =
         kind === "decision"
-          ? await decideMember(selected, choice, reason.trim())
+          ? await decideMember(selected, choice as MemberDecision, reason.trim())
           : await recordAttendance(selected, attendance);
       setSelected(saved);
       setAttendance(saved.attendance);
@@ -150,6 +155,7 @@ export default function ActivityMembers({
           .filter((x) => !status || x.status === status),
       );
       setReason("");
+      setCancelConfirmOpen(false);
       setMessage(
         kind === "decision"
           ? "Keputusan peserta tersimpan."
@@ -372,7 +378,7 @@ export default function ActivityMembers({
                   <h3>{t("Keputusan peserta")}</h3>
                   <label className={s.field}>
                     {t("Status baru")}<select
-                      value={transitions.includes(choice) ? choice : ""}
+                      value={choice && transitions.includes(choice) ? choice : ""}
                       onChange={(e) =>
                         setChoice(e.target.value as typeof choice)
                       }
@@ -416,6 +422,7 @@ export default function ActivityMembers({
                       conflict ||
                       reason.trim().length < 5 ||
                       unavailableChoice ||
+                      !choice ||
                       !transitions.includes(choice)
                     }
                     onClick={() => void save("decision")}
@@ -423,6 +430,16 @@ export default function ActivityMembers({
                     <Check size={18} />
                     {busy ? t("Menyimpan…") : t("Simpan keputusan")}
                   </button>
+                  {cancelConfirmOpen && selected.status === "accepted" && choice === "cancelled" && (
+                    <div className={s.cancelConfirm} role="alertdialog" aria-modal="true" aria-labelledby="cancel-member-title">
+                      <strong id="cancel-member-title">{t("Batalkan peserta yang diterima?")}</strong>
+                      <p>{t("Peserta akan kehilangan status diterima dan kapasitas kegiatan akan tersedia kembali. Alasan yang Anda isi akan dicatat.")}</p>
+                      <div>
+                        <button type="button" className={s.secondary} disabled={busy} onClick={() => setCancelConfirmOpen(false)}>{t("Kembali")}</button>
+                        <button type="button" className={s.danger} disabled={busy || reason.trim().length < 5 || unavailableChoice} onClick={() => { setCancelConfirmOpen(false); void save("decision", true); }}>{t("Ya, batalkan peserta")}</button>
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <p className={s.hint}>

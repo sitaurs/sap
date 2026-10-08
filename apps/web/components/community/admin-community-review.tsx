@@ -239,7 +239,7 @@ export default function AdminCommunityReview() {
     } finally { setBusy(false); }
   }
 
-  return <main className={styles.page}>
+  return <section className={styles.page} aria-label="Moderasi pembaruan komunitas">
     <header className={styles.header}><div><p className={styles.eyebrow}>ADMIN · KOMUNITAS &amp; HERMES</p><h1>Tinjau pembaruan warga</h1><p>Hermes menyajikan rekomendasi dan bukti untuk membantu pemeriksaan; moderator manusia menentukan hasilnya.</p></div><button type="button" className={styles.refresh} onClick={() => setRefresh((value) => value + 1)} disabled={loading}>Muat ulang</button></header>
     <div className={styles.layout}>
       <aside className={styles.queue} aria-label="Antrean pembaruan">
@@ -302,5 +302,5 @@ export default function AdminCommunityReview() {
         </>}
       </section>
     </div>
-  </main>;
+  </section>;
 }

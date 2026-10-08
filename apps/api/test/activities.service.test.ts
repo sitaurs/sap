@@ -218,6 +218,59 @@ function fullCapacityHarness(acceptedCount: number) {
   return { service, actor, member, row, tx, statements };
 }
 
+test('public and managed activity DTOs share effective registration state at the deadline', async () => {
+  const h = fullCapacityHarness(0);
+  const originalNow = Date.now;
+  const deadline = Date.parse(h.row.data.registrationClosesAt!);
+  const admin = actor({ id: COORDINATOR_ID, role: 'admin', emailVerified: true });
+  try {
+    Date.now = () => deadline - 1;
+    const publicBefore = await h.service.publicDto(h.tx as never, h.row);
+    const managedBefore = await h.service.managed(h.tx as never, h.row, admin);
+    assert.ok(publicBefore.kind === 'activity');
+    assert.deepEqual(
+      [publicBefore.registrationOpen, publicBefore.registrationClosedReason],
+      [managedBefore.registrationOpen, managedBefore.registrationClosedReason],
+    );
+    assert.equal(publicBefore.registrationOpen, true);
+    assert.equal(publicBefore.registrationClosedReason, null);
+
+    Date.now = () => deadline;
+    const publicAtDeadline = await h.service.publicDto(h.tx as never, h.row);
+    const managedAtDeadline = await h.service.managed(h.tx as never, h.row, admin);
+    assert.ok(publicAtDeadline.kind === 'activity');
+    assert.deepEqual(
+      [publicAtDeadline.registrationOpen, publicAtDeadline.registrationClosedReason],
+      [managedAtDeadline.registrationOpen, managedAtDeadline.registrationClosedReason],
+    );
+    assert.equal(publicAtDeadline.registrationOpen, false);
+    assert.equal(publicAtDeadline.registrationClosedReason, 'deadline_passed');
+    assert.equal(publicAtDeadline.status, 'registration_open', 'effective closure does not mutate the persisted workflow status');
+    assert.equal(managedAtDeadline.status, 'registration_open');
+    assert.equal(managedAtDeadline.actions.closeRegistration.allowed, false);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('managed registration filters classify expired open rows as closed', async () => {
+  const queries: { sql: string; values: unknown[] }[] = [];
+  const db = async (parts: TemplateStringsArray, ...values: unknown[]) => {
+    queries.push({ sql: parts.join(' ').replace(/\s+/g, ' ').trim(), values });
+    return [];
+  };
+  const service = new ActivitiesService({
+    db,
+    cursor: () => ({ limit: 20, boundary: null, encode: () => '' }),
+  } as never);
+  await service.listManaged(actor({ id: COORDINATOR_ID, role: 'admin', emailVerified: true }), { status: 'registration_closed' });
+  const query = queries[0]!;
+  assert.match(query.sql, /a\.status='registration_closed' OR \(a\.status='registration_open'/);
+  assert.match(query.sql, /registrationClosesAt.*timestamptz<=now\(\)/);
+  assert.match(query.sql, /r\.status NOT IN \('verified','in_progress'\)/);
+  assert.ok(query.values.includes('registration_closed'));
+});
+
 test('membership acceptance rejects a full activity and locks the activity before counting capacity', async () => {
   const h = fullCapacityHarness(1);
 

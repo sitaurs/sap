@@ -24,7 +24,7 @@ import ActivityMembers from "./activity-members";
 import ActivityResultForm from "./activity-result-form";
 import ActivityForm from "./activity-form";
 import { Busy, Empty, Notice, PageHead, Status } from "./activity-ui";
-import { dateLabel, errorMessage, uniqueItems, memberLabels } from "./activity-utils";
+import { dateLabel, displayedActivityStatus, errorMessage, registrationClosedMessage, statusLabels, uniqueItems, memberLabels } from "./activity-utils";
 import s from "./activities.module.css";
 import { useI18n } from "../../lib/i18n/provider";
 
@@ -196,7 +196,7 @@ export default function VolunteerActivitiesPage({ categories }: { categories: Sa
       <section className={s.card}>
         <h2>{t("Kegiatan publik")}</h2>
         {publicActivities.length ? <div className={s.activityGrid}>{publicActivities.map((activity) => <button type="button" key={activity.id} className={s.activityCard} onClick={() => void openPublic(activity)}>
-          <Status status={activity.status} />
+          <Status status={displayedActivityStatus(activity)} />
           <strong>{activity.title}</strong>
           <span>{activity.area.label}</span>
           <small>{dateLabel(activity.startsAt, true, intlLocale)} · {activity.availableSeats} {t("tempat tersedia")}</small>
@@ -215,7 +215,7 @@ export default function VolunteerActivitiesPage({ categories }: { categories: Sa
       <section className={s.card}>
         <h2>{t("Penugasan koordinator")}</h2>
         {assignments.length ? <div className={s.assignmentList}>{assignments.map((activity) => <article key={activity.id} className={s.assignmentCard}>
-          <div><strong>{activity.title}</strong><p>{activity.reportId.slice(0, 8)} · {activity.status} {t("· revisi")}{" "}{activity.revision}</p></div>
+          <div><strong>{activity.title}</strong><p>{activity.reportId.slice(0, 8)} · {t(statusLabels[displayedActivityStatus(activity)])} {t("· revisi")}{" "}{activity.revision}</p></div>
           {activity.coordinatorAcceptedAt ? <><span className={s.memberStatus}>{t("Diterima")}{" "}{dateLabel(activity.coordinatorAcceptedAt, true, intlLocale)}</span><button type="button" className={s.secondary} onClick={() => void openManagement(activity.id)}>{t("Kelola kegiatan")}</button></> : <>
             <label className={s.consentRow}><input type="checkbox" checked={showNameByActivity[activity.id] ?? false} onChange={(event) => setShowNameByActivity((old) => ({ ...old, [activity.id]: event.target.checked }))} disabled={busy} /> {t("Izinkan nama tampilan saya ditampilkan sebagai koordinator pada laman publik.")}</label>
             <div className={s.buttonRow}><button type="button" className={s.primary} onClick={() => void acceptAssignment(activity, true)} disabled={busy}>{t("Terima penugasan")}</button><button type="button" className={s.secondary} onClick={() => void acceptAssignment(activity, false)} disabled={busy}>{t("Tolak penugasan")}</button></div>
@@ -227,7 +227,8 @@ export default function VolunteerActivitiesPage({ categories }: { categories: Sa
     {screen === "public-detail" && <div className={s.activityOverlay} role="dialog" aria-modal="true" aria-label={t("Detail kegiatan relawan")}>
       <div className={s.activityDialog}><button type="button" className={s.dialogClose} onClick={() => setScreen("list")}>{t("Tutup")}</button>
         {busy && !selectedPublic ? <Busy /> : selectedPublic?.kind === "activity" ? <>
-          <p className={s.eyebrow}>{t("KEGIATAN RELAWAN")}</p><h2>{selectedPublic.title}</h2><Status status={selectedPublic.status} />
+          <p className={s.eyebrow}>{t("KEGIATAN RELAWAN")}</p><h2>{selectedPublic.title}</h2><Status status={displayedActivityStatus(selectedPublic)} />
+          {registrationClosedMessage(selectedPublic, intlLocale) && <p role="status">{t(registrationClosedMessage(selectedPublic, intlLocale)!)}</p>}
           <p>{selectedPublic.description}</p>
           {viewer?.membership?.status === "accepted" && (
             <div className={`${s.sourceFrame} ${s.volunteerSourceFrame}`}>

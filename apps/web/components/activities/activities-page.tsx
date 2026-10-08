@@ -32,6 +32,8 @@ import {
   errorMessage,
   shortId,
   statusLabels,
+  displayedActivityStatus,
+  registrationClosedMessage,
   uniqueItems,
   initials,
 } from "./activity-utils";
@@ -445,7 +447,7 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
                   <strong>
                     {loading || error
                       ? "—"
-                      : items.filter((a) => a.status === c.status).length}
+                      : items.filter((a) => displayedActivityStatus(a) === c.status).length}
                   </strong>
                     {t(c.label)}
                 </span>
@@ -529,7 +531,7 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
                       <span className={s.rowSchedule}><small className={s.mobileRowLabel}>{t("Jadwal")}</small><span>{t(dateLabel(a.startsAt, false, intlLocale))}</span><small>{timeRange(a.startsAt, a.endsAt, intlLocale)}</small></span>
                       <CoordinatorSummary activity={a} compact />
                       <span className={s.rowQuota}><strong>{a.acceptedCount} / {a.capacity ?? "—"}</strong><small>{t("Diterima")}</small></span>
-                      <span className={s.rowStatus}><Status status={a.status} /></span>
+                      <span className={s.rowStatus}><Status status={displayedActivityStatus(a)} /></span>
                       <ChevronRight size={18} />
                     </button>
                   ))}
@@ -557,7 +559,8 @@ function ActivitiesPageContent({ categories }: { categories: SapCategory[] }) {
               {preview ? (
                 <>
                   <div className={s.sourceFrame}><AdminSourcePhoto reportId={preview.reportId} large /><span>{t("Foto laporan sumber")}</span></div>
-                  <div className={s.previewTitle}><h3>{preview.title}</h3><Status status={preview.status} /></div>
+                  <div className={s.previewTitle}><h3>{preview.title}</h3><Status status={displayedActivityStatus(preview)} /></div>
+                  {registrationClosedMessage(preview, intlLocale) && <p role="status">{t(registrationClosedMessage(preview, intlLocale)!)}</p>}
                   <div className={s.infoLine}><Link2 size={19} /><span><small>{t("Terhubung ke laporan")}</small>{t("Laporan #")}{shortId(preview.reportId)}</span></div>
                   <div className={s.infoLine}>
                     <Clock3 size={19} />

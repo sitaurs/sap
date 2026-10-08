@@ -21,7 +21,7 @@ async function setup(page: Page, status: SapReport["status"] = "submitted", read
     approvedResolutionEvidence: [], resolutionReviewRequired: false,
     publicationAssets: approved ? [{ mediaId: ids.media, renditionId: ids.rendition,
       channels: ["web"], sourceType: "report", sourceId: current.id }] : [],
-    publicationMilestones: [], actions: { moderate: permission, withdraw: permission,
+    publicationMilestones: [], instagramPublicationSeries: [], actions: { moderate: permission, withdraw: permission,
       restore: permission, createInstagramDraft: permission },
   });
   const uploads: string[] = [];

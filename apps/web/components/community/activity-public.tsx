@@ -21,7 +21,7 @@ import {
   PublicShell,
   usePage,
 } from "./community-ui";
-import { memberLabels, statusLabels } from "../activities/activity-utils";
+import { displayedActivityStatus, memberLabels, registrationClosedMessage, statusLabels } from "../activities/activity-utils";
 import s from "./community.module.css";
 import { useI18n } from "../../lib/i18n/provider";
 
@@ -51,7 +51,7 @@ export function ActivityExplore() {
       <div className={s.cards}>
         {page.items.map((a) => (
           <article className={s.card} key={a.id}>
-            <span className={s.badge}>{t(statusLabels[a.status])}</span>
+            <span className={s.badge}>{t(statusLabels[displayedActivityStatus(a)])}</span>
             <h2>{a.title}</h2>
             <p className={s.muted}>{a.area.label}</p>
             <p>{date(a.startsAt, intlLocale)}</p>
@@ -209,7 +209,8 @@ export default function ActivityPublic({ id }: { id: string }) {
           <div className={s.grid}>
             <div className={s.page}>
               <section className={s.card}>
-                <span className={s.badge}>{t(statusLabels[activity.status])}</span>
+                <span className={s.badge}>{t(statusLabels[displayedActivityStatus(activity)])}</span>
+                {registrationClosedMessage(activity, intlLocale) && <p role="status">{t(registrationClosedMessage(activity, intlLocale)!)}</p>}
                 <p className={s.pre}>{activity.description}</p>
                 <div className={s.meta}>
                   <span>{t("Mulai:")}{" "}{date(activity.startsAt, intlLocale)}</span>
@@ -300,7 +301,7 @@ export default function ActivityPublic({ id }: { id: string }) {
                   )}
                   <button
                     className={s.button}
-                    disabled={actionBlocked || !viewer.actions.join.allowed}
+                    disabled={actionBlocked || !activity.registrationOpen || !viewer.actions.join.allowed}
                     onClick={() => void participate(true)}
                   >
                     {t("Ajukan ikut kegiatan")}</button>

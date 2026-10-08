@@ -23,6 +23,20 @@ test("point feedback handles pending, failed, no waste, and legacy positive awar
   expect(scanPointsMessage({ ...base, pointsAwarded: 10 })).toEqual({ text: "+{0} poin telah ditambahkan.", points: 10 });
 });
 
+test("failed scan history detail does not claim that a category was recognized", async ({ page }) => {
+  const failed = { ...base, status: "failed" as const, outcome: null, categoryId: null, errorCode: "ML_TIMEOUT" as const };
+  await fixtureApi(page, { handler: async (route, path) => {
+    if (path === "/scans") { await json(route, { items: [failed], nextCursor: null }); return true; }
+    if (path === `/scans/${base.id}`) { await json(route, failed); return true; }
+    return false;
+  } });
+  await page.goto("/dashboard?view=history");
+  await page.getByRole("button", { name: /^Lihat detail / }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Pemindaian gagal, sehingga kategori material belum dapat dikenali.")).toBeVisible();
+  await expect(dialog.getByText("Hasil scan mengenali kategori material. Laporan lokasi tetap perlu ditinjau.")).toHaveCount(0);
+});
+
 for (const scenario of cases) {
   test(`scan result shows ${scenario.name} points after polling`, async ({ page }, testInfo) => {
     const requests = await fixtureApi(page, { handler: async (route, path) => {

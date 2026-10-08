@@ -391,6 +391,11 @@ export class CommunityService {
     const milestones=await db<Row[]>`SELECT id,observed_at,public_summary,verified_outcome FROM activity_results WHERE report_id=${id} AND status='approved' ORDER BY approved_at,id`;
     const resolution=await db<Row[]>`SELECT id,created_at AS occurred_at FROM moderation_decisions WHERE report_id=${id}
       AND decision_payload->>'nextStatus'='resolved' ORDER BY created_at,id`;
+    const instagramSeries=await db<Row[]>`SELECT DISTINCT ON (p.kind,p.milestone_id)
+        p.kind,p.milestone_id,p.id AS latest_post_id,p.generation,p.status
+      FROM instagram_posts p JOIN instagram_accounts a ON a.id=p.account_id AND a.singleton=true
+      WHERE p.report_id=${id}
+      ORDER BY p.kind,p.milestone_id,p.generation DESC,p.created_at DESC,p.id DESC`;
     const resolutionReviewRequired=await this.resolutionReviewRequired(db,report);
     const publicAvailable=report.public_visibility==='public'&&eligibleStatuses.includes(report.status)&&!report.duplicate_of_id;
     const hasInstagram=assets.some(a=>(a.channels as string[]).includes('instagram'));
@@ -401,6 +406,10 @@ export class CommunityService {
       publicationAssets:assets.map(a=>({mediaId:a.media_id,renditionId:a.rendition_id,channels:a.channels,sourceType:a.subject_type,sourceId:a.subject_id})),
       publicationMilestones:[...milestones.map(m=>({id:m.id,type:'activity_result',observedAt:iso(m.observed_at),outcome:m.verified_outcome,summary:m.public_summary})),
         ...resolution.map(m=>({id:m.id,type:'report_resolution',observedAt:iso(m.occurred_at),outcome:'complete',summary:report.public_summary||'Penanganan selesai'}))],
+      instagramPublicationSeries:instagramSeries.map(series=>({kind:series.kind,milestoneId:series.milestone_id,
+        latestPostId:series.latest_post_id,generation:series.generation,status:series.status,
+        canCreate:['cancelled','retracted'].includes(series.status),
+        reasonCode:['cancelled','retracted'].includes(series.status)?null:'INVALID_TRANSITION'})),
       actions:{moderate:permission(true,'FORBIDDEN'),withdraw:permission(publicAvailable,'SOURCE_NOT_PUBLIC'),restore:permission(report.public_visibility==='withdrawn','INVALID_TRANSITION'),
         createInstagramDraft:permission(instagramEnabled&&publicAvailable&&Boolean(report.public_summary)&&report.instagram_allowed&&hasInstagram,
           !instagramEnabled?'FEATURE_UNAVAILABLE':!publicAvailable||!report.public_summary?'SOURCE_NOT_PUBLIC':!report.instagram_allowed?'INSTAGRAM_WITHDRAWN':'INSTAGRAM_EVIDENCE_REQUIRED')} };

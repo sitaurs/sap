@@ -2964,6 +2964,7 @@ export interface components {
             wasteHandoverPlan: string;
             resultOutcome: "partial" | "complete" | null;
             canonicalPath: string;
+            registrationClosedReason: components["schemas"]["RegistrationClosedReason"];
         };
         ActivityNotice: {
             /** @constant */
@@ -3251,6 +3252,8 @@ export interface components {
                 resume: components["schemas"]["ActionPermission"];
                 requestResult: components["schemas"]["ActionPermission"];
             };
+            registrationOpen: boolean;
+            registrationClosedReason: components["schemas"]["RegistrationClosedReason"];
         };
         ManagedActivityPage: {
             items: components["schemas"]["ManagedActivity"][];
@@ -3420,6 +3423,20 @@ export interface components {
                 /** @enum {string} */
                 outcome: "partial" | "complete";
                 summary: string;
+            }[];
+            /** @description Existing series only. If a kind/milestone pair is absent, its first generation can be created when the overall action is allowed. */
+            instagramPublicationSeries: {
+                /** @enum {string} */
+                kind: "initial" | "resolution";
+                /** Format: uuid */
+                milestoneId: string | null;
+                /** Format: uuid */
+                latestPostId: string;
+                generation: number;
+                status: components["schemas"]["PublicationStatus"];
+                /** @description True only when the latest generation is cancelled or retracted; active and unresolved generations must be managed first. */
+                canCreate: boolean;
+                reasonCode: "INVALID_TRANSITION" | null;
             }[];
             actions: {
                 moderate: components["schemas"]["ActionPermission"];
@@ -3973,6 +3990,7 @@ export interface components {
             data: components["schemas"]["InstagramReportSourcePage"];
             meta: components["schemas"]["Meta"];
         };
+        RegistrationClosedReason: "deadline_passed" | "manually_closed" | "activity_not_open" | "source_unavailable" | null;
     };
     responses: never;
     parameters: never;

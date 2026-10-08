@@ -28,6 +28,7 @@ import {
 import styles from "./dashboard.module.css";
 import DashboardViews from "./dashboard-views";
 import AdminPanel from "./admin-panel";
+import AdminCommunityReview from "./community/admin-community-review";
 import BrandLogo from "./brand-logo";
 import LoadingScreen from "./loading-screen";
 import MediaThumbnail from "./media-thumbnail";
@@ -63,7 +64,7 @@ type Tab = DashboardTab;
 function readDashboardTab(): Tab {
   const url = new URL(window.location.href);
   const next = requestedDashboardTab(url.search);
-  if (["admin-reviews", "admin-community"].includes(url.searchParams.get("view") ?? "")) {
+  if (url.searchParams.get("view") === "admin-reviews") {
     url.searchParams.set("view", "admin-moderation");
     window.history.replaceState(window.history.state, "", url);
   } else if (url.searchParams.get("view") === "community") {
@@ -333,7 +334,7 @@ export default function Dashboard() {
         {activeTab !== "dashboard" && activeTab !== "account" && activeTab !== "admin-menu" && activeTab !== "activities" && !isAdminTab(activeTab) && <DashboardViews key={activeTab} tab={activeTab} scans={scans} reports={reports} stats={stats} achievements={achievements} categories={categories} email={user?.email || ""} displayName={displayName} avatarMediaId={user?.avatarMediaId ?? null} onNavigate={openTab} onScanFinished={() => void refreshData()} onScanActivity={setPetActivity} onOpenReport={openReportFromScan} reportComposerRequested={reportComposerRequested} onReportSubmitted={reportSubmitted} onReportsChanged={() => void refreshData()} onReportWizardChange={setReportWizardOpen} onSaveProfile={saveProfile} onAvatarChanged={avatarChanged} onSignOut={signOut} onAccountDeleted={() => { setUser(null); setStats(null); setScans([]); setReports([]); router.replace("/login"); }} sapaEnabled={sapaEnabled} sapaSaving={sapaSaving} onToggleSapa={toggleSapa} />}
 
         {isAdminTab(activeTab) && (user?.role === "admin"
-          ? activeTab === "admin-instagram" ? <InstagramPublication categories={categories} onModeration={() => openTab("admin-moderation")} /> : activeTab === "admin-activities" ? <ActivitiesPage categories={categories} /> : activeTab === "admin-impact" ? <ImpactPage /> : <div className={`${styles.subPage} ${styles.referenceView}`}>
+          ? activeTab === "admin-instagram" ? <InstagramPublication categories={categories} onModeration={() => openTab("admin-moderation")} /> : activeTab === "admin-community" ? <AdminCommunityReview /> : activeTab === "admin-activities" ? <ActivitiesPage categories={categories} /> : activeTab === "admin-impact" ? <ImpactPage /> : <div className={`${styles.subPage} ${styles.referenceView}`}>
               <div className={styles.referenceHeading}>
                 <h1>{activeTab === "admin-settings" ? t("Pengaturan scan") : t("Moderasi laporan")}</h1>
                 <p>{activeTab === "admin-settings" ? t("Atur strategi deteksi hybrid ML → vision LLM.") : t("Periksa, verifikasi, dan tindak lanjuti laporan warga.")}</p>

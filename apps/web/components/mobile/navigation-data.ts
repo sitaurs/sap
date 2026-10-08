@@ -1,6 +1,6 @@
-import { BarChart3, Camera, CircleHelp, Clock3, FileText, Instagram, LayoutDashboard, Leaf, Map, Settings, ShieldCheck, Sliders, Trophy, type LucideIcon } from "lucide-react";
+import { BarChart3, Camera, CircleHelp, Clock3, FileText, Instagram, LayoutDashboard, Leaf, Map, MessageCircle, Settings, ShieldCheck, Sliders, Trophy, type LucideIcon } from "lucide-react";
 
-export type AdminTab = "admin-moderation" | "admin-settings" | "admin-instagram" | "admin-activities" | "admin-impact";
+export type AdminTab = "admin-moderation" | "admin-community" | "admin-settings" | "admin-instagram" | "admin-activities" | "admin-impact";
 export type DashboardTab = "dashboard" | "scan" | "reports" | "activities" | "map" | "history" | "achievements" | "settings" | "help" | "account" | "admin-menu" | AdminTab;
 type NavigationItem<T extends DashboardTab = DashboardTab> = { id: T; label: string; icon: LucideIcon; description?: string };
 
@@ -15,6 +15,7 @@ export const mainNav: NavigationItem[] = [
 ];
 export const adminNav: NavigationItem<AdminTab>[] = [
   { id: "admin-moderation", label: "Moderasi laporan", icon: ShieldCheck, description: "Tinjau laporan yang masuk." },
+  { id: "admin-community", label: "Komunitas & Hermes", icon: MessageCircle, description: "Tinjau pembaruan warga dan rekomendasi Hermes." },
   { id: "admin-activities", label: "Kegiatan relawan", icon: Leaf, description: "Kelola kegiatan dan peserta." },
   { id: "admin-impact", label: "Dampak", icon: BarChart3, description: "Pantau hasil aksi lingkungan." },
   { id: "admin-settings", label: "Pengaturan scan", icon: Sliders, description: "Atur pemindaian dan model AI." },
@@ -30,8 +31,7 @@ export const isMobileMenuTab = (tab: DashboardTab): tab is "account" | "admin-me
 const allTabs = new Set<DashboardTab>([...mainNav, ...adminNav, ...otherNav].map(item => item.id).concat(["account", "admin-menu"]));
 export function requestedDashboardTab(search: string): DashboardTab {
   const requested = new URLSearchParams(search).get("view");
-  // Bookmarks for the retired queue open the existing moderation screen.
-  if (requested === "admin-reviews" || requested === "admin-community") return "admin-moderation";
+  if (requested === "admin-reviews") return "admin-moderation";
   if (requested === "community") return "dashboard";
   return requested && allTabs.has(requested as DashboardTab) ? requested as DashboardTab : "dashboard";
 }

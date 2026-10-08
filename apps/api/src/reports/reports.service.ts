@@ -128,8 +128,8 @@ export class ReportsService {
       changes.h3Cell = toH3Cell(dto.location.latitude, dto.location.longitude);
       count += 1;
     }
-    if (Object.prototype.hasOwnProperty.call(dto, 'categoryId')) {
-      changes.categoryId = (dto.categoryId ?? null) as CategoryId | null;
+    if (dto.categoryId !== undefined) {
+      changes.categoryId = dto.categoryId as CategoryId | null;
       count += 1;
     }
 
