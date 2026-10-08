@@ -394,3 +394,45 @@
   font-size: 0.82rem;
 }
 
+.publicationStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.publicationStatus span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5df;
+  border-radius: 6px;
+  background: #f0f3f7;
+  color: #435365;
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+.publicationStatus span[data-approved="true"] {
+  border-color: #71b99a;
+  background: #e4f5ec;
+  color: #18583d;
+}
+
+.publicationStatus svg {
+  flex-shrink: 0;
+}
+
+.saveRequirements {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-left: 3px solid #c08a20;
+  background: #fff8e7;
+  color: #674b19;
+  font-size: 0.82rem;
+}
+
+.saveRequirements ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}

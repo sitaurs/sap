@@ -298,7 +298,6 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
   const [duplicateOfId, setDuplicateOfId] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<SapDuplicateCandidate[] | null>(null);
   const [resolutionIds, setResolutionIds] = useState<string[]>([]);
-  const [publishIds, setPublishIds] = useState<string[]>([]);
   const [reportRevision, setReportRevision] = useState(report.revision);
   const [mediaReview, setMediaReview] = useState<{ mediaId: string; url: string; renditions: EvidenceRendition[] }[]>([]);
   const [renditionChoice, setRenditionChoice] = useState<Record<string, string>>({});
@@ -335,7 +334,7 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
     setUploading(true); setError("");
     try {
       for (const file of Array.from(files).slice(0, 3 - resolutionIds.length)) {
-        const media = await uploadMedia(file, "report");
+        const media = await uploadMedia(file, "resolution");
         setResolutionIds(current => (current.includes(media.id) || current.length >= 3 ? current : [...current, media.id]));
       }
     } catch (cause) {
@@ -344,10 +343,16 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
   }
 
   const reasonOk = reason.trim().length >= 5 && reason.trim().length <= 1000;
-  const canSubmit = reasonOk && !busy && !uploading
-    && (!needsDuplicate || !!duplicateOfId)
-    && (!isInitialVerify || publicSummary.trim().length > 0)
-    && (!needsResolutionMedia || resolutionIds.length > 0);
+  const saveBlockers = [
+    ...(!reasonOk ? ["Isi alasan keputusan sepanjang 5–1000 karakter."] : []),
+    ...(needsDuplicate && !duplicateOfId ? ["Pilih laporan kanonis untuk keputusan duplikat."] : []),
+    ...(isInitialVerify && !publicSummary.trim() ? ["Isi ringkasan publik untuk verifikasi awal."] : []),
+    ...(needsResolutionMedia && !resolutionIds.length ? ["Unggah minimal satu foto bukti penyelesaian."] : []),
+    ...(uploading ? ["Tunggu unggahan bukti penyelesaian selesai."] : []),
+    ...(evidenceBusy ? ["Tunggu perubahan bukti publik selesai."] : []),
+    ...(busy ? ["Keputusan sedang disimpan."] : []),
+  ];
+  const canSubmit = saveBlockers.length === 0;
 
   useEffect(() => {
     setReportRevision(report.revision);
@@ -467,7 +472,6 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
     if (needsDuplicate && duplicateOfId) input.duplicateOfId = duplicateOfId;
     if (needsResolutionMedia) input.resolutionMediaIds = resolutionIds;
     if (canPublish && publicSummary.trim().length > 0) input.publicSummary = publicSummary.trim();
-    if (canPublish && publishIds.length > 0) input.publishMediaIds = publishIds;
     try {
       await decideReport(report.id, reportRevision, input);
       onDecided();
@@ -517,7 +521,9 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
         </label>}
 
         {canPublish && report.mediaIds.length > 0 && <div className={admin.field}>
-          <span>{t("Bukti publik")}{" "}<small>{t("siapkan versi aman, lalu setujui kanal publik setelah pemilik memberi izin.")}</small></span>
+          <span>{t("Persetujuan foto publik")}{" "}<small>{t("(opsional)")}</small></span>
+          <small>{t("Verifikasi laporan tidak memerlukan foto publik atau izin publikasi foto. Publikasi foto memerlukan versi siap dan izin pemilik untuk kanal tersebut.")}</small>
+          <small>{t("Setujui web langsung mengizinkan foto tampil di halaman publik SAP. Persetujuan Instagram terpisah dari penerbitan postingan.")}</small>
           {evidenceMessage && <small style={{ color: "#08764f" }}>{t(evidenceMessage)}</small>}
           {evidenceError && <small style={{ color: "#c0392b" }}>{t(evidenceError)}</small>}
           <div className={admin.evidenceGrid}>{mediaReview.map((item, index) => {
@@ -528,7 +534,18 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
             return <article key={item.mediaId} className={admin.evidenceCard}>
               <img src={item.url} alt={t("Bukti laporan {0}", { "0": index + 1 })} />
               <strong>{t("Foto")}{" "}{index + 1}</strong>
-              <select value={renditionChoice[item.mediaId] ?? ""} onChange={event => setRenditionChoice(old => ({ ...old, [item.mediaId]: event.target.value }))}>
+              <div className={admin.publicationStatus}>
+                {(["web", "instagram"] as const).map(channel => {
+                  const approved = publicationAssets.some(asset => asset.mediaId === item.mediaId && asset.channels.includes(channel));
+                  return <span key={channel} data-approved={approved}>
+                    {approved ? <ShieldCheck size={14} /> : <X size={14} />}
+                    {t(channel === "web"
+                      ? approved ? "Web: foto publik disetujui" : "Web: foto belum disetujui"
+                      : approved ? "Instagram: foto disetujui" : "Instagram: foto belum disetujui")}
+                  </span>;
+                })}
+              </div>
+              <select aria-label={t("Versi bukti foto {0}", { "0": index + 1 })} value={renditionChoice[item.mediaId] ?? ""} onChange={event => setRenditionChoice(old => ({ ...old, [item.mediaId]: event.target.value }))}>
                 <option value="">{t("Pilih versi siap")}</option>
                 {item.renditions.map(rendition => <option key={rendition.id} value={rendition.id} disabled={rendition.status !== "ready"}>
                   {rendition.status} · r{rendition.revision}
@@ -542,13 +559,9 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
                   <Check size={14} />{t(webApproved ? "Web disetujui" : "Setujui web")}
                 </button>
                 <button type="button" className={admin.checkChip} data-active={instagramApproved} onClick={() => void approveMedia(item.mediaId, "instagram")} disabled={!selectedRenditionId || !!evidenceBusy || instagramApproved} aria-pressed={instagramApproved}>
-                  <Check size={14} />{t(instagramApproved ? "Instagram disetujui" : "Instagram")}
+                  <Check size={14} />{t(instagramApproved ? "Instagram disetujui" : "Setujui Instagram")}
                 </button>
               </div>}
-              <button key={item.mediaId} type="button" className={admin.checkChip} data-active={publishIds.includes(item.mediaId)}
-                onClick={() => setPublishIds(current => current.includes(item.mediaId) ? current.filter(x => x !== item.mediaId) : [...current, item.mediaId])}>
-                {publishIds.includes(item.mediaId) && <Check size={14} />}{t("Tandai untuk publikasi")}
-              </button>
             </article>;
           })}</div>
         </div>}
@@ -573,9 +586,13 @@ function DecisionModal({ report, categoryName, onClose, onDecided }: {
 
         {error && <p className={admin.formError} role="alert">{t(error)}</p>}
       </div>
+      {saveBlockers.length > 0 && <div id="decision-save-requirements" className={admin.saveRequirements} role="status">
+        <strong>{t("Keputusan belum dapat disimpan")}</strong>
+        <ul>{saveBlockers.map(message => <li key={message}>{t(message)}</li>)}</ul>
+      </div>}
       <div className={styles.modalActions}>
         <button className={styles.outlineButton} type="button" onClick={onClose} disabled={busy}>{t("Batal")}</button>
-        <button className={styles.primaryButton} type="button" onClick={submit} disabled={!canSubmit}>
+        <button className={styles.primaryButton} type="button" onClick={submit} disabled={!canSubmit} aria-describedby={canSubmit ? undefined : "decision-save-requirements"}>
           {busy ? <><Loader2 className={admin.spin} size={18} />{t("Menyimpan…")}</> : <><Check size={18} />{t("Simpan keputusan")}</>}
         </button>
       </div>

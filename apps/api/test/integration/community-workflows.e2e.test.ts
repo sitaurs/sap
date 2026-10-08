@@ -173,7 +173,7 @@ test('community, volunteer, impact and report workflows persist correctly throug
       client.csrf = response.body.data.csrfToken as string;
       client.cookie = `${sessionCookie}; ${csrfCookie.split(';')[0]}`;
     };
-    const addMedia = async (ownerId: string, purpose: 'report' | 'community' | 'activity_evidence'): Promise<string> => {
+    const addMedia = async (ownerId: string, purpose: 'report' | 'community' | 'activity_evidence' | 'scan'): Promise<string> => {
       const id = randomUUID();
       await sql`INSERT INTO media(id,owner_id,purpose,object_key,mime,size_bytes,sha256,width,height,state)
         VALUES(${id},${ownerId},${purpose},${`private/${id}.jpg`},'image/jpeg',128,${id.replaceAll('-', '').padEnd(64, 'a').slice(0, 64)},640,480,'stored')`;
@@ -217,6 +217,102 @@ test('community, volunteer, impact and report workflows persist correctly throug
     const memberTwo = await addActor('user', 'Relawan Dua E2E');
     const memberThree = await addActor('user', 'Relawan Tiga E2E');
     const admin = await addActor('admin', 'Admin E2E');
+
+    await t.test('scan points reflect the committed ledger and explain daily cap and duplicate images', async () => {
+      const scanner = await addActor('user', 'Pemindai Poin R3 E2E');
+      const workerPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../worker/dist/scan-repository.js');
+      const { ScanRepository } = await import(pathToFileURL(workerPath).href);
+      const worker = new ScanRepository(sql);
+      const complete = async (mediaId: string) => {
+        const created = await call(scanner.client, 'post', '/api/v1/scans', { mediaId }, { 'Idempotency-Key': randomUUID() }, 202);
+        const scanId = created.data.id;
+        const generation = await worker.markProcessing(scanId);
+        assert.ok(generation);
+        const [media] = await sql<{ sha256: string }[]>`SELECT sha256 FROM media WHERE id=${mediaId}`;
+        const result = await worker.completeSucceeded(scanId, generation, scanner.id, media!.sha256, {
+          outcome: 'classified', categoryId: 'plastic', predictions: [{ categoryId: 'plastic', score: 0.95 }], providerRevision: 'r3-test',
+        });
+        assert.equal(result.accepted, true);
+        const repeated = await worker.completeSucceeded(scanId, generation, scanner.id, media!.sha256, {
+          outcome: 'classified', categoryId: 'plastic', predictions: [], providerRevision: 'r3-test',
+        });
+        assert.equal(repeated.accepted, false, 'a terminal completion cannot award points twice');
+        return (await call(scanner.client, 'get', `/api/v1/scans/${scanId}`)).data;
+      };
+      const firstMedia = await addMedia(scanner.id, 'scan');
+      const first = await complete(firstMedia);
+      assert.equal(first.pointsAwarded, 10);
+      assert.equal(first.pointsReason, 'awarded');
+      const duplicate = await complete(firstMedia);
+      assert.equal(duplicate.pointsAwarded, 0);
+      assert.equal(duplicate.pointsReason, 'duplicate_image');
+      for (let index = 0; index < 4; index++) {
+        const awarded = await complete(await addMedia(scanner.id, 'scan'));
+        assert.equal(awarded.pointsAwarded, 10);
+        assert.equal(awarded.pointsReason, 'awarded');
+      }
+      const capped = await complete(await addMedia(scanner.id, 'scan'));
+      assert.equal(capped.status, 'succeeded');
+      assert.equal(capped.pointsAwarded, 0);
+      assert.equal(capped.pointsReason, 'daily_limit');
+      const [balance] = await sql<{ points: string; count: string }[]>`SELECT sum(delta)::text AS points,count(*)::text AS count
+        FROM point_ledger WHERE user_id=${scanner.id} AND source_type='scan'`;
+      assert.equal(balance!.points, '50');
+      assert.equal(balance!.count, '5');
+      const history = await call(scanner.client, 'get', '/api/v1/scans?limit=20');
+      assert.equal(history.data.items.find((item: any) => item.id === capped.id).pointsReason, 'daily_limit');
+    });
+
+    await t.test('moderation separates verification from photo publication and accepts uploaded resolution evidence', async () => {
+      const owner = await addActor('user', 'Pelapor Moderasi R3 E2E');
+      const report = await createReport(owner.client, owner.id, 'Laporan regresi keputusan admin tanpa izin publikasi foto.');
+      const blockedPublication = await decideReport(admin.client, report.id, 1, 'verified', {
+        publicSummary: 'Ringkasan untuk regresi moderasi.', publishMediaIds: [report.mediaId],
+      }, 422);
+      assert.equal(blockedPublication.error.code, 'MEDIA_INVALID');
+      assert.equal((await readById(report.id)).revision, 1, 'invalid publication rolls the entire decision back');
+      const verified = await decideReport(admin.client, report.id, 1, 'verified', {
+        publicSummary: 'Ringkasan untuk regresi moderasi.',
+      });
+      assert.equal(verified.data.status, 'verified', 'verification does not require owner publication consent');
+      assert.deepEqual((await call(reader.client, 'get', `/api/v1/public/incidents/${report.id}`)).data.evidence, []);
+
+      const renditionId = randomUUID();
+      await sql`INSERT INTO evidence_renditions(id,media_id,subject_type,subject_id,status,object_key)
+        VALUES(${renditionId},${report.mediaId},'report',${report.id},'ready',${`public/${renditionId}.jpg`})`;
+      const approvalBody = { channel: 'web', approved: true, renditionId, reason: 'Foto aman telah ditinjau moderator.' };
+      const denied = await call(admin.client, 'put', `/api/v1/admin/reports/${report.id}/media/${report.mediaId}/approvals`,
+        approvalBody, { 'If-Match': String(verified.data.revision), 'Idempotency-Key': randomUUID() }, 422);
+      assert.equal(denied.error.code, 'EVIDENCE_INVALID', 'a ready rendition cannot bypass owner consent');
+      const consent = await call(owner.client, 'get', `/api/v1/media/${report.mediaId}/consents`);
+      await call(owner.client, 'put', `/api/v1/media/${report.mediaId}/consents`, { channels: ['web'] },
+        { 'If-Match': String(consent.data.revision) });
+      const revision = (await readById(report.id)).revision;
+      const approved = await call(admin.client, 'put', `/api/v1/admin/reports/${report.id}/media/${report.mediaId}/approvals`,
+        approvalBody, { 'If-Match': String(revision), 'Idempotency-Key': randomUUID() });
+      assert.ok(approved.data.publicationAssets.some((asset: any) => asset.mediaId === report.mediaId && asset.channels.includes('web')));
+      const publicView = await call(reader.client, 'get', `/api/v1/public/incidents/${report.id}`);
+      assert.equal(publicView.data.evidence.length, 1, 'web approval immediately supplies public evidence');
+      assert.match(publicView.data.evidence[0].url, /^https:\/\/objects\.invalid\/signed\//);
+
+      await decideReport(admin.client, report.id, (await readById(report.id)).revision, 'in_progress');
+      const wrongPurpose = await decideReport(admin.client, report.id, (await readById(report.id)).revision, 'resolved',
+        { resolutionMediaIds: [report.mediaId] }, 404);
+      assert.equal(wrongPurpose.error.code, 'NOT_FOUND', 'report-owner media cannot substitute for admin-owned resolution evidence');
+      const { default: sharp } = await import('sharp');
+      const photo = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#397259' } }).png().toBuffer();
+      const uploaded = await request(server).post('/api/v1/media').set('Origin', environment.APP_ORIGIN!)
+        .set('Cookie', admin.client.cookie).set('X-CSRF-Token', admin.client.csrf)
+        .field('purpose', 'resolution').attach('file', photo, { filename: 'resolution.png', contentType: 'image/png' }).expect(201);
+      assert.equal(uploaded.body.data.purpose, 'resolution');
+      const resolved = await decideReport(admin.client, report.id, (await readById(report.id)).revision, 'resolved',
+        { resolutionMediaIds: [uploaded.body.data.id] });
+      assert.equal(resolved.data.status, 'resolved');
+      assert.ok(resolved.data.resolutionMediaIds.includes(uploaded.body.data.id));
+      const finalPublic = await call(reader.client, 'get', `/api/v1/public/incidents/${report.id}`);
+      assert.equal(finalPublic.data.evidence.length, 1,
+        'private resolution proof is sufficient for completion but is not automatically published');
+    });
 
     await t.test('G-27, G-28, G-29, G-30 and G-47: report, support/follow, review, privacy, merge and points', async () => {
       const processor = await createReviewProcessor();

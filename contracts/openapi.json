@@ -10460,6 +10460,11 @@
             "type": "integer",
             "minimum": 0
           },
+          "pointsReason": {
+            "type": "string",
+            "description": "Award status backed by the scan and ledger. Older responses may omit this field; unknown means the withheld reason cannot be established.",
+            "enum": ["awarded", "daily_limit", "duplicate_image", "not_classified", "pending", "failed", "unknown"]
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"

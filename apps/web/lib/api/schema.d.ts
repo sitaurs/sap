@@ -946,6 +946,11 @@ export interface components {
             predictions: components["schemas"]["Prediction"][];
             errorCode: ("ML_UNAVAILABLE" | "ML_TIMEOUT" | "ML_INVALID_RESPONSE" | "MEDIA_INVALID") | null;
             pointsAwarded: number;
+            /**
+             * @description Award status backed by the scan and ledger. Older responses may omit this field; unknown means the withheld reason cannot be established.
+             * @enum {string}
+             */
+            pointsReason?: "awarded" | "daily_limit" | "duplicate_image" | "not_classified" | "pending" | "failed" | "unknown";
             /** Format: date-time */
             createdAt: string;
             completedAt: string | null;

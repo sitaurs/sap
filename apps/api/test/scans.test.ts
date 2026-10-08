@@ -183,3 +183,43 @@ test('toScanView clamps predictions to three items', () => {
   });
   assert.equal(view.predictions.length, 3);
 });
+
+test('scan award reason distinguishes awarded, capped, duplicate, and unexplained zero points', () => {
+  const base: ScanRecord = { ...record('scan', '2026-10-07T00:00:00Z', 'succeeded'), outcome: 'classified' };
+  assert.equal(toScanView({ ...base, pointsAwarded: 10, pointsReason: 'daily_limit' }).pointsReason, 'awarded');
+  assert.equal(toScanView({ ...base, pointsReason: 'daily_limit' }).pointsReason, 'daily_limit');
+  assert.equal(toScanView({ ...base, pointsReason: 'duplicate_image' }).pointsReason, 'duplicate_image');
+  assert.equal(toScanView(base).pointsReason, 'unknown');
+  for (const outcome of ['unknown', 'no_waste'] as const) {
+    assert.equal(toScanView({ ...base, outcome }).pointsReason, 'not_classified');
+  }
+  assert.equal(toScanView({ ...base, status: 'processing' }).pointsReason, 'pending');
+  assert.equal(toScanView({ ...base, status: 'failed' }).pointsReason, 'failed');
+});
+
+test('detail and both history pagination paths use ledger awards and durable reasons', async () => {
+  const statements: string[] = [];
+  const sql = Object.assign(async (parts: TemplateStringsArray, ...values: unknown[]) => {
+    const query = parts.reduce((text, part, index) => text + part + (values[index] ?? ''), '');
+    statements.push(query);
+    return [{
+      id: 'scan', media_id: 'media', status: 'succeeded', outcome: 'classified', category_id: 'plastic',
+      predictions: [], error_code: null, points_awarded: 10, ledger_points: 0, points_reason: 'unknown',
+      created_at: new Date('2026-10-07T00:00:00Z'), finished_at: new Date('2026-10-07T01:00:00Z'),
+    }];
+  }, { unsafe: (value: string) => value });
+  const repo = new ScanRepository(sql as never, {} as never);
+  const detail = await repo.findByIdForOwner('scan', 'user');
+  assert.equal(detail?.pointsAwarded, 0, 'a cached scan value must not invent a missing ledger award');
+  assert.equal(detail?.pointsReason, 'unknown');
+  await repo.listByOwner('user', 20, null);
+  await repo.listByOwner('user', 20, 'cursor');
+  assert.equal(statements.length, 3);
+  for (const query of statements) {
+    assert.match(query, /AS ledger_points/);
+    assert.match(query, /d.awarded_scan_id = scans.id/);
+    assert.match(query, /p.activity_day = d.activity_day/);
+    assert.match(query, /p.reason = 'scan_classified'/);
+    assert.doesNotMatch(query, /user_daily_activity/);
+  }
+});

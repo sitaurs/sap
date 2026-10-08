@@ -12,6 +12,7 @@ import { getScan, type SapCategory, type SapScan } from "../lib/api/client";
 import styles from "./scan-history-view.module.css";
 import MediaThumbnail from "./media-thumbnail";
 import { useI18n } from "../lib/i18n/provider";
+import { scanPointsMessage } from "./scan-points";
 
 
 type Tab = "dashboard" | "scan" | "reports" | "map" | "history" | "achievements" | "settings" | "help";
@@ -83,6 +84,7 @@ function ScanDetail({ initial, categories, onClose, onOpenReport, onScanAgain, o
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const points = scanPointsMessage(scan);
   const summaryTab = useRef<HTMLButtonElement>(null);
   const guideTab = useRef<HTMLButtonElement>(null);
 
@@ -143,6 +145,7 @@ function ScanDetail({ initial, categories, onClose, onOpenReport, onScanAgain, o
             <Metadata icon={<CalendarDays size={22} />} label={t("Tanggal")}><time dateTime={scan.createdAt}>{dateFormat.format(new Date(scan.createdAt))}</time></Metadata>
             <Metadata icon={<Clock3 size={22} />} label={t("Waktu")}><time dateTime={scan.createdAt}>{displayTime(scan.createdAt)}</time></Metadata>
           </dl>
+          <p className={styles.infoStrip} role="status"><Leaf size={19} /><span>{t(points.text, { "0": points.points ?? 0 })}</span></p>
           <p className={styles.infoStrip}><Info size={19} /><span>{t("Hasil scan mengenali kategori material. Laporan lokasi tetap perlu ditinjau.")}</span></p>
           {scan.status === "failed" && <p className={styles.failureNote} role="status">{scan.errorCode ? errorMessages[scan.errorCode] : t("Foto belum berhasil diproses. Anda dapat mencoba scan lagi.")}</p>}
           {pending(scan) && <p className={styles.processNote} role="status"><LoaderCircle size={17} className={styles.spin} />{t("Hasil diperbarui otomatis selama pemindaian diproses.")}</p>}

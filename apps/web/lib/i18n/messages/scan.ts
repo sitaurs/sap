@@ -1,4 +1,11 @@
 export const scan: Record<string, string> = {
+  "Poin menunggu hasil scan.": "Points are pending the scan result.",
+  "0 poin: pemindaian belum berhasil.": "0 points: the scan was unsuccessful.",
+  "+{0} poin telah ditambahkan.": "+{0} points have been added.",
+  "0 poin: material sampah belum dikenali.": "0 points: waste material was not recognized.",
+  "0 poin: batas harian 5 scan berhadiah (50 poin) telah tercapai. Poin tersedia lagi besok (WIB).": "0 points: the daily limit of 5 rewarded scans (50 points) has been reached. Points are available again tomorrow (Jakarta time).",
+  "0 poin: foto yang sama sudah dipindai hari ini (WIB).": "0 points: the same photo was already scanned today (Jakarta time).",
+  "0 poin: alasan poin tidak diberikan belum tersedia.": "0 points: the reason points were withheld is not available yet.",
   "Foto belum berhasil diambil. Silakan coba lagi.": "The photo could not be captured. Please try again.",
   "Kembali ke halaman scan": "Back to scanning",
   "Tinjau foto": "Review photo",

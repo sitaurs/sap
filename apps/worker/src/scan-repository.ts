@@ -202,15 +202,16 @@ export class ScanRepository {
             SELECT scan_award_count FROM user_daily_activity
             WHERE user_id = ${userId} AND activity_day = ${day} FOR UPDATE`;
           if ((activity[0]?.scan_award_count ?? 0) < MAX_SCAN_AWARDS_PER_DAY) {
-            await tx`
+            const award = await tx<{ delta: number }[]>`
               INSERT INTO point_ledger (user_id, event_key, source_type, source_id, delta, reason, activity_day)
               VALUES (${userId}, ${`scan:${scanId}`}, 'scan', ${scanId}, ${SCAN_AWARD_DELTA}, 'scan_classified', ${day})
-              ON CONFLICT (event_key) DO NOTHING`;
-            await tx`
+              ON CONFLICT (event_key) DO NOTHING
+              RETURNING delta`;
+            if (award.length > 0) await tx`
               UPDATE user_daily_activity
               SET scan_award_count = scan_award_count + 1, net_points = net_points + ${SCAN_AWARD_DELTA}, updated_at = now()
               WHERE user_id = ${userId} AND activity_day = ${day}`;
-            pointsAwarded = SCAN_AWARD_DELTA;
+            pointsAwarded = award[0]?.delta ?? 0;
           }
         }
       }
