@@ -15,8 +15,10 @@ import ActivityMembers from "../activities/activity-members";
 import ActivityResultForm from "../activities/activity-result-form";
 import { useIntentKey } from "../activities/activity-ui";
 import {
+  displayedActivityStatus,
   localDate,
   fromLocalDate,
+  registrationClosedMessage,
   statusLabels,
 } from "../activities/activity-utils";
 import { date, Failure, Heading, PublicShell } from "./community-ui";
@@ -112,8 +114,11 @@ export default function CoordinatorPage({ id }: { id: string }) {
       ) : activity ? (
         <>
           <Heading title={activity.title}>
-            {t("Koordinator ·")}{" "}{t(statusLabels[activity.status])}
+            {t("Koordinator ·")} {t(statusLabels[displayedActivityStatus(activity)])}
           </Heading>
+          {registrationClosedMessage(activity, intlLocale) && (
+            <p role="status">{t(registrationClosedMessage(activity, intlLocale)!)}</p>
+          )}
           {screen === "members" ? (
             <ActivityMembers
               activity={activity}

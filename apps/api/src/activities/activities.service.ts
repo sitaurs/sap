@@ -76,7 +76,20 @@ export class ActivitiesService {
  cell(value:unknown):string {if(typeof value!=='string'||!isValidCell(value))fail(400,'VALIDATION_ERROR');return value;}
  async listManaged(actor:Actor,query:Record<string,unknown>,own=false) {
   if(!own)requireAdmin(actor);object(query,own?['limit','cursor']:['limit','cursor','status','reportId']);const state=query.status===undefined?null:enumeration(query.status,activityStates);const report=query.reportId===undefined?null:uuid(query.reportId);const page=this.store.cursor(query,{route:own?'assignments':'adminActivities',actor:own?actor.id:null,state,report});
-  const rows=await this.store.db<{id:string;created_at:Date}[]>`SELECT a.id,a.created_at FROM activities a JOIN reports r ON r.id=a.report_id WHERE (${own}=false OR a.coordinator_id=${actor.id}) AND (${state}::text IS NULL OR (${state}='registration_open' AND a.status='registration_open' AND r.public_visibility='public' AND r.duplicate_of_id IS NULL AND r.status IN ('verified','in_progress') AND (a.data->>'registrationClosesAt')::timestamptz>now()) OR (${state}='registration_closed' AND (a.status='registration_closed' OR (a.status='registration_open' AND (r.public_visibility<>'public' OR r.duplicate_of_id IS NOT NULL OR r.status NOT IN ('verified','in_progress') OR (a.data->>'registrationClosesAt')::timestamptz<=now()))) OR (${state} NOT IN ('registration_open','registration_closed') AND a.status=${state})) AND (${report}::uuid IS NULL OR a.report_id=${report}) AND (${page.boundary?.at??null}::timestamptz IS NULL OR (a.created_at,a.id)<(${page.boundary?.at??null}::timestamptz,${page.boundary?.id??null}::uuid)) ORDER BY a.created_at DESC,a.id DESC LIMIT ${page.limit+1}`;
+  const rows=await this.store.db<{id:string;created_at:Date}[]>`SELECT a.id,a.created_at FROM activities a JOIN reports r ON r.id=a.report_id
+    WHERE (${own}=false OR a.coordinator_id=${actor.id})
+    AND (
+      ${state}::text IS NULL
+      OR (${state}='registration_open' AND a.status='registration_open' AND r.public_visibility='public' AND r.duplicate_of_id IS NULL AND r.status IN ('verified','in_progress') AND (a.data->>'registrationClosesAt')::timestamptz>now())
+      OR (${state}='registration_closed' AND (
+        a.status='registration_closed'
+        OR (a.status='registration_open' AND (r.public_visibility<>'public' OR r.duplicate_of_id IS NOT NULL OR r.status NOT IN ('verified','in_progress') OR (a.data->>'registrationClosesAt')::timestamptz<=now()))
+      ))
+      OR (${state} NOT IN ('registration_open','registration_closed') AND a.status=${state})
+    )
+    AND (${report}::uuid IS NULL OR a.report_id=${report})
+    AND (${page.boundary?.at??null}::timestamptz IS NULL OR (a.created_at,a.id)<(${page.boundary?.at??null}::timestamptz,${page.boundary?.id??null}::uuid))
+    ORDER BY a.created_at DESC,a.id DESC LIMIT ${page.limit+1}`;
   const selected=rows.slice(0,page.limit);return {items:await Promise.all(selected.map(async r=>this.managed(this.store.db,await this.load(this.store.db,r.id),actor))),nextCursor:rows.length>page.limit?page.encode(selected[selected.length-1]!):null};
  }
  async candidates(actor:Actor,query:Record<string,unknown>) {

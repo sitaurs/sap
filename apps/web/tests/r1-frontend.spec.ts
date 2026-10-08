@@ -290,6 +290,33 @@ test("coordinator assignment uses explicit name consent and revision", async ({
     requests.filter((r) => r.path.startsWith("/admin/activities")),
   ).toHaveLength(0);
 });
+test("coordinator status badge reflects an expired registration deadline", async ({
+  page,
+}) => {
+  await fixtureApi(page, {
+    handler: async (route, path) => {
+      if (path === `/activities/${ids.activity}/manage`) {
+        await json(route, {
+          ...managed,
+          status: "registration_open",
+          registrationOpen: false,
+          registrationClosedReason: "deadline_passed",
+          registrationClosesAt: time,
+          coordinatorAcceptedAt: time,
+        });
+        return true;
+      }
+      return false;
+    },
+  });
+  await page.goto(`/activities/${ids.activity}/manage`);
+  await expect(
+    page.getByText("Koordinator · Pendaftaran ditutup", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("status")).toContainText(
+    "karena batas waktu pendaftaran telah lewat",
+  );
+});
 test("forbidden coordinator has no private management controls", async ({
   page,
 }) => {

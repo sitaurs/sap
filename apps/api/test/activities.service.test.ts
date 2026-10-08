@@ -263,13 +263,41 @@ test('managed registration filters classify expired open rows as closed', async 
     db,
     cursor: () => ({ limit: 20, boundary: null, encode: () => '' }),
   } as never);
-  await service.listManaged(actor({ id: COORDINATOR_ID, role: 'admin', emailVerified: true }), { status: 'registration_closed' });
-  const query = queries[0]!;
-  assert.match(query.sql, /a\.status='registration_closed' OR \(a\.status='registration_open'/);
-  assert.match(query.sql, /registrationClosesAt.*timestamptz<=now\(\)/);
-  assert.match(query.sql, /r\.status NOT IN \('verified','in_progress'\)/);
-  assert.ok(query.values.includes('registration_closed'));
+  const admin = actor({ id: COORDINATOR_ID, role: 'admin', emailVerified: true });
+  await service.listManaged(admin, { status: 'registration_closed' });
+  await service.listManaged(admin, {}, true);
+  assert.equal(queries.length, 2);
+  const adminQuery = queries[0]!;
+  assert.match(adminQuery.sql, /a\.status='registration_closed'/);
+  assert.match(adminQuery.sql, /registrationClosesAt.*timestamptz<=now\(\)/);
+  assert.match(adminQuery.sql, /r\.status NOT IN \('verified','in_progress'\)/);
+  assert.ok(adminQuery.values.includes('registration_closed'));
+  for (const query of queries) assertBalancedSqlParentheses(query.sql);
 });
+
+function assertBalancedSqlParentheses(sql: string) {
+  let depth = 0;
+  let quoted = false;
+  for (let index = 0; index < sql.length; index += 1) {
+    const char = sql[index];
+    if (char === "'") {
+      if (quoted && sql[index + 1] === "'") {
+        index += 1;
+        continue;
+      }
+      quoted = !quoted;
+      continue;
+    }
+    if (quoted) continue;
+    if (char === '(') depth += 1;
+    if (char === ')') {
+      depth -= 1;
+      assert.ok(depth >= 0, 'SQL closes a parenthesis before it is opened');
+    }
+  }
+  assert.equal(quoted, false, 'SQL string literal is closed');
+  assert.equal(depth, 0, 'SQL parentheses are balanced before ORDER BY');
+}
 
 test('membership acceptance rejects a full activity and locks the activity before counting capacity', async () => {
   const h = fullCapacityHarness(1);
