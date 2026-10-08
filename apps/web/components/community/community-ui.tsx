@@ -1,11 +1,15 @@
 "use client";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ApiError } from "../../lib/api/client";
 import { r1Error, type R1, type Page } from "../../lib/api/r1";
 import { loginDestination } from "../../lib/auth-return";
-import BrandLogo from "../brand-logo";
+import { Leaf } from "lucide-react";
+import { PublicHeader } from "./public-community";
 import s from "./community.module.css";
+import p from "./public-community.module.css";
+import d from "./public-activity-detail.module.css";
 import { useI18n } from "../../lib/i18n/provider";
 
 export const date = (value: string | null, locale = "id-ID") =>
@@ -16,25 +20,22 @@ export const date = (value: string | null, locale = "id-ID") =>
         timeStyle: "short",
       }).format(new Date(value)) + " WIB"
     : "Belum tersedia";
-export function PublicShell({ children }: { children: ReactNode }) {
+export function PublicShell({ children, variant }: { children: ReactNode; variant?: "activity-detail" }) {
   const { t } = useI18n();
+  const detail = variant === "activity-detail";
   return (
-    <main className={`${s.page} ${s.public}`}>
-      <header className={s.publicHeader}>
-        <Link href="/" aria-label={t("Beranda SAP")}>
-          <BrandLogo width={165} />
-        </Link>
-        <nav aria-label={t("Navigasi publik")}>
-          <Link className={s.link} href="/incidents">
-            {t("Kejadian publik")}</Link>
-          <Link className={s.link} href="/activities">
-            {t("Kegiatan relawan")}</Link>
-          <Link className={s.secondary} href="/dashboard">
-            {t("Dashboard")}</Link>
-        </nav>
-      </header>
-      {children}
-    </main>
+    <div className={detail ? d.backdrop : p.backdrop}>
+      {detail && <div className={d.backgroundArt} aria-hidden="true"><Image src="/images/community/activity-detail/lake-background.webp" alt="" fill sizes="100vw" preload /></div>}
+      <a href="#konten-publik" className={p.skipLink}>{t("Lewati navigasi")}</a>
+      <div className={detail ? d.shell : p.frame}>
+        <PublicHeader />
+        <main id="konten-publik" className={detail ? d.content : p.content}>{children}</main>
+        <footer className={[p.footer, detail ? d.footer : ""].join(" ")}>
+          <span><Leaf size={15} aria-hidden="true" />{t("Bersama untuk lingkungan yang lebih bersih.")}</span>
+          <Link href="/#cara-kerja">{t("Pelajari cara kerja SAP")} →</Link>
+        </footer>
+      </div>
+    </div>
   );
 }
 export function Heading({

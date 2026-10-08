@@ -1,7 +1,8 @@
 "use client";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { CheckCircle2, ChevronDown, ChevronRight, CirclePlus, CalendarDays, Image as ImageIcon, Info, MapPin, Search, ShieldCheck, UsersRound, X } from "lucide-react";
 import { ApiError } from "../../lib/api/client";
 import {
   followIncident,
@@ -24,6 +25,8 @@ import {
   usePage,
 } from "./community-ui";
 import s from "./community.module.css";
+import p from "./public-community.module.css";
+import { CardOptions, CommunityHero, ExploreEmpty, ListSkeleton } from "./public-community";
 import { useI18n } from "../../lib/i18n/provider";
 
 type IncidentCard = R1["PublicIncidentListItem"];
@@ -54,139 +57,108 @@ export function IncidentExplore() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<IncidentStatus | "">("");
   const [categoryId, setCategoryId] = useState<IncidentCategory | "">("");
-  const [filters, setFilters] = useState({
-    search: "",
-    status: "" as IncidentStatus | "",
-    categoryId: "" as IncidentCategory | "",
-  });
-  const loader = useCallback(
-    (cursor?: string, signal?: AbortSignal) =>
-      publicIncidents(
-        {
-          cursor,
-          search: filters.search || undefined,
-          status: filters.status || undefined,
-          categoryId: filters.categoryId || undefined,
-        },
-        signal,
-      ),
-    [filters],
-  );
+  const [sort, setSort] = useState("latest");
+  const [filters, setFilters] = useState({ search: "", status: "" as IncidentStatus | "", categoryId: "" as IncidentCategory | "" });
+  useEffect(() => {
+    const timer = setTimeout(() => setFilters((previous) => previous.search === search.trim() ? previous : { ...previous, search: search.trim() }), 350);
+    return () => clearTimeout(timer);
+  }, [search]);
+  const loader = useCallback((cursor?: string, signal?: AbortSignal) => publicIncidents({ cursor, search: filters.search || undefined, status: filters.status || undefined, categoryId: filters.categoryId || undefined }, signal), [filters]);
   const page = usePage(loader);
+  const items = useMemo(() => [...page.items].sort((a, b) => {
+    if (sort === "support") return b.supportCount - a.supportCount || Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
+    return sort === "oldest" ? Date.parse(a.updatedAt) - Date.parse(b.updatedAt) : Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
+  }), [page.items, sort]);
+  const hasFilters = Boolean(search || status || categoryId);
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFilters({ search: search.trim(), status, categoryId });
   }
   function reset() {
-    const next = { search: "", status: "" as IncidentStatus | "", categoryId: "" as IncidentCategory | "" };
-    setSearch(next.search);
-    setStatus(next.status);
-    setCategoryId(next.categoryId);
-    setFilters(next);
+    setSearch(""); setStatus(""); setCategoryId("");
+    setFilters({ search: "", status: "", categoryId: "" });
   }
-  return (
-    <PublicShell>
-      <Heading title={t("Kejadian publik dan kontribusi warga")}>
-        {t("Lihat laporan publik yang sudah diverifikasi, lalu bantu kirim kondisi terbaru atau foto bukti untuk ditinjau moderator.")}</Heading>
-      <section className={`${s.card} ${s.highlightCard}`}>
-        <h2>{t("Akses publik tidak perlu login")}</h2>
-        <p className={s.muted}>
-          {t("Semua orang bisa membaca kejadian publik. Login dan verifikasi email hanya diperlukan saat ingin mendukung, mengikuti kabar, atau mengirim pembaruan dengan foto.")}</p>
-        <div className={s.actions}>
-          <a className={s.button} href="#daftar-kejadian">
-            {t("Lihat daftar kejadian")}</a>
-          <Link className={s.secondary} href={loginDestination("/incidents")}>
-            {t("Masuk untuk berkontribusi")}</Link>
-        </div>
-      </section>
-      <form id="daftar-kejadian" className={`${s.card} ${s.filterPanel}`} onSubmit={submit}>
-        <div>
-          <h2>{t("Daftar kejadian publik")}</h2>
-          <p className={s.muted}>
-            {t("Cari berdasarkan ringkasan, area, atau ID kejadian. Hanya kejadian publik yang terverifikasi, sedang ditangani, atau selesai yang tampil di sini.")}</p>
-        </div>
-        <div className={s.filters}>
-          <label className={s.field}>
-            {t("Cari kejadian")}
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={t("Contoh: plastik, sungai, area")}
-            />
-          </label>
-          <label className={s.field}>
-            {t("Status")}
-            <select
-              value={status}
-              onChange={(event) => setStatus(event.target.value as IncidentStatus | "")}
-            >
-              <option value="">{t("Semua status")}</option>
-              {Object.entries(statusLabels).map(([value, label]) => (
-                <option key={value} value={value}>{t(label)}</option>
-              ))}
-            </select>
-          </label>
-          <label className={s.field}>
-            {t("Kategori")}
-            <select
-              value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value as IncidentCategory | "")}
-            >
-              <option value="">{t("Semua kategori")}</option>
-              {categories.map(([value, label]) => (
-                <option key={value} value={value}>{t(label)}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <div className={s.actions}>
-          <button className={s.button} type="submit" disabled={page.loading}>
-            {t("Terapkan filter")}</button>
-          <button className={s.secondary} type="button" onClick={reset} disabled={page.loading}>
-            {t("Reset filter")}</button>
-        </div>
-      </form>
-      {page.error !== null && <Failure error={page.error} retry={page.refresh} />}
-      <div className={s.cards}>
-        {page.items.map((incident) => (
-          <article className={s.card} key={incident.id}>
-            <div className={s.meta}>
-              <span className={s.badge}>{t(statusLabels[incident.status])}</span>
-              {incident.categoryId && <span>{t(categoryLabels[incident.categoryId])}</span>}
-            </div>
-            <h2>{incident.title}</h2>
-            <p className={s.muted}>{incident.area.label}</p>
-            <p>{date(incident.lastObservedAt ?? incident.occurredAt, intlLocale)}</p>
-            <p className={s.pre}>{incident.summary || t("Ringkasan publik belum tersedia.")}</p>
-            {incident.evidence.length ? (
-              <Evidence items={incident.evidence} />
-            ) : (
-              <p className={s.muted}>{t("Bukti publik belum tersedia; pembaruan warga masih bisa dikirim untuk ditinjau.")}</p>
-            )}
-            <p className={s.muted}>
-              {incident.supportCount} {t("dukungan warga")}</p>
-            <div className={s.actions}>
-              <Link className={s.button} href={`${incident.canonicalPath}#kontribusi-warga`}>
-                {t("Lihat detail & kontribusi")}</Link>
-            </div>
-          </article>
-        ))}
+  return <PublicShell>
+    <CommunityHero variant="incidents" title={t("Kejadian publik dan kontribusi warga")}>
+      {t("Lihat laporan publik yang sudah diverifikasi, lalu bantu kirim kondisi terbaru atau foto bukti untuk ditinjau moderator.")}
+    </CommunityHero>
+    <section className={p.accessPanel} aria-labelledby="akses-publik-title">
+      <span className={p.accessIcon}><UsersRound size={28} aria-hidden="true" /></span>
+      <div className={p.accessCopy}>
+        <h2 id="akses-publik-title">{t("Akses publik tidak perlu login")}</h2>
+        <p>{t("Semua orang bisa membaca kejadian publik. Login dan verifikasi email hanya diperlukan saat ingin mendukung, mengikuti kabar, atau mengirim pembaruan dengan foto.")}</p>
       </div>
-      {page.loading ? (
-        <p role="status">{t("Memuat kejadian…")}</p>
-      ) : !page.items.length && page.error === null ? (
-        <Empty>{t("Belum ada kejadian publik untuk filter ini.")}</Empty>
-      ) : null}
-      {page.cursor && (
-        <button
-          disabled={page.loading}
-          className={s.secondary}
-          onClick={() => void page.more()}
-        >
-          {t("Muat kejadian berikutnya")}</button>
-      )}
-    </PublicShell>
-  );
+      <div className={p.accessActions}>
+        <a className={p.primaryButton} href="#daftar-kejadian">{t("Lihat daftar kejadian")}</a>
+        <Link className={p.secondaryButton} href={loginDestination("/incidents")}><CirclePlus size={17} aria-hidden="true" />{t("Masuk untuk berkontribusi")}</Link>
+      </div>
+    </section>
+    <form id="daftar-kejadian" className={p.filterPanel} onSubmit={submit} aria-label={t("Filter kejadian publik")}>
+      <div className={p.incidentFilters}>
+        <label className={p.field} htmlFor="cari-kejadian">
+          <span className={p.fieldLabel}><Search size={14} aria-hidden="true" />{t("Cari kejadian")}</span>
+          <span className={p.searchField}><Search size={17} aria-hidden="true" />
+            <input id="cari-kejadian" type="search" aria-label={t("Cari kejadian")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Contoh: plastik, sungai, area")} autoComplete="off" />
+            {search && <button className={p.clearSearch} type="button" aria-label={t("Hapus pencarian")} onClick={() => setSearch("")}><X size={15} aria-hidden="true" /></button>}
+          </span>
+        </label>
+        <label className={p.field}>
+          <span>{t("Status")}</span><span className={p.selectField}>
+            <select value={status} onChange={(event) => { const value = event.target.value as IncidentStatus | ""; setStatus(value); setFilters((previous) => ({ ...previous, status: value })); }}>
+              <option value="">{t("Semua status")}</option>
+              {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{t(label)}</option>)}
+            </select><ChevronDown size={16} aria-hidden="true" />
+          </span>
+        </label>
+        <label className={p.field}>
+          <span>{t("Kategori")}</span><span className={p.selectField}>
+            <select value={categoryId} onChange={(event) => { const value = event.target.value as IncidentCategory | ""; setCategoryId(value); setFilters((previous) => ({ ...previous, categoryId: value })); }}>
+              <option value="">{t("Semua kategori")}</option>
+              {categories.map(([value, label]) => <option key={value} value={value}>{t(label)}</option>)}
+            </select><ChevronDown size={16} aria-hidden="true" />
+          </span>
+        </label>
+      </div>
+      {hasFilters && <div className={p.filterFooter}><span>{t("Hasil diperbarui sesuai filter Anda.")}</span><button type="button" className={p.textButton} onClick={reset}><X size={14} aria-hidden="true" />{t("Reset filter")}</button></div>}
+    </form>
+    {page.error !== null && <Failure error={page.error} retry={page.refresh} />}
+    <section className={p.resultsSection} aria-labelledby="incident-results-title" aria-busy={page.loading}>
+      <div className={p.resultsBar}>
+        <h2 id="incident-results-title" aria-live="polite">{page.loading ? t("Memuat kejadian…") : t("{count} kejadian publik", { count: String(page.items.length) + (page.cursor ? "+" : "") })}</h2>
+        <label className={p.sortField}><span>{t("Urutkan")}</span><span className={p.selectField}>
+          <select value={sort} onChange={(event) => setSort(event.target.value)} aria-label={t("Urutkan kejadian")}>
+            <option value="latest">{t("Terbaru")}</option><option value="oldest">{t("Terlama")}</option><option value="support">{t("Dukungan terbanyak")}</option>
+          </select><ChevronDown size={14} aria-hidden="true" />
+        </span></label>
+      </div>
+      {page.loading && !page.items.length ? <ListSkeleton /> : <div className={p.cardGrid}>
+        {items.map((incident) => <article className={p.listCard} key={incident.id}>
+          <div className={p.cardTop}>
+            <div className={p.badges}><span className={p.statusBadge} data-status={incident.status}>{incident.status === "resolved" ? <CheckCircle2 size={14} aria-hidden="true" /> : <ShieldCheck size={14} aria-hidden="true" />}{t(statusLabels[incident.status])}</span>
+              {incident.categoryId && <span className={p.categoryBadge}>{t(categoryLabels[incident.categoryId])}</span>}
+            </div><CardOptions href={incident.canonicalPath} title={incident.title} />
+          </div>
+          <h2 className={p.cardTitle}><Link href={incident.canonicalPath}>{incident.title}</Link></h2>
+          <div className={[p.incidentBody, incident.evidence.length ? p.incidentBodyWithEvidence : ""].join(" ")}>
+            <div className={p.incidentText}>
+              <div className={p.cardMetadata}><span className={p.metadataItem}><MapPin size={16} aria-hidden="true" />{incident.area.label}</span>
+                <span className={p.metadataItem}><CalendarDays size={16} aria-hidden="true" /><time dateTime={incident.lastObservedAt ?? incident.occurredAt}>{date(incident.lastObservedAt ?? incident.occurredAt, intlLocale)}</time></span>
+              </div>
+              <p className={p.cardSummary}>{incident.summary || t("Ringkasan publik belum tersedia.")}</p>
+            </div>
+            {incident.evidence.length > 0 && <div className={p.evidenceFrame}><Evidence items={incident.evidence.slice(0, 1)} /><span className={p.evidenceLabel}><ImageIcon size={12} aria-hidden="true" />{t("Bukti yang disetujui SAP")}</span></div>}
+          </div>
+          {!incident.evidence.length && <p className={p.evidenceNotice}><Info size={19} aria-hidden="true" /><span>{t("Bukti publik belum tersedia; pembaruan warga masih bisa dikirim untuk ditinjau.")}</span></p>}
+          <div className={p.cardFooter}><span className={p.supportCount}><UsersRound size={17} aria-hidden="true" />{incident.supportCount} {t("dukungan warga")}</span>
+            <Link className={p.cardButton} href={incident.canonicalPath + "#kontribusi-warga"}>{t("Lihat detail & kontribusi")}<ChevronRight size={18} aria-hidden="true" /></Link>
+          </div>
+        </article>)}
+      </div>}
+      {!page.loading && !page.items.length && page.error === null && <ExploreEmpty title={t("Belum ada kejadian publik untuk filter ini.")}>{t("Coba kata kunci lain atau perluas pilihan status dan kategori.")}</ExploreEmpty>}
+      {page.loading && page.items.length > 0 && <p className={p.loadingText} role="status">{t("Memuat kejadian…")}</p>}
+    </section>
+    {page.cursor && <button type="button" disabled={page.loading} className={[p.secondaryButton, p.loadMore].join(" ")} onClick={() => void page.more()}>{t("Muat kejadian berikutnya")}<ChevronDown size={16} aria-hidden="true" /></button>}
+  </PublicShell>;
 }
 
 export default function IncidentPage({ id }: { id: string }) {

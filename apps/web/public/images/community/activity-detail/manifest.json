@@ -1,0 +1,33 @@
+{
+  "source": "codex-clipboard-639142b8-469b-4006-ad55-17780d79cb39.png",
+  "sourceDimensions": {
+    "width": 1672,
+    "height": 941
+  },
+  "background": {
+    "file": "lake-background.webp",
+    "origin": "Built-in imagegen: reference screenshot with all interface elements removed and hidden lake scenery reconstructed"
+  },
+  "crops": [
+    {
+      "name": "leaf-card.webp",
+      "bounds": {
+        "left": 1345,
+        "top": 259,
+        "width": 114,
+        "height": 147
+      },
+      "role": "Decorative leaf in the participation card"
+    },
+    {
+      "name": "nature-quote.webp",
+      "bounds": {
+        "left": 1140,
+        "top": 145,
+        "width": 342,
+        "height": 98
+      },
+      "role": "Original handwritten environmental quotation"
+    }
+  ]
+}

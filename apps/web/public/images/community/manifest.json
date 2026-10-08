@@ -1,0 +1,79 @@
+{
+  "source": "User-provided community reference, 8 October 2026",
+  "sourceDimensions": {
+    "width": 1672,
+    "height": 941
+  },
+  "assets": [
+    {
+      "file": "incidents-river.webp",
+      "bounds": {
+        "left": 516,
+        "top": 87,
+        "width": 304,
+        "height": 205
+      },
+      "role": "hero"
+    },
+    {
+      "file": "volunteer-hero.webp",
+      "bounds": {
+        "left": 1312,
+        "top": 93,
+        "width": 287,
+        "height": 172
+      },
+      "role": "hero"
+    },
+    {
+      "file": "cleanup-closeup.webp",
+      "bounds": {
+        "left": 902,
+        "top": 374,
+        "width": 309,
+        "height": 93
+      },
+      "role": "activity illustration"
+    },
+    {
+      "file": "tree-planting.webp",
+      "bounds": {
+        "left": 1264,
+        "top": 374,
+        "width": 309,
+        "height": 93
+      },
+      "role": "activity illustration"
+    },
+    {
+      "file": "community-cleanup.webp",
+      "bounds": {
+        "left": 902,
+        "top": 700,
+        "width": 309,
+        "height": 86
+      },
+      "role": "activity illustration"
+    },
+    {
+      "file": "foliage-left.webp",
+      "bounds": {
+        "left": 0,
+        "top": 0,
+        "width": 57,
+        "height": 941
+      },
+      "role": "decoration"
+    },
+    {
+      "file": "foliage-right.webp",
+      "bounds": {
+        "left": 1621,
+        "top": 0,
+        "width": 51,
+        "height": 941
+      },
+      "role": "decoration"
+    }
+  ]
+}

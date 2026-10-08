@@ -81,7 +81,7 @@ export default function AuthPage({ mode }: { mode: Mode }) {
       } else if (isSignup) {
         const challenge = await register(name.trim(), email.trim(), password);
         setChallengeId(challenge.challengeId); setStage("verify"); setPassword("");
-        setNotice("Kode verifikasi telah dikirim ke email Anda.");
+        setNotice(challenge.message);
       } else {
         const result = await login(email.trim(), password);
         if (isMfaLoginRequired(result)) {
@@ -158,6 +158,7 @@ export default function AuthPage({ mode }: { mode: Mode }) {
 
                 <button className={styles.submit} type="submit" disabled={busy} aria-busy={busy && !resendingCode}>{busy && !resendingCode ? t("Memproses…") : stage === "mfa" ? t("Verifikasi & masuk") : stage === "verify" ? t("Verifikasi & masuk") : stage === "forgot" ? t("Kirim kode") : stage === "reset" ? t("Simpan kata sandi") : isSignup ? t("Daftar akun") : t("Masuk")}</button>
                 {stage === "mfa" && <p className={styles.securityNote}>{t("Kunci sementara login ini hanya berlaku untuk menyelesaikan verifikasi.")}</p>}
+                {stage === "verify" && <p className={styles.securityNote}>{t("Email yang sudah terverifikasi tidak menerima kode pendaftaran baru.")} <Link href={`/login?returnTo=${encodeURIComponent(returnTo)}`}>{t("Masuk")}</Link></p>}
                 {stage !== "form" && <div className={styles.secondaryActions}>
                   <button className={styles.backAction} type="button" disabled={busy} onClick={() => { const leavingMfa = stage === "mfa"; setStage("form"); setCode(""); setError(""); setNotice(""); if (leavingMfa) { setMfaCode(""); setMfaPreauthToken(""); setMfaRecoveryMode(false); } }}>
                     <ArrowLeft size={20} aria-hidden="true" />

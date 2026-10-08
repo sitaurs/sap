@@ -75,6 +75,8 @@ export const common: Record<string, string> = {
   "Jika email terdaftar, kode pemulihan telah dikirim. Periksa kotak masuk Anda.": "If this email is registered, a recovery code has been sent. Check your inbox.",
   "Kata sandi diperbarui. Silakan masuk.": "Password updated. Please sign in.",
   "Kode verifikasi telah dikirim ke email Anda.": "A verification code has been sent to your email.",
+  "Jika akun memenuhi syarat, kode verifikasi telah dikirim ke email tersebut.": "If the account is eligible, a verification code has been sent to that email.",
+  "Email yang sudah terverifikasi tidak menerima kode pendaftaran baru.": "An already verified email does not receive a new registration code.",
   "Masukkan kode dari aplikasi autentikator atau gunakan kode pemulihan.": "Enter a code from your authenticator app or use a recovery code.",
   "Email belum diverifikasi. Kode telah dikirim kembali.": "Your email is not verified yet. A new code has been sent.",
   "Kode belum dapat dikirim.": "The code could not be sent.",

@@ -1,6 +1,7 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ArrowRight, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, FileText, LockKeyhole, MapPin, Scale, Search, UsersRound, X } from "lucide-react";
 import { ApiError } from "../../lib/api/client";
 import {
   acknowledgeSchedule,
@@ -14,69 +15,79 @@ import type { R1 } from "../../lib/api/r1";
 import { loginDestination } from "../../lib/auth-return";
 import {
   date,
-  Empty,
   Evidence,
   Failure,
   Heading,
   PublicShell,
   usePage,
 } from "./community-ui";
-import { displayedActivityStatus, memberLabels, registrationClosedMessage, statusLabels } from "../activities/activity-utils";
+import { displayedActivityStatus, memberLabels, statusLabels } from "../activities/activity-utils";
 import s from "./community.module.css";
+import p from "./public-community.module.css";
+import d from "./public-activity-detail.module.css";
+import { ActivityIllustration, CardOptions, CommunityHero, ExploreEmpty, ListSkeleton } from "./public-community";
+import { ActivityDetailHeading, ActivityDetailSkeleton, ActivityInformation, ActivityParticipation } from "./public-activity-detail";
 import { useI18n } from "../../lib/i18n/provider";
 
 export function ActivityExplore() {
   const { t, intlLocale } = useI18n();
   const [available, setAvailable] = useState(false);
-  const loader = useCallback(
-    (cursor?: string, signal?: AbortSignal) =>
-      publicActivities({ cursor, availableOnly: available }, signal),
-    [available],
-  );
+  const [search, setSearch] = useState("");
+  const [period, setPeriod] = useState("all");
+  const range = useMemo(() => {
+    const now = new Date().toISOString();
+    return { from: period === "upcoming" ? now : undefined, to: period === "past" ? now : undefined };
+  }, [period]);
+  const loader = useCallback((cursor?: string, signal?: AbortSignal) => publicActivities({ cursor, availableOnly: available, ...range }, signal), [available, range]);
   const page = usePage(loader);
-  return (
-    <PublicShell>
-      <Heading title={t("Temukan aksi bersama")}>
-        {t("Pilih kegiatan lingkungan dan ajukan keikutsertaan Anda.")}</Heading>
-      <label className={s.check}>
-        <input
-          type="checkbox"
-          checked={available}
-          onChange={(e) => setAvailable(e.target.checked)}
-        />
-        {t("Hanya kegiatan dengan tempat tersedia")}</label>
-      {page.error !== null && (
-        <Failure error={page.error} retry={page.refresh} />
-      )}
-      <div className={s.cards}>
-        {page.items.map((a) => (
-          <article className={s.card} key={a.id}>
-            <span className={s.badge}>{t(statusLabels[displayedActivityStatus(a)])}</span>
-            <h2>{a.title}</h2>
-            <p className={s.muted}>{a.area.label}</p>
-            <p>{date(a.startsAt, intlLocale)}</p>
-            <p>
-              {a.acceptedCount}/{a.capacity} {" "}{t("peserta ·")}{" "}{a.availableSeats} {" "}{t("tempat tersedia")}</p>
-            <Link className={s.button} href={`/activities/${a.id}`}>
-              {t("Lihat kegiatan")}</Link>
-          </article>
-        ))}
+  const items = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase(intlLocale);
+    return query ? page.items.filter((activity) => (activity.title + " " + activity.description + " " + activity.area.label).toLocaleLowerCase(intlLocale).includes(query)) : page.items;
+  }, [page.items, search, intlLocale]);
+  const hasFilters = Boolean(available || search || period !== "all");
+  function reset() { setAvailable(false); setSearch(""); setPeriod("all"); }
+  return <PublicShell>
+    <CommunityHero variant="activities" title={t("Temukan aksi bersama")}>
+      {t("Pilih kegiatan lingkungan dan ajukan keikutsertaan Anda. Bersama, kita wujudkan lingkungan yang lebih bersih, sehat, dan berkelanjutan.")}
+    </CommunityHero>
+    <div className={p.activityFilters} role="group" aria-label={t("Filter kegiatan relawan")}>
+      <label className={p.availableCheck}><input type="checkbox" checked={available} onChange={(event) => setAvailable(event.target.checked)} />{t("Hanya kegiatan dengan tempat tersedia")}</label>
+      <label className={[p.searchField, p.activitySearch, search ? p.activitySearchOpen : ""].join(" ")} htmlFor="cari-kegiatan"><span className={p.srOnly}>{t("Cari kegiatan")}</span><Search size={17} aria-hidden="true" />
+        <input id="cari-kegiatan" type="search" aria-label={t("Cari kegiatan")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Cari kegiatan")} autoComplete="off" />
+        {search && <button className={p.clearSearch} type="button" aria-label={t("Hapus pencarian")} onClick={() => setSearch("")}><X size={14} aria-hidden="true" /></button>}
+      </label>
+      <label className={[p.selectField, p.periodField].join(" ")}><span className={p.srOnly}>{t("Periode kegiatan")}</span><CalendarDays size={17} aria-hidden="true" />
+        <select value={period} onChange={(event) => setPeriod(event.target.value)}><option value="all">{t("Semua kegiatan")}</option><option value="upcoming">{t("Kegiatan mendatang")}</option><option value="past">{t("Kegiatan sebelumnya")}</option></select><ChevronDown size={15} aria-hidden="true" />
+      </label>
+    </div>
+    {page.error !== null && <Failure error={page.error} retry={page.refresh} />}
+    <section className={p.resultsSection} aria-labelledby="activity-results-title" aria-busy={page.loading}>
+      <div className={[p.resultsBar, !hasFilters && !page.loading ? p.resultsBarCompact : ""].join(" ")}>
+        <h2 id="activity-results-title" className={!hasFilters && !page.loading ? p.srOnly : undefined} aria-live="polite">{page.loading ? t("Memuat kegiatan…") : t("{count} kegiatan relawan", { count: String(items.length) + (page.cursor ? "+" : "") })}</h2>
+        {hasFilters && items.length > 0 && <button type="button" className={p.textButton} onClick={reset}><X size={14} aria-hidden="true" />{t("Reset filter")}</button>}
       </div>
-      {page.loading ? (
-        <p role="status">{t("Memuat kegiatan…")}</p>
-      ) : !page.items.length && page.error === null ? (
-        <Empty>{t("Belum ada kegiatan publik untuk filter ini.")}</Empty>
-      ) : null}
-      {page.cursor && (
-        <button
-          disabled={page.loading}
-          className={s.secondary}
-          onClick={() => void page.more()}
-        >
-          {t("Muat kegiatan berikutnya")}</button>
-      )}
-    </PublicShell>
-  );
+      {page.loading && !page.items.length ? <ListSkeleton activities /> : <div className={p.cardGrid}>
+        {items.map((activity) => {
+          const status = displayedActivityStatus(activity);
+          const Icon = status === "completed" ? CheckCircle2 : status === "registration_open" ? UsersRound : status === "registration_closed" ? LockKeyhole : Clock3;
+          return <article className={[p.listCard, p.activityCard].join(" ")} key={activity.id}>
+            <div className={p.cardTop}><span className={p.statusBadge} data-status={status}><Icon size={15} aria-hidden="true" />{t(statusLabels[status])}</span><CardOptions href={"/activities/" + activity.id} title={activity.title} /></div>
+            <ActivityIllustration id={activity.id} title={activity.title} description={activity.description} />
+            <h2 className={p.cardTitle}><Link href={"/activities/" + activity.id}>{activity.title}</Link></h2>
+            <div className={p.cardMetadata}>
+              <span className={p.metadataItem}><MapPin size={16} aria-hidden="true" />{activity.area.label}</span>
+              <span className={p.metadataItem}><CalendarDays size={16} aria-hidden="true" /><time dateTime={activity.startsAt}>{date(activity.startsAt, intlLocale)}</time></span>
+              <span className={p.metadataItem}><UsersRound size={17} aria-hidden="true" /><span>{activity.acceptedCount}/{activity.capacity} {t("peserta")} · {activity.registrationOpen ? activity.availableSeats + " " + t("tempat tersedia") : t(status === "completed" ? "Kegiatan selesai" : "Pendaftaran ditutup")}</span></span>
+            </div>
+            <div className={p.cardFooter}><Link className={p.cardButton} href={"/activities/" + activity.id}>{t("Lihat kegiatan")}<ChevronRight size={18} aria-hidden="true" /></Link></div>
+          </article>;
+        })}
+      </div>}
+      {!page.loading && !items.length && page.error === null && <ExploreEmpty title={t("Belum ada kegiatan publik untuk filter ini.")} onReset={hasFilters ? reset : undefined}>{t("Coba kegiatan lain, atau ubah periode dan pilihan tempat tersedia.")}</ExploreEmpty>}
+      {page.loading && page.items.length > 0 && <p className={p.loadingText} role="status">{t("Memuat kegiatan…")}</p>}
+    </section>
+    {page.cursor && <button type="button" disabled={page.loading} className={[p.secondaryButton, p.loadMore].join(" ")} onClick={() => void page.more()}>{t("Muat kegiatan berikutnya")}<ChevronDown size={16} aria-hidden="true" /></button>}
+  </PublicShell>;
 }
 export default function ActivityPublic({ id }: { id: string }) {
   const { t, intlLocale } = useI18n();
@@ -182,11 +193,11 @@ export default function ActivityPublic({ id }: { id: string }) {
     }
   }
   return (
-    <PublicShell>
-      <Link className={s.link} href="/activities">
+    <PublicShell variant="activity-detail">
+      <Link className={d.backLink} href="/activities">
         {t("← Semua kegiatan")}</Link>
       {loading ? (
-        <p role="status">{t("Memuat detail kegiatan…")}</p>
+        <ActivityDetailSkeleton />
       ) : error !== null ? (
         <Failure error={error} retry={() => setEpoch((v) => v + 1)} />
       ) : activity?.kind === "activity_notice" ? (
@@ -205,94 +216,23 @@ export default function ActivityPublic({ id }: { id: string }) {
         </section>
       ) : activity ? (
         <>
-          <Heading title={activity.title}>{activity.area.label}</Heading>
-          <div className={s.grid}>
-            <div className={s.page}>
-              <section className={s.card}>
-                <span className={s.badge}>{t(statusLabels[displayedActivityStatus(activity)])}</span>
-                {registrationClosedMessage(activity, intlLocale) && <p role="status">{t(registrationClosedMessage(activity, intlLocale)!)}</p>}
-                <p className={s.pre}>{activity.description}</p>
-                <div className={s.meta}>
-                  <span>{t("Mulai:")}{" "}{date(activity.startsAt, intlLocale)}</span>
-                  <span>{t("Selesai:")}{" "}{date(activity.endsAt, intlLocale)}</span>
-                </div>
-                <p>{t("Batas pendaftaran:")}{" "}{date(activity.registrationClosesAt, intlLocale)}</p>
-                <h3>{t("Perlengkapan")}</h3>
-                <div className={s.meta}>
-                  {activity.equipment.map((text) => (
-                    <span className={s.badge} key={text}>
-                      {text}
-                    </span>
-                  ))}
-                </div>
-                <h3>{t("Aksesibilitas")}</h3>
-                <p>{activity.accessibilityNotes || t("Belum ada catatan.")}</p>
-                <h3>{t("Rencana serah terima sampah")}</h3>
-                <p>{activity.wasteHandoverPlan || t("Belum tersedia.")}</p>
-                <Link
-                  className={s.link}
-                  href={`/incidents/${activity.reportId}`}
-                >
-                  {t("Lihat kejadian sumber →")}</Link>
-              </section>
-              <section className={s.card}>
-                <h2>{t("Hasil yang disetujui")}</h2>
-                {results.error !== null && (
-                  <Failure error={results.error} retry={results.refresh} />
-                )}{" "}
-                {results.loading ? (
-                  <p role="status">{t("Memuat hasil…")}</p>
-                ) : !results.items.length && results.error === null ? (
-                  <Empty>{t("Belum ada hasil publik yang disetujui.")}</Empty>
-                ) : null}
-                {results.items.map((result) => (
-                  <article key={result.id} className={s.row}>
-                    <span className={s.badge}>
-                      {result.outcome === "partial"
-                        ? t("Penanganan sebagian")
-                        : t("Penanganan lengkap")}
-                    </span>
-                    <p>{result.summary}</p>
-                    <p className={s.muted}>{date(result.observedAt, intlLocale)}</p>
-                    <Evidence items={result.evidence} />
-                    <p>
-                      {result.verifiedMeasurement
-                        ? `${result.verifiedMeasurement.valueKg} kg · ${result.verifiedMeasurement.stage}`
-                        : t("Berat terverifikasi belum tersedia.")}
-                    </p>
-                  </article>
-                ))}
-                {results.cursor && (
-                  <button
-                    className={s.secondary}
-                    disabled={results.loading}
-                    onClick={() => void results.more()}
-                  >
-                    {t("Muat hasil berikutnya")}</button>
-                )}
-              </section>
-            </div>
-            <aside className={s.card}>
-              <h2>{t("Ikut kegiatan")}</h2>
-              <strong>
-                {activity.acceptedCount} / {activity.capacity} {" "}{t("peserta diterima")}</strong>
-              <p>{activity.availableSeats} {" "}{t("tempat tersedia")}</p>
-              <p className={s.muted}>
-                {t("Koordinator:")}{" "}{activity.coordinatorDisplayName}
-              </p>
+          <ActivityDetailHeading activity={activity} />
+          <div className={d.detailGrid}>
+            <ActivityInformation activity={activity} />
+            <ActivityParticipation activity={activity}>
               {guest ? (
                 <Link
-                  className={s.button}
+                  className={d.primaryAction}
                   href={loginDestination(`/activities/${id}`)}
                 >
-                  {t("Masuk untuk ikut")}</Link>
+                  {t("Masuk untuk ikut")}<ArrowRight size={18} aria-hidden="true" /></Link>
               ) : viewer ? (
                 <>
-                  <p>
+                  <p className={d.memberStatus}>
                     {t("Status Anda:")}{" "}
                     <strong>
                       {viewer.membership
-                        ? memberLabels[viewer.membership.status]
+                        ? t(memberLabels[viewer.membership.status])
                         : t("Belum meminta ikut")}
                     </strong>
                   </p>
@@ -300,13 +240,13 @@ export default function ActivityPublic({ id }: { id: string }) {
                     <p>{viewer.membership.reason}</p>
                   )}
                   <button
-                    className={s.button}
+                    className={d.primaryAction}
                     disabled={actionBlocked || !activity.registrationOpen || !viewer.actions.join.allowed}
                     onClick={() => void participate(true)}
                   >
-                    {t("Ajukan ikut kegiatan")}</button>
+                    {t("Ajukan ikut kegiatan")}<ArrowRight size={18} aria-hidden="true" /></button>
                   <button
-                    className={s.secondary}
+                    className={d.secondaryAction}
                     disabled={
                       actionBlocked || !viewer.actions.cancelMembership.allowed
                     }
@@ -314,7 +254,7 @@ export default function ActivityPublic({ id }: { id: string }) {
                   >
                     {t("Batalkan permintaan / ikut")}</button>
                   {viewer.meetingPoint && (
-                    <div className={s.notice}>
+                    <div className={d.notice}>
                       <strong>{t("Titik kumpul")}</strong>
                       <p>{viewer.meetingPoint.instructions}</p>
                       {viewer.meetingPoint.latitude !== null &&
@@ -327,19 +267,19 @@ export default function ActivityPublic({ id }: { id: string }) {
                     </div>
                   )}
                   {viewer.scheduleAcknowledgementRequired && (
-                    <div className={s.notice}>
+                    <div className={d.notice}>
                       <strong>{t("Jadwal berubah · perlu konfirmasi")}</strong>
                       <p>
                         {date(activity.startsAt, intlLocale)} — {date(activity.endsAt, intlLocale)}
                       </p>
                       <button
-                        className={s.button}
+                        className={d.primaryAction}
                         disabled={actionBlocked}
                         onClick={() => void acknowledge(true)}
                       >
                         {t("Saya dapat hadir di jadwal baru")}</button>
                       <button
-                        className={s.secondary}
+                        className={d.secondaryAction}
                         disabled={actionBlocked}
                         onClick={() => setConfirm("decline_schedule")}
                       >
@@ -348,15 +288,28 @@ export default function ActivityPublic({ id }: { id: string }) {
                   )}
                   {viewer.actions.manage.allowed && (
                     <Link
-                      className={s.secondary}
+                      className={d.secondaryAction}
                       href={`/activities/${id}/manage`}
                     >
                       {t("Kelola sebagai koordinator")}</Link>
                   )}
                 </>
               ) : null}
-            </aside>
+            </ActivityParticipation>
           </div>
+          <section className={[d.card, d.results].join(" ")} aria-labelledby="approved-results-title">
+            <h2 id="approved-results-title"><FileText size={23} aria-hidden="true" />{t("Hasil yang disetujui")}</h2>
+            {results.error !== null && <Failure error={results.error} retry={results.refresh} />}
+            {results.loading ? <p role="status">{t("Memuat hasil…")}</p> : !results.items.length && results.error === null ? <div className={d.resultsEmpty}><FileText size={22} aria-hidden="true" /><p>{t("Belum ada hasil publik yang disetujui.")}</p></div> : null}
+            {results.items.map((result) => <article key={result.id} className={d.resultArticle}>
+              <span className={s.badge}>{result.outcome === "partial" ? t("Penanganan sebagian") : t("Penanganan lengkap")}</span>
+              <p className={s.pre}>{result.summary}</p>
+              <p className={d.resultMeta}><CalendarDays size={16} aria-hidden="true" /><time dateTime={result.observedAt}>{date(result.observedAt, intlLocale)}</time></p>
+              <Evidence items={result.evidence} />
+              <p className={d.resultMeta}><Scale size={17} aria-hidden="true" />{result.verifiedMeasurement ? `${result.verifiedMeasurement.valueKg} kg · ${result.verifiedMeasurement.stage}` : t("Berat terverifikasi belum tersedia.")}</p>
+            </article>)}
+            {results.cursor && <button className={d.secondaryAction} disabled={results.loading} onClick={() => void results.more()}>{t("Muat hasil berikutnya")}</button>}
+          </section>
         </>
       ) : null}
       {confirm && (
