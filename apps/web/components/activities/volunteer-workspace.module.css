@@ -10,13 +10,9 @@
   container-type: inline-size;
   container-name: volunteer;
 }
-.workspace::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: -30px -30px -28px;
+:global(main):has(> .workspace) {
+  flex: 1;
   background: #eff9f9 url("/images/volunteer/workspace-background.webp") top right / 100% auto no-repeat;
-  pointer-events: none;
 }
 .heading { position: relative; min-height: 74px; padding: 0 2px 2px; }
 .eyebrow { margin: 0 0 5px; color: #008367; font-size: 10px; font-weight: 750; letter-spacing: 1.25px; line-height: 1.5; }
@@ -90,5 +86,5 @@
   .emptyIllustration { margin-top: 0; }
   .empty p { font-size: 12px; }
 }
-@media (max-width: 760px) { .workspace::before { inset: -20px -13px -24px; background-size: auto 520px; background-position: top right; } }
+@media (max-width: 760px) { :global(main):has(> .workspace) { background-size: auto 520px; } }
 @media (prefers-reduced-motion: reduce) { .activityCard { transition: none; } .skeletonCard, .skeletonEmpty { animation: none; } }

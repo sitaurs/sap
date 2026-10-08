@@ -25,6 +25,7 @@ test("workspace keeps activity statuses, empty sections, and detail navigation",
   await expect(publicSection.getByText("Dibatalkan", { exact: true })).toBeVisible();
   await expect(publicSection.getByRole("link", { name: "Lihat semua kegiatan" })).toHaveAttribute("href", "/activities");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect.poll(() => workspace.locator("img").evaluateAll(images => images.every(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0)), { timeout: 30_000 }).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("workspace-empty.png"), fullPage: true });
   await workspace.screenshot({ path: testInfo.outputPath("workspace-content.png") });
   await publicSection.getByRole("button", { name: /QA TEST: Aksi bersih sampah organik/ }).focus();
