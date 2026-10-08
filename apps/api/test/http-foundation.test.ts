@@ -11,6 +11,7 @@ import type { Server } from 'node:http';
 const environment = {
   NODE_ENV: 'test', LOG_LEVEL: 'fatal', PORT: '3001',
   APP_ORIGIN: 'http://localhost:3000', API_INTERNAL_URL: 'http://localhost:3001',
+  APP_ORIGIN_ALIASES: 'https://ecosystech.me',
   CONTRACT_VERSION: '1.1.0', DATABASE_URL: 'postgresql://u:p@localhost/db',
   REDIS_URL: 'rediss://default:p@localhost:6379', SESSION_SECRET: 's'.repeat(32),
   CSRF_SECRET: 'c'.repeat(32), RESEND_API_KEY: 're_test_key', MAIL_FROM: 'SAP <sap@localhost>',
@@ -150,6 +151,27 @@ test('valid CSRF reaches strict DTO validation and preserves the request id', as
     .expect(400);
   assert.equal(response.body.error.code, 'VALIDATION_ERROR');
   assert.equal(response.body.meta.requestId, response.headers['x-request-id']);
+});
+
+test('valid CSRF accepts an explicitly configured frontend origin alias', async () => {
+  const issued = await request(server).get('/api/v1/auth/csrf').expect(200);
+  const cookie = firstSetCookie(issued).split(';')[0]!;
+  await request(server)
+    .post('/api/v1/_test/mutation')
+    .set('Origin', 'https://attacker.invalid')
+    .set('Cookie', cookie)
+    .set('X-CSRF-Token', issued.body.data.csrfToken)
+    .send({ name: 'valid' })
+    .expect(403);
+
+  const response = await request(server)
+    .post('/api/v1/_test/mutation')
+    .set('Origin', 'https://ecosystech.me')
+    .set('Cookie', cookie)
+    .set('X-CSRF-Token', issued.body.data.csrfToken)
+    .send({ name: 'valid' })
+    .expect(201);
+  assert.deepEqual(response.body.data, { name: 'valid' });
 });
 
 test('session skeleton creates opaque 256-bit tokens and only attaches their hash', async () => {

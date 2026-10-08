@@ -37,6 +37,8 @@ services:
       dockerfile: deploy/Dockerfile
     env_file:
       - /etc/sap/api.env
+    environment:
+      APP_ORIGIN_ALIASES: https://ecosystech.me
     command: ["node", "apps/api/dist/main.js"]
     expose:
       - "3001"

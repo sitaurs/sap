@@ -28,11 +28,21 @@ const booleanFromEnv = z.preprocess((value) => {
   return value;
 }, z.boolean());
 
+const originAliasesFromEnv = z.preprocess((value) => {
+  if (value === undefined || value === null || value === '') return [];
+  if (typeof value === 'string') return value.split(',').map((origin) => origin.trim()).filter(Boolean);
+  return value;
+}, z.array(z.string().url().refine((value) => {
+  const url = new URL(value);
+  return url.origin === value.replace(/\/$/, '') && !url.username && !url.password;
+}, 'must be an origin URL')).default([]));
+
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   APP_ORIGIN: z.string().url(),
+  APP_ORIGIN_ALIASES: originAliasesFromEnv,
   API_INTERNAL_URL: z.string().url(),
   CONTRACT_VERSION: z.literal('1.1.0'),
   SAP_EXTENSION_ENABLED: booleanFromEnv.default(false),
@@ -169,6 +179,11 @@ const schema = z.object({
     for (const field of ['APP_ORIGIN', 'API_INTERNAL_URL'] as const) {
       if (new URL(value[field]).protocol !== 'https:') {
         context.addIssue({ code: 'custom', path: [field], message: 'must use HTTPS in production' });
+      }
+    }
+    for (const origin of value.APP_ORIGIN_ALIASES) {
+      if (new URL(origin).protocol !== 'https:') {
+        context.addIssue({ code: 'custom', path: ['APP_ORIGIN_ALIASES'], message: 'must use HTTPS in production' });
       }
     }
   }

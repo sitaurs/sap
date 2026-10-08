@@ -33,7 +33,7 @@ export function bootstrapHttpApp(app: INestApplication, config: AppConfig = load
   // non-secret and misconfiguring APP_ORIGIN silently breaks CSRF Origin-locking,
   // so logging them makes deploy-time mismatches obvious in the logs.
   Logger.log(
-    `HTTP ready: contract=${config.CONTRACT_VERSION} APP_ORIGIN=${config.APP_ORIGIN} API_INTERNAL_URL=${config.API_INTERNAL_URL}`,
+    `HTTP ready: contract=${config.CONTRACT_VERSION} APP_ORIGIN=${config.APP_ORIGIN} APP_ORIGIN_ALIASES=${config.APP_ORIGIN_ALIASES.join(',')} API_INTERNAL_URL=${config.API_INTERNAL_URL}`,
     'Bootstrap',
   );
   return config;

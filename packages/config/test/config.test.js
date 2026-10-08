@@ -65,6 +65,21 @@ test('requires HTTPS origins in production', () => {
     getConfig({ ...valid, NODE_ENV: 'production', APP_ORIGIN: 'https://sap.invalid', API_INTERNAL_URL: 'https://api.sap.invalid' }).NODE_ENV,
     'production',
   );
+  assert.throws(() => getConfig({
+    ...valid,
+    NODE_ENV: 'production',
+    APP_ORIGIN: 'https://sap.invalid',
+    APP_ORIGIN_ALIASES: 'http://ecosystech.me',
+    API_INTERNAL_URL: 'https://api.sap.invalid',
+  }), /APP_ORIGIN_ALIASES/);
+});
+
+test('parses trusted frontend origin aliases and rejects URL paths', () => {
+  assert.deepEqual(
+    getConfig({ ...valid, APP_ORIGIN_ALIASES: 'https://ecosystech.me,https://portal.invalid/' }).APP_ORIGIN_ALIASES,
+    ['https://ecosystech.me', 'https://portal.invalid/'],
+  );
+  assert.throws(() => getConfig({ ...valid, APP_ORIGIN_ALIASES: 'https://ecosystech.me/login' }), /APP_ORIGIN_ALIASES/);
 });
 
 test("keeps TOTP MFA disabled unless explicitly enabled", () => {
