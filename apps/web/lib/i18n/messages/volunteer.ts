@@ -16,6 +16,7 @@ export const volunteer: Record<string, string> = {
   "Ruang relawan": "Volunteer workspace",
   "Cari kegiatan, pantau pendaftaran, dan terima penugasan koordinator.": "Explore activities, track registrations, and respond to coordinator assignments.",
   "Kegiatan publik": "Public activities",
+  "Lihat semua kegiatan": "View all activities",
   "tempat tersedia": "places available",
   "Belum ada kegiatan publik": "No public activities yet",
   "Tidak ada kegiatan publik yang tersedia untuk saat ini.": "There are no public activities available at the moment.",
