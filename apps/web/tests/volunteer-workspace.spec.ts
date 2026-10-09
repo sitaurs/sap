@@ -51,7 +51,7 @@ test("requesting participation stays pending and preserves existing registration
   await page.getByRole("button", { name: "Ajukan untuk bergabung", exact: true }).click();
   await expect(page.getByRole("dialog").getByText("Pendaftaran Anda: Menunggu")).toBeVisible();
   await page.getByRole("button", { name: "Tutup", exact: true }).click();
-  await expect(page.getByRole("region", { name: "Pendaftaran saya", exact: true }).getByText("Status: Menunggu")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Pendaftaran saya", exact: true }).getByLabel("Status: Menunggu", { exact: true })).toBeVisible();
   expect(requests.find(request => request.method === "PUT")?.body).toEqual({ participating: true });
 });
 

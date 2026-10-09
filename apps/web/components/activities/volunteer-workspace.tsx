@@ -12,18 +12,19 @@ import v from "./volunteer-workspace.module.css";
 export function WorkspaceHeading() {
   const { t } = useI18n();
   return <header className={v.heading}>
-    <p className={v.eyebrow}>{t("ADMIN SAP · KEGIATAN RELAWAN")}</p>
+    <p className={v.eyebrow}>{t("SAP · KEGIATAN RELAWAN")}</p>
     <h1 id="volunteer-workspace-title">{t("Ruang relawan")}</h1>
-    <p className={v.subtitle}>{t("Cari kegiatan, pantau pendaftaran, dan terima penugasan koordinator.")}</p>
+    <p className={v.subtitle}>{t("Cari kegiatan, pantau pendaftaran, dan kelola penugasan koordinator.")}</p>
   </header>;
 }
 
-export function WorkspaceSection({ title, icon: Icon, children, explore = false }: { title: string; icon: LucideIcon; children: ReactNode; explore?: boolean }) {
+export function WorkspaceSection({ title, icon: Icon, children, explore = false, count, subtitle, pending = 0 }: { title: string; icon: LucideIcon; children: ReactNode; explore?: boolean; count?: number; subtitle?: string; pending?: number }) {
   const { t } = useI18n();
   return <section className={v.section} aria-label={t(title)}>
     <div className={v.sectionHeading}>
-      <h2><span className={v.sectionIcon}><Icon size={21} strokeWidth={1.8} aria-hidden="true" /></span>{t(title)}</h2>
+      <div className={v.sectionTitle}><h2><span className={v.sectionIcon}><Icon size={21} strokeWidth={1.8} aria-hidden="true" /></span>{t(title)}{count !== undefined && <span className={v.sectionCount}>{count}</span>}</h2>{subtitle && <p>{t(subtitle)}</p>}</div>
       {explore && <Link className={v.exploreLink} href="/activities">{t("Lihat semua kegiatan")}<ArrowRight size={15} aria-hidden="true" /></Link>}
+      {pending > 0 && <span className={v.pendingCount}><Clock3 size={15} aria-hidden="true" />{t("{count} perlu konfirmasi", { count: pending })}</span>}
     </div>
     {children}
   </section>;
@@ -42,7 +43,7 @@ export function WorkspaceActivityCard({ activity, onOpen }: { activity: PublicAc
     <span className={v.area}><MapPin size={14} aria-hidden="true" />{activity.area.label}</span>
     <span className={v.cardFooter}>
       <span><CalendarDays size={13} aria-hidden="true" />{activity.startsAt ? <time dateTime={activity.startsAt}>{dateLabel(activity.startsAt, true, intlLocale)}</time> : t("Belum ditentukan")}</span>
-      <span><UsersRound size={14} aria-hidden="true" />{activity.availableSeats} {t("tempat tersedia")}</span>
+      <span>{status === "cancelled" ? <><XCircle size={14} aria-hidden="true" />{t("Kegiatan dibatalkan")}</> : <><UsersRound size={14} aria-hidden="true" />{status === "completed" ? t("{count} relawan", { count: activity.acceptedCount }) : `${activity.availableSeats} ${t("tempat tersedia")}`}</>}</span>
     </span>
   </button>;
 }

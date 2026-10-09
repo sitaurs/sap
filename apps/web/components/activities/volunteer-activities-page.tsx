@@ -26,7 +26,9 @@ import ActivityResultForm from "./activity-result-form";
 import ActivityForm from "./activity-form";
 import { Busy, Notice, PageHead, Status } from "./activity-ui";
 import { WorkspaceActivityCard, WorkspaceEmpty, WorkspaceHeading, WorkspaceLoading, WorkspaceSection } from "./volunteer-workspace";
-import { dateLabel, displayedActivityStatus, errorMessage, registrationClosedMessage, statusLabels, uniqueItems, memberLabels } from "./activity-utils";
+import VolunteerRegistrationCard from "./volunteer-registration-card";
+import VolunteerAssignmentCard, { assignmentNeedsResponse } from "./volunteer-assignment-card";
+import { dateLabel, displayedActivityStatus, errorMessage, registrationClosedMessage, uniqueItems, memberLabels } from "./activity-utils";
 import s from "./activities.module.css";
 import v from "./volunteer-workspace.module.css";
 import { useI18n } from "../../lib/i18n/provider";
@@ -202,23 +204,18 @@ export default function VolunteerActivitiesPage({ categories }: { categories: Sa
         {publicActivities.length ? <div className={v.activityGrid}>{publicActivities.map((activity) => <WorkspaceActivityCard key={activity.id} activity={activity} onOpen={(current) => void openPublic(current)} />)}</div> : <WorkspaceEmpty kind="activities" title="Belum ada kegiatan publik">{t("Tidak ada kegiatan publik yang tersedia untuk saat ini.")}</WorkspaceEmpty>}
       </WorkspaceSection>
 
-      <WorkspaceSection title="Pendaftaran saya" icon={UserRound}>
-        {registrations.length ? <div className={v.registrationGrid}>{registrations.map((item) => <article key={item.activity.id} className={v.registrationCard}>
-          <strong>{item.activity.kind === "activity" ? item.activity.title : t("Informasi kegiatan berubah")}</strong>
-          {item.activity.kind === "activity" && <><span>{dateLabel(item.activity.startsAt, true, intlLocale)}</span><span className={s.memberStatus}>{t("Status:")}{" "}{item.membership ? t(memberLabels[item.membership.status]) : t("Belum ada")}{item.membership?.reason ? ` · ${item.membership.reason}` : ""}</span><button type="button" className={s.secondary} onClick={() => void openPublic(item.activity as PublicActivity)}>{t("Lihat kegiatan")}</button></>}
-          {item.activity.kind === "activity_notice" && <span>{item.activity.message}</span>}
-        </article>)}</div> : <WorkspaceEmpty kind="registration" title="Belum ada pendaftaran">{t("Permintaan bergabung dan status relawan Anda akan tampil di sini.")}</WorkspaceEmpty>}
+      <WorkspaceSection title="Pendaftaran saya" icon={UserRound} count={registrations.length} subtitle={registrations.length ? "Pantau status permintaan dan persiapkan kegiatan Anda." : undefined}>
+        {registrations.length ? <div className={v.registrationGrid}>{registrations.map(item => <VolunteerRegistrationCard key={item.activity.id} item={item} busy={busy} onOpen={current => void openPublic(current)} />)}</div> : <WorkspaceEmpty kind="registration" title="Belum ada pendaftaran">{t("Permintaan bergabung dan status relawan Anda akan tampil di sini.")}</WorkspaceEmpty>}
       </WorkspaceSection>
 
-      <WorkspaceSection title="Penugasan koordinator" icon={UsersRound}>
-        {assignments.length ? <div className={s.assignmentList}>{assignments.map((activity) => <article key={activity.id} className={v.assignmentCard}>
-          <div><strong>{activity.title}</strong><p>{activity.reportId.slice(0, 8)} · {t(statusLabels[displayedActivityStatus(activity)])} {t("· revisi")}{" "}{activity.revision}</p></div>
-          {activity.coordinatorAcceptedAt ? <><span className={s.memberStatus}>{t("Diterima")}{" "}{dateLabel(activity.coordinatorAcceptedAt, true, intlLocale)}</span><button type="button" className={s.secondary} onClick={() => void openManagement(activity.id)}>{t("Kelola kegiatan")}</button></> : <>
-            <label className={s.consentRow}><input type="checkbox" checked={showNameByActivity[activity.id] ?? false} onChange={(event) => setShowNameByActivity((old) => ({ ...old, [activity.id]: event.target.checked }))} disabled={busy} /> {t("Izinkan nama tampilan saya ditampilkan sebagai koordinator pada laman publik.")}</label>
-            <div className={s.buttonRow}><button type="button" className={s.primary} onClick={() => void acceptAssignment(activity, true)} disabled={busy}>{t("Terima penugasan")}</button><button type="button" className={s.secondary} onClick={() => void acceptAssignment(activity, false)} disabled={busy}>{t("Tolak penugasan")}</button></div>
-          </>}
-        </article>)}</div> : <WorkspaceEmpty kind="assignment" title="Belum ada penugasan">{t("Penugasan admin akan muncul setelah Anda dipilih sebagai koordinator.")}</WorkspaceEmpty>}
+      <WorkspaceSection title="Penugasan koordinator" icon={UsersRound} count={assignments.length} pending={assignments.filter(assignmentNeedsResponse).length} subtitle={assignments.length ? "Tinjau tugas sebelum menerima. Kegiatan dapat dikelola setelah penugasan diterima." : undefined}>
+        {assignments.length ? <div className={v.assignmentList}>{assignments.map(activity => <VolunteerAssignmentCard key={activity.id} activity={activity}
+          areaLabel={publicActivities.find(item => item.id === activity.id)?.area.label}
+          publishName={showNameByActivity[activity.id] ?? false} busy={busy}
+          onNameChange={value => setShowNameByActivity(old => ({ ...old, [activity.id]: value }))}
+          onDecision={accepted => void acceptAssignment(activity, accepted)} onManage={() => void openManagement(activity.id)} />)}</div> : <WorkspaceEmpty kind="assignment" title="Belum ada penugasan">{t("Penugasan admin akan muncul setelah Anda dipilih sebagai koordinator.")}</WorkspaceEmpty>}
       </WorkspaceSection>
+      <p className={v.workspaceFooter}><Leaf size={16} aria-hidden="true" />{t("Bersama untuk lingkungan yang lebih bersih.")}</p>
     </>}
 
     {screen === "public-detail" && <div className={s.activityOverlay} role="dialog" aria-modal="true" aria-label={t("Detail kegiatan relawan")}>

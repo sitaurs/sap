@@ -1,8 +1,8 @@
 .workspace {
-  --ink: #0b2450;
-  --navy: #0b2450;
-  --muted: #607698;
-  --green: #00836a;
+  --ink: #07164b;
+  --navy: #07164b;
+  --muted: #46618e;
+  --green: #008477;
   position: relative;
   isolation: isolate;
   gap: 14px;
@@ -12,20 +12,24 @@
 }
 :global(main):has(> .workspace) {
   flex: 1;
-  background: #eff9f9 url("/images/volunteer/workspace-background.webp") top right / 100% auto no-repeat;
+  background: #effaf7 url("/images/volunteer/workspace-populated-background.webp") top right / 100% auto no-repeat;
 }
-.heading { position: relative; min-height: 74px; padding: 0 2px 2px; }
-.eyebrow { margin: 0 0 5px; color: #008367; font-size: 10px; font-weight: 750; letter-spacing: 1.25px; line-height: 1.5; }
-.heading h1 { margin: 0 0 4px; color: var(--navy); font: 800 clamp(28px, 2.9vw, 36px) / 1.12 var(--font-display), Arial, sans-serif; letter-spacing: -1.2px; }
-.subtitle { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; max-width: 560px; }
-.section { min-width: 0; padding: 12px 13px; border: 1px solid #e6f0f3; border-radius: 16px; background: #fffffff7; box-shadow: 0 5px 22px #296d7404; }
-.sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 8px; }
-.sectionHeading h2 { display: flex; align-items: center; gap: 12px; margin: 0; color: var(--navy); font: 750 18px / 1.3 var(--font-display), Arial, sans-serif; letter-spacing: -.4px; }
-.sectionIcon { display: grid; place-items: center; width: 33px; height: 33px; flex: 0 0 33px; border-radius: 10px; color: #008369; background: linear-gradient(145deg, #f0fbf6, #ddf6e9); }
-.exploreLink { display: inline-flex; align-items: center; gap: 9px; min-height: 32px; padding: 5px 13px; border: 1px solid #e2f0ed; border-radius: 999px; background: #f7fcfa; color: #007b67; font-size: 11px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.heading { position: relative; min-height: 98px; padding: 0 5px 2px; }
+.eyebrow { margin: 0 0 5px; color: #008367; font-size: 12px; font-weight: 750; letter-spacing: 1.25px; line-height: 1.5; }
+.heading h1 { margin: 0 0 4px; color: var(--navy); font: 800 clamp(30px, 3.2vw, 42px) / 1.12 var(--font-display), Arial, sans-serif; letter-spacing: -1.2px; }
+.subtitle { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.6; max-width: 640px; }
+.section { min-width: 0; padding: 12px 13px; border: 1px solid #cfe8ee; border-radius: 16px; background: #fffffff2; box-shadow: 0 5px 22px #296d7404; }
+.sectionHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+.sectionTitle { min-width: 0; }
+.sectionHeading h2 { display: flex; align-items: center; gap: 12px; margin: 0; color: var(--navy); font: 750 22px / 1.3 var(--font-display), Arial, sans-serif; letter-spacing: -.4px; }
+.sectionTitle > p { margin: 0 0 0 50px; color: #607698; font-size: 14px; line-height: 1.6; }
+.sectionIcon { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; border-radius: 11px; color: #008369; background: linear-gradient(145deg, #f0fbf6, #ddf6e9); }
+.sectionCount { display: inline-grid; place-items: center; flex-shrink: 0; min-width: 33px; height: 28px; padding-inline: 8px; border: 1px solid #cfe5ee; border-radius: 999px; background: #eaf4fa; color: #007b6b; font-size: 14px; letter-spacing: 0; }
+.pendingCount { display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 999px; background: #fff4db; color: #995500; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.exploreLink { display: inline-flex; align-items: center; gap: 9px; min-height: 36px; padding: 5px 15px; border: 1px solid #71c6b8; border-radius: 999px; background: #fafffe; color: #007b67; font-size: 12px; font-weight: 700; text-decoration: none; white-space: nowrap; }
 .exploreLink:hover { background: #eaf7f0; border-color: #b3d9cd; }
 .activityGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 11px; }
-.activityCard { position: relative; overflow: hidden; min-width: 0; min-height: 162px; display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 13px 14px 12px; border: 1px solid #e4edf3; border-radius: 11px; background: linear-gradient(155deg, #f5f9fb, #fff 66%); color: var(--navy); font: inherit; text-align: left; cursor: pointer; transition: border-color .16s, box-shadow .16s, transform .16s; }
+.activityCard { position: relative; overflow: hidden; min-width: 0; min-height: 149px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 9px 14px 12px; border: 1px solid #cce5ee; border-radius: 11px; background: linear-gradient(155deg, #f5f9fb, #fff 66%); color: var(--navy); font: inherit; text-align: left; cursor: pointer; transition: border-color .16s, box-shadow .16s, transform .16s; }
 .activityCard[data-tone="green"] { background: linear-gradient(155deg, #f2fbf6, #fff 68%); }
 .activityCard[data-tone="red"] { background: linear-gradient(155deg, #fff3f4, #fff 68%); }
 .activityCard[data-tone="blue"] { background: linear-gradient(155deg, #eef8ff, #fff 68%); }
@@ -34,16 +38,16 @@
 .activityCard > :not(.cardLeaf) { position: relative; z-index: 1; }
 .activityCard:hover { border-color: #a6d3c5; box-shadow: 0 5px 16px #1768550c; transform: translateY(-2px); }
 .cardLeaf { position: absolute; width: 48px; height: 53px; right: 9px; top: 8px; object-fit: contain; opacity: .85; pointer-events: none; }
-.badge { display: inline-flex; align-items: center; align-self: flex-start; gap: 6px; max-width: calc(100% - 16px); min-height: 27px; padding: 5px 10px; border-radius: 999px; background: #eaf0f5; color: #324b70; font-size: 10px; line-height: 1.4; font-weight: 700; }
+.badge { display: inline-flex; align-items: center; align-self: flex-start; gap: 7px; max-width: calc(100% - 30px); min-height: 31px; padding: 5px 11px; border-radius: 999px; background: #eaf0f5; color: #324b70; font-size: 12px; line-height: 1.4; font-weight: 700; }
 .badge svg { flex-shrink: 0; }
 [data-tone="green"] .badge { background: #dff6e9; color: #00765e; }
 [data-tone="red"] .badge { background: #ffe2e5; color: #b53642; }
 [data-tone="blue"] .badge { background: #e0f1fc; color: #12628e; }
 [data-tone="amber"] .badge { background: #fff0ca; color: #876011; }
-.activityTitle { min-height: 37px; display: block; font-size: 13px; line-height: 1.45; font-weight: 750; overflow-wrap: anywhere; }
-.area { display: flex; align-items: flex-start; gap: 7px; font-size: 11px; line-height: 1.5; color: #607398; overflow-wrap: anywhere; }
+.activityTitle { min-height: 23px; display: block; font-size: 15px; line-height: 1.45; font-weight: 750; overflow-wrap: anywhere; }
+.area { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; line-height: 1.5; color: #607398; overflow-wrap: anywhere; }
 .area svg { color: #244b75; flex-shrink: 0; margin-top: 1px; }
-.cardFooter { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px 10px; margin-top: auto; padding-top: 10px; border-top: 1px solid #e8eff4; color: #5a7092; font-size: 10px; line-height: 1.5; }
+.cardFooter { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px 10px; margin-top: auto; padding-top: 10px; border-top: 1px solid #e8eff4; color: #5a7092; font-size: 11px; line-height: 1.5; }
 .cardFooter > span { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
 .cardFooter svg { flex-shrink: 0; margin-top: 1px; color: #315681; }
 .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100px; padding: 0 12px 5px; text-align: center; }
@@ -51,13 +55,65 @@
 .empty h3 { margin: 0 0 5px; color: var(--navy); font-size: 14px; line-height: 1.45; font-weight: 750; }
 .empty p { margin: 0; max-width: 570px; color: #607698; font-size: 12px; line-height: 1.6; }
 .emptyLeaf { display: grid; place-items: center; width: 54px; height: 54px; margin-bottom: 8px; border-radius: 50%; background: #ebf8f1; color: var(--green); }
-.registrationCard, .assignmentCard { min-width: 0; padding: 18px; border: 1px solid #e3eeed; border-radius: 12px; background: linear-gradient(155deg, #f7fcfa, #fff 75%); }
-.registrationCard { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
-.registrationCard > strong, .assignmentCard strong { color: var(--navy); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
-.registrationCard > span, .assignmentCard p { color: #5b7391; font-size: 12px; line-height: 1.6; }
-.assignmentCard { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
-.assignmentCard p { margin: 5px 0 0; }
-.registrationGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 12px; }
+.registrationGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.registrationCard { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 9px; padding: 10px 15px 13px; border: 1px solid #d2e7f0; border-radius: 11px; background: #fff; }
+.registrationCard h3, .assignmentCard h3 { margin: 0; color: var(--navy); font-size: 17px; font-weight: 750; line-height: 1.45; overflow-wrap: anywhere; }
+.registrationLeaf { position: absolute; right: 14px; top: 9px; width: 44px; height: 55px; object-fit: contain; pointer-events: none; }
+.memberBadge { display: inline-flex; align-self: flex-start; align-items: center; gap: 8px; max-width: calc(100% - 50px); min-height: 32px; padding: 5px 13px; border-radius: 999px; color: #34516e; background: #eef3f6; font-size: 13px; line-height: 1.4; font-weight: 750; }
+.memberBadge svg { flex-shrink: 0; }
+.registrationMeta { display: grid; gap: 6px; color: #527097; font-size: 13px; line-height: 1.55; }
+.registrationMeta > span, .schedule { display: flex; align-items: flex-start; gap: 9px; min-width: 0; overflow-wrap: anywhere; }
+.registrationMeta svg, .assignmentMeta svg { margin-top: 2px; flex-shrink: 0; color: #355b85; }
+.memberGuidance { display: flex; align-items: flex-start; gap: 12px; min-height: 62px; margin-top: 1px; padding: 10px 14px; border-radius: 10px; background: #f0f5f7; color: #34516e; }
+.memberGuidance > svg { flex-shrink: 0; margin-top: 2px; }
+.memberGuidance strong { font-size: 13px; line-height: 1.5; font-weight: 700; }
+.memberGuidance p { margin: 2px 0 0; color: #607698; font-size: 12px; line-height: 1.5; }
+.registrationCard[data-tone="green"] .memberBadge { background: #ddf7ec; color: #007367; }
+.registrationCard[data-tone="green"] .memberGuidance { background: #eefaf5; color: #007367; }
+.registrationCard[data-tone="amber"] .memberBadge { background: #fff2d1; color: #995500; }
+.registrationCard[data-tone="amber"] .memberGuidance { background: #fff7e5; color: #995500; }
+.registrationCard[data-tone="blue"] .memberBadge { background: #e3f1ff; color: #005bba; }
+.registrationCard[data-tone="blue"] .memberGuidance { background: #ebf5ff; color: #005bba; }
+.registrationCard[data-tone="red"] .memberBadge { background: #ffe7e9; color: #ad3340; }
+.registrationCard[data-tone="red"] .memberGuidance { background: #fff3f4; color: #ad3340; }
+.memberReason { margin: 0; color: #607698; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.activityNotice { display: flex; align-items: flex-start; gap: 10px; padding: 12px; background: #fff7e5; border-radius: 10px; color: #74551c; font-size: 13px; line-height: 1.6; }
+.activityNotice svg { flex-shrink: 0; margin-top: 3px; }
+.activityNotice p { margin: 0; overflow-wrap: anywhere; }
+.workspacePrimary, .workspaceOutline { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; padding: 9px 16px; border: 1px solid #008477; border-radius: 8px; font: 700 13px / 1.5 var(--font-display), Arial, sans-serif; cursor: pointer; text-decoration: none; }
+.workspacePrimary { color: #fff; background: linear-gradient(110deg, #008576, #007c67); box-shadow: inset 0 1px 3px #ffffff26; }
+.workspaceOutline { color: #007667; background: #fff; }
+.workspacePrimary:not(:disabled):hover { background: #006c5d; }
+.workspaceOutline:not(:disabled):hover { background: #effaf6; }
+.workspacePrimary:disabled, .workspaceOutline:disabled { opacity: .6; cursor: wait; }
+.workspacePrimary svg, .workspaceOutline svg { flex-shrink: 0; }
+.registrationCard > button { margin-top: auto; width: 100%; }
+.assignmentList { display: grid; gap: 8px; }
+.assignmentCard { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: start; gap: 14px 20px; min-width: 0; padding: 11px 14px; border: 1px solid #cfe4ee; border-radius: 11px; background: #fff; }
+.assignmentCard[data-pending="true"] { border-color: #ffc650; border-left: 3px solid #ffac00; background: linear-gradient(110deg, #fffdf8, #fff); padding-left: 12px; }
+.assignmentLeaf { position: absolute; right: 14px; top: 10px; width: 58px; height: 70px; object-fit: contain; pointer-events: none; }
+.assignmentIcon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 11px; background: #e4f8f1; color: #007d6b; }
+.assignmentContent { min-width: 0; }
+.assignmentBadges { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; padding-right: 45px; }
+.assignmentBadge, .activityState { display: inline-flex; align-items: center; gap: 8px; min-height: 30px; padding: 5px 12px; border-radius: 999px; font-size: 12px; line-height: 1.4; font-weight: 700; }
+.assignmentBadge { background: #fff0c9; color: #995500; }
+.assignmentBadge[data-accepted="true"] { background: #ddf7ec; color: #007367; }
+.assignmentBadge[data-closed="true"] { background: #edf2f6; color: #607698; }
+.assignmentBadge svg { flex-shrink: 0; }
+.activityState { background: #edf4fc; color: #45658c; }
+.assignmentMeta { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 6px 14px; margin-top: 5px; color: #527097; font-size: 13px; line-height: 1.6; }
+.assignmentMeta > span { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
+.assignmentMeta > span + span { padding-left: 14px; border-left: 1px solid #cadfea; }
+.assignmentDescription { margin: 5px 0 0; color: #527097; font-size: 13px; line-height: 1.6; }
+.assignmentAccepted { margin: 4px 0 0; color: #607698; font-size: 12px; line-height: 1.6; }
+.assignmentConsent { display: flex; align-items: flex-start; gap: 10px; margin-top: 6px; color: #355477; font-size: 13px; line-height: 1.55; }
+.assignmentConsent input { width: 19px; height: 19px; margin: 2px 0 0; flex-shrink: 0; accent-color: #008477; cursor: pointer; }
+.assignmentConsent label { cursor: pointer; }
+.assignmentConsent p { margin: 1px 0 0; color: #607698; font-size: 12px; }
+.assignmentActions { display: flex; flex-wrap: wrap; gap: 10px; align-self: end; position: relative; }
+.assignmentActions .workspaceOutline { color: #45658c; border-color: #9ab4d1; }
+.workspaceFooter { display: flex; justify-content: center; align-items: center; gap: 7px; margin: -7px 0 0; color: #607698; font-size: 11px; line-height: 1.6; text-align: center; }
+.workspaceFooter svg { flex-shrink: 0; color: #008477; }
 .workspace :is(button, a, input):focus-visible { outline: 3px solid #079e82; outline-offset: 4px; }
 .loading { display: flex; flex-direction: column; gap: 14px; }
 .loading > p { margin: 0; color: var(--muted); font-size: 13px; }
@@ -65,23 +121,45 @@
 .skeletonCard { min-height: 162px; }
 .skeletonEmpty { min-height: 104px; }
 @keyframes shimmer { 0%, 100% { background-position: 0 0; } 50% { background-position: 100% 0; } }
-@container volunteer (max-width: 1000px) { .cardFooter { flex-direction: column; gap: 5px; } }
+@container volunteer (max-width: 1150px) { .assignmentActions { grid-column: 2 / -1; justify-content: flex-end; } }
+@container volunteer (max-width: 1000px) { .cardFooter { flex-direction: column; gap: 5px; } .registrationGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @container volunteer (max-width: 800px) { .activityGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cardFooter { flex-direction: row; } }
+@container volunteer (max-width: 650px) {
+  .registrationGrid { grid-template-columns: minmax(0, 1fr); }
+  .sectionHeading { flex-wrap: wrap; gap: 8px; }
+  .pendingCount { margin-left: 50px; }
+  .assignmentCard { grid-template-columns: 38px minmax(0, 1fr); gap: 10px; }
+  .assignmentIcon { width: 38px; height: 38px; }
+  .assignmentActions { grid-column: 1 / -1; }
+  .assignmentActions > button { flex: 1 1 140px; }
+  .assignmentMeta { flex-direction: column; }
+  .assignmentMeta > span + span { padding-left: 0; border: 0; }
+}
 @container volunteer (max-width: 460px) {
   .heading { min-height: 102px; }
   .heading h1 { font-size: 30px; }
-  .eyebrow { font-size: 9px; letter-spacing: .8px; }
-  .subtitle { font-size: 13px; }
-  .section { padding: 13px; }
+  .eyebrow { font-size: 10px; letter-spacing: .8px; }
+  .subtitle { font-size: 14px; }
+  .section { padding: 12px; }
   .sectionHeading { flex-wrap: wrap; gap: 10px; }
-  .sectionHeading h2 { font-size: 17px; gap: 9px; }
-  .exploreLink { margin-left: 42px; min-height: 34px; }
+  .sectionHeading h2 { font-size: 19px; gap: 9px; }
+  .sectionTitle > p { margin-left: 0; margin-top: 7px; font-size: 13px; }
+  .sectionCount { min-width: 29px; height: 26px; font-size: 13px; }
+  .exploreLink { margin-left: 47px; min-height: 44px; }
   .activityGrid { grid-template-columns: minmax(0, 1fr); }
   .activityCard { min-height: 159px; padding: 15px; }
-  .activityTitle { min-height: 0; font-size: 14px; }
-  .area { font-size: 12px; }
-  .cardFooter { font-size: 11px; }
-  .badge { font-size: 11px; }
+  .activityTitle { min-height: 0; font-size: 16px; }
+  .area, .cardFooter { font-size: 13px; }
+  .badge { font-size: 12px; }
+  .registrationMeta, .assignmentMeta, .assignmentDescription, .assignmentConsent { font-size: 14px; }
+  .memberGuidance strong { font-size: 14px; }
+  .memberGuidance p { font-size: 13px; }
+  .registrationCard { padding: 12px; }
+  .assignmentCard { padding: 12px 10px; }
+  .assignmentCard h3 { font-size: 16px; }
+  .assignmentBadge, .activityState { font-size: 11px; padding-inline: 9px; }
+  .workspacePrimary, .workspaceOutline { font-size: 14px; }
+  .assignmentLeaf { width: 42px; height: 50px; right: 6px; }
   .empty { padding-block: 9px 12px; min-height: 140px; }
   .emptyIllustration { margin-top: 0; }
   .empty p { font-size: 12px; }
