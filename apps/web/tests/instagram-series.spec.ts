@@ -37,7 +37,7 @@ test("an active Instagram generation is blocked in the source picker before edit
   });
 
   await page.goto("/dashboard?view=admin-instagram");
-  await page.getByRole("button", { name: "Pilih laporan" }).click();
+  await page.locator("header").getByRole("button", { name: "Pilih laporan", exact: true }).click();
   const picker = page.getByRole("dialog", { name: "Pilih sumber publikasi" });
   await picker.getByRole("button", { name: "Periksa kelayakan publikasi" }).click();
   await expect(picker.getByRole("alert")).toContainText("Generation 1 seri ini masih berstatus Draf");

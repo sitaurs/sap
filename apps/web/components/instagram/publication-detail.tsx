@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
+import { ChevronRight, Download, ExternalLink, Info, Save, Send, ShieldCheck, SlidersHorizontal, Trash2 } from "lucide-react";
 import {
   approveInstagramPost,
   cancelInstagramPost,
@@ -14,18 +14,19 @@ import {
 import { revisionConflict, r1Error, type R1 } from "../../lib/api/r1";
 import { ApiError } from "../../lib/api/client";
 import { useIntentKey } from "../activities/activity-ui";
-import DialogShell from "./dialog-shell";
+import PostDetailDialog from "./post-detail-dialog";
+import PostPreviewPanel from "./post-preview-panel";
+import PostContentEditor from "./post-content-editor";
 import OperationPanel from "./operation-panel";
-import PublicationHistory from "./publication-history";
-import { DateStamp, Notice, PostStatus } from "./publication-ui";
-import { instagramPermalink, shortId } from "./publication-utils";
+import { PostStatus } from "./publication-ui";
+import { instagramPermalink } from "./publication-utils";
 import type {
   InstagramOverview,
   InstagramPost,
   PostPreview,
   PublicationOperation,
 } from "./types";
-import styles from "./instagram.module.css";
+import ui from "./post-detail.module.css";
 import { useI18n } from "../../lib/i18n/provider";
 
 export default function PublicationDetail({
@@ -70,6 +71,8 @@ export default function PublicationDetail({
     [epoch, setEpoch] = useState(0),
     [expired, setExpired] = useState(false);
   const [uncertain, setUncertain] = useState(false);
+  const confirmationRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (confirm) confirmationRef.current?.focus({ preventScroll: true }); }, [confirm]);
   const key = useIntentKey(),
     id = record?.id ?? post?.id,
     dirty =
@@ -266,301 +269,86 @@ export default function PublicationDetail({
   }
   const link = instagramPermalink(record?.permalink ?? null),
     operationId = operation?.id ?? record?.lastOperationId;
+  const approvalLabel = !record ? "Belum tersimpan"
+    : dirty || record.approval.status === "invalidated" || (record.approval.status === "approved" && !approved)
+      ? "Perlu ditinjau ulang" : approved ? "Disetujui" : "Belum disetujui";
+  const footerHint = busy ? "Memproses tindakan…"
+    : loading ? "Memuat versi terbaru…"
+    : !available ? "Publikasi belum tersedia"
+    : latest ? "Tinjau versi terbaru sebelum menyimpan."
+    : uncertain ? "Periksa status terbaru sebelum melanjutkan."
+    : dirty ? "Simpan perubahan sebelum menyetujui konten."
+    : !record ? "Simpan draf untuk menghasilkan preview gambar final."
+    : operationId && ["publishing", "retracting", "needs_action"].includes(record.status) ? "Periksa hasil melalui status operasi publikasi."
+    : record.status === "published" ? "Postingan sudah diterbitkan di Instagram."
+    : record.status === "retracted" ? "Ditarik"
+    : record.status === "cancelled" ? "Draf dibatalkan."
+    : !ready ? "Tinjau gambar final yang siap sebelum menyetujui."
+    : !approved ? "Setujui konten sebelum memposting."
+    : "Konten disetujui; belum diposting.";
   return (
-    <DialogShell
-      title={t("Detail postingan")}
-      subtitle={t("Tinjau gambar final, persetujuan, dan riwayat operasi.")}
-      busy={busy}
+    <PostDetailDialog status={<PostStatus status={record?.status ?? "preview"} />} busy={busy}
       onClose={() => (dirty ? setConfirm("discard") : onClose())}
-      footer={
-        <div className={styles.footerActions}>
-          {editable && (
-            <button
-              className={styles.secondary}
-              disabled={
-                busy ||
-                loading ||
-                !available ||
-                !valid ||
-                !!latest ||
-                (!!record && (!dirty || uncertain))
-              }
-              onClick={() => void execute("save")}
-            >
-              <Save size={18} />
-              {uncertain && !record
-                ? t("Periksa penyimpanan draf")
-                : t("Simpan draf")}
-            </button>
-          )}
-          {record && (
-            <>
-              <button
-                className={styles.secondary}
-                disabled={blocked || !ready || !record.actions.approve.allowed}
-                onClick={() => setConfirm("approve")}
-              >
-                <ShieldCheck size={18} />
-                {t("Setujui konten")}</button>
-              <button
-                className={styles.primary}
-                disabled={
-                  blocked ||
-                  !approved ||
-                  !record.actions.publish.allowed ||
-                  !overview?.capabilities.canPublish
-                }
-                onClick={() => setConfirm("publish")}
-              >
-                <Send size={18} />
-                {t("Posting sekarang")}</button>
-            </>
-          )}
-        </div>
-      }
-    >
-      <div className={styles.detailTitle}>
-        <h3>{source.title}</h3>
-        <PostStatus status={record?.status ?? "preview"} />
-      </div>
-      {final?.rendition.status === "ready" &&
-      final.rendition.url &&
-      !expired ? (
-        <img
-          className={styles.finalPhoto}
-          src={final.rendition.url}
-          alt={final.altText}
-          onError={() => setExpired(true)}
-        />
-      ) : (
-        <Notice warning>
-          {!record
-            ? t("Simpan draf untuk menghasilkan preview gambar final.")
-            : expired
-              ? t("Preview kedaluwarsa. Perbarui informasi untuk mengambil URL baru.")
-              : final?.rendition.status === "failed"
-                ? t("Pembuatan gambar final gagal. Hubungi pengelola.")
-                : t("Preview gambar final sedang disiapkan atau belum tersedia.")}
-        </Notice>
-      )}
-      <button
-        className={styles.secondary}
-        disabled={busy || loading || !id}
-        onClick={() => setEpoch((v) => v + 1)}
-      >
-        <RefreshCw size={17} />
-        {t("Perbarui versi dan preview")}</button>
-      <div className={styles.sourceTags}>
-        <span>{t("Laporan #")}{shortId(source.reportId)}</span>
-        <span>{source.categoryName}</span>
-        <span>
-          {record?.kind ?? preview?.kind} {" "}{t("· generasi")}{" "}
-          {record?.generation ?? "baru"}
-        </span>
-      </div>
-      <button
-        className={styles.textButton}
-        disabled={dirty || busy}
-        onClick={onReport}
-      >
-        {t("Buka moderasi laporan")}</button>
-      <div className={styles.dateGrid}>
-        <div>
-          <span>{t("Masuk draf")}</span>
-          <DateStamp
-            value={record?.createdAt ?? null}
-            empty="Belum tersimpan"
-          />
-        </div>
-        <div>
-          <span>{t("Pernah terposting")}</span>
-          <DateStamp value={record?.publishedAt ?? null} />
-        </div>
-        <div>
-          <span>{t("Ditarik")}</span>
-          <DateStamp
-            value={record?.retractedAt ?? null}
-            empty="Belum ditarik"
-          />
-        </div>
-      </div>
-      <label className={styles.field}>
-        <span>{t("Caption Instagram")}</span>
-        <textarea
-          rows={6}
-          maxLength={2200}
-          value={caption}
-          readOnly={!editable}
-          disabled={busy || loading || uncertain}
-          onChange={(e) => {
-            setCaption(e.target.value);
-            setConfirm(null);
-            setMessage("");
-          }}
-        />
-        <small>{caption.length}{t("/2.200 karakter")}</small>
-      </label>
-      <label className={styles.field}>
-        <span>{t("Deskripsi gambar untuk aksesibilitas")}</span>
-        <textarea
-          rows={3}
-          value={altText}
-          maxLength={1000}
-          readOnly={!editable}
-          disabled={busy || loading || uncertain}
-          onChange={(e) => setAltText(e.target.value)}
-        />
-      </label>
-      <Notice>
-        {t("Persetujuan:")}{" "}
-        {record
-          ? {
-              unapproved: t("Belum disetujui"),
-              approved: "Disetujui",
-              invalidated: t("Perlu ditinjau ulang"),
-            }[record.approval.status]
-          : t("Belum tersimpan")}
-        {t(". Persetujuan terikat pada revisi konten, sumber, dan gambar final. Perubahan dapat membatalkan persetujuan.")}</Notice>
-      {latest && (
-        <div className={styles.confirmation} role="alert">
-          <strong>{t("Versi terbaru · revisi")}{" "}{latest.post.revision}</strong>
-          <p>{latest.post.caption}</p>
-          <p>{latest.post.altText}</p>
-          <PostStatus status={latest.post.status} />
-          <p>
-            {t("Input Anda tetap ada. Konfirmasi sebelum menyimpan ke revisi terbaru.")}</p>
-          <button
-            className={styles.secondary}
-            onClick={() => {
-              setRecord(latest.post);
-              setFinal(latest.preview);
-              setLatest(null);
-              setError("");
-              setConfirm(null);
-            }}
-          >
-            {t("Saya sudah meninjau, pertahankan input saya")}</button>
-        </div>
-      )}
-      {confirm === "discard" ? (
-        <div className={styles.confirmation}>
-          <strong>{t("Caption dan deskripsi belum tersimpan.")}</strong>
-          <button className={styles.secondary} onClick={() => setConfirm(null)}>
-            {t("Lanjut mengedit")}</button>
-          <button className={styles.textButton} onClick={onClose}>
-            {t("Tutup tanpa menyimpan")}</button>
-        </div>
-      ) : confirm ? (
-        <div className={styles.confirmation}>
-          <strong>
-            {confirm === "approve"
-              ? t("Setujui gambar final dan caption ini?")
-              : confirm === "publish"
-                ? t("Posting konten yang telah disetujui sekarang?")
-                : confirm === "cancel"
-                  ? t("Batalkan draf?")
-                  : t("Tarik postingan dari Instagram?")}
-          </strong>
-          {(confirm === "cancel" || confirm === "retract") && (
-            <label className={styles.field}>
-              <span>{t("Alasan")}</span>
-              <textarea
-                value={reason}
-                maxLength={1000}
-                minLength={5}
-                onChange={(e) => setReason(e.target.value)}
-              />
-            </label>
-          )}
-          <div className={styles.footerActions}>
-            <button
-              className={styles.secondary}
-              disabled={busy}
-              onClick={() => setConfirm(null)}
-            >
-              {t("Kembali meninjau")}</button>
-            <button
-              className={styles.primary}
-              disabled={
-                busy ||
-                ((confirm === "cancel" || confirm === "retract") &&
-                  reason.trim().length < 5)
-              }
-              onClick={() => void execute(confirm)}
-            >
-              {t("Konfirmasi tindakan")}</button>
+      footer={<>
+        {error && <p role="alert" className={`${ui.feedback} ${ui.error}`}>{t(error)}</p>}
+        {record?.publishError && <p role="alert" className={`${ui.feedback} ${ui.error}`}>{record.publishError}</p>}
+        {message && <p role="status" className={ui.feedback}>{t(message)}</p>}
+        {confirm && <div className={ui.confirmation} ref={confirmationRef} tabIndex={-1} role="group" aria-label={t("Konfirmasi tindakan")}>
+          <strong>{confirm === "discard" ? t("Caption dan deskripsi belum tersimpan.")
+            : confirm === "approve" ? t("Setujui gambar final dan caption ini?")
+            : confirm === "publish" ? t("Posting konten yang telah disetujui sekarang?")
+            : confirm === "cancel" ? t("Batalkan draf?") : t("Tarik postingan dari Instagram?")}</strong>
+          {(confirm === "cancel" || confirm === "retract") && <label className={ui.field}><span>{t("Alasan")}</span><textarea value={reason} maxLength={1000} minLength={5} disabled={busy} onChange={event => setReason(event.target.value)} /></label>}
+          <div className={ui.confirmationActions}>
+            <button type="button" className={ui.outline} disabled={busy} onClick={() => setConfirm(null)}>{t(confirm === "discard" ? "Lanjut mengedit" : "Kembali meninjau")}</button>
+            {confirm === "discard" ? <button type="button" className={ui.outline} onClick={onClose}>{t("Tutup tanpa menyimpan")}</button>
+              : <button type="button" className={ui.primary} disabled={busy || ((confirm === "cancel" || confirm === "retract") && reason.trim().length < 5)} onClick={() => void execute(confirm)}>{t("Konfirmasi tindakan")}</button>}
+          </div>
+        </div>}
+        <div className={ui.footerRow}>
+          <p className={ui.footerHint}><Info size={20} aria-hidden="true" />{t(footerHint)}</p>
+          <div className={ui.actions}>
+            {editable && <button type="button" className={ui.outline}
+              disabled={busy || loading || !available || !valid || !!latest || !!confirm || (!!record && (!dirty || uncertain))}
+              onClick={() => void execute("save")}><Save size={18} />{t(uncertain && !record ? "Periksa penyimpanan draf" : "Simpan draf")}</button>}
+            {record && <>
+              <button type="button" className={approved ? ui.outline : ui.primary} disabled={blocked || !ready || !!confirm || !record.actions.approve.allowed} onClick={() => setConfirm("approve")}><ShieldCheck size={18} />{t("Setujui konten")}</button>
+              <button type="button" className={`${ui.primary} ${ui.publish}`} disabled={blocked || !approved || !!confirm || !record.actions.publish.allowed || !overview?.capabilities.canPublish} onClick={() => setConfirm("publish")}><Send size={18} />{t("Posting sekarang")}</button>
+            </>}
           </div>
         </div>
-      ) : null}
-      {record && (
-        <div className={styles.footerActions}>
-          <button
-            className={styles.secondary}
-            disabled={blocked || !record.actions.cancel.allowed}
-            onClick={() => setConfirm("cancel")}
-          >
-            {t("Batalkan draf")}</button>
-          <button
-            className={styles.secondary}
-            disabled={
-              blocked ||
-              !record.actions.retract.allowed ||
-              !overview?.capabilities.canRetract
-            }
-            onClick={() => setConfirm("retract")}
-          >
-            {t("Tarik postingan")}</button>
-          {link && (
-            <a
-              className={styles.secondary}
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {t("Periksa di Instagram")}<ExternalLink size={16} />
-            </a>
-          )}
-          <button
-            className={styles.textButton}
-            disabled={dirty || busy}
-            onClick={onSettings}
-          >
-            {t("Pengaturan publikasi")}</button>
-        </div>
-      )}
-      {operationId && (
-        <OperationPanel
-          key={operationId}
-          id={operationId}
-          initial={operation ?? undefined}
-          onCompleted={() => {
-            setEpoch((v) => v + 1);
-            onChanged();
-          }}
-        />
-      )}
-      {record && (
-        <PublicationHistory key={record.id} reportId={record.source.reportId} />
-      )}
-      {loading && (
-        <p role="status" className={styles.helper}>
-          {t("Memuat versi terbaru…")}</p>
-      )}
-      {error && (
-        <p role="alert" className={styles.error}>
-          {t(error)}
-        </p>
-      )}
-      {record?.publishError && (
-        <p role="alert" className={styles.error}>
-          {record.publishError}
-        </p>
-      )}
-      {message && (
-        <p role="status" className={styles.notice}>
-          {t(message)}
-        </p>
-      )}
-    </DialogShell>
+      </>}>
+      <h3 className={ui.title}>{source.title}</h3>
+      <div className={ui.columns}>
+        <PostPreviewPanel source={source} record={record} kind={record?.kind ?? preview?.kind ?? "initial"}
+          url={final?.rendition.status === "ready" && final.rendition.url && !expired ? final.rendition.url : null}
+          altText={final?.altText ?? altText}
+          fallback={!record ? "Simpan draf untuk menghasilkan preview gambar final."
+            : expired ? "Preview kedaluwarsa. Perbarui informasi untuk mengambil URL baru."
+            : final?.rendition.status === "failed" ? "Pembuatan gambar final gagal. Hubungi pengelola."
+            : "Preview gambar final sedang disiapkan atau belum tersedia."}
+          refreshing={loading} canRefresh={!busy && !loading && !!id}
+          canOpenReport={!dirty && !busy} onRefresh={() => setEpoch(value => value + 1)} onReport={onReport} onImageError={() => setExpired(true)} />
+        <section className={ui.editorColumn} aria-label={t("Konten postingan")}>
+          <PostContentEditor caption={caption} altText={altText} editable={editable} disabled={busy || loading || uncertain}
+            approved={approved && !dirty} approvalLabel={approvalLabel}
+            onCaption={value => { setCaption(value); setConfirm(null); setMessage(""); }}
+            onAltText={value => { setAltText(value); setConfirm(null); setMessage(""); }} />
+          {latest && <div className={ui.conflict} role="alert">
+            <strong>{t("Versi terbaru · revisi")} {latest.post.revision}</strong><p>{latest.post.caption}</p><p>{latest.post.altText}</p><PostStatus status={latest.post.status} />
+            <p>{t("Input Anda tetap ada. Konfirmasi sebelum menyimpan ke revisi terbaru.")}</p>
+            <button type="button" className={ui.outline} onClick={() => { setRecord(latest.post); setFinal(latest.preview); setLatest(null); setError(""); setConfirm(null); }}>{t("Saya sudah meninjau, pertahankan input saya")}</button>
+          </div>}
+          <button type="button" className={ui.settings} disabled={dirty || busy} onClick={onSettings}><SlidersHorizontal size={19} />{t("Pengaturan publikasi")}<ChevronRight size={18} /></button>
+          {record && <div className={ui.secondaryActions}>
+            <button type="button" className={ui.danger} disabled={blocked || !record.actions.cancel.allowed} onClick={() => setConfirm("cancel")}><Trash2 size={18} />{t("Batalkan draf")}</button>
+            <button type="button" disabled={blocked || !record.actions.retract.allowed || !overview?.capabilities.canRetract} onClick={() => setConfirm("retract")}><Download size={18} />{t("Tarik postingan")}</button>
+            {link && <a href={link} target="_blank" rel="noopener noreferrer">{t("Periksa di Instagram")}<ExternalLink size={16} /></a>}
+          </div>}
+          {operationId && <OperationPanel key={operationId} id={operationId} initial={operation ?? undefined} onCompleted={() => { setEpoch(value => value + 1); onChanged(); }} />}
+          {loading && <p role="status" className={ui.loading}>{t("Memuat versi terbaru…")}</p>}
+        </section>
+      </div>
+    </PostDetailDialog>
   );
 }

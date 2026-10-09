@@ -27,6 +27,26 @@ Konten disetujui; belum diposting.|Content approved; not posted yet.
 Draf dibatalkan.|Draft cancelled.
 Draf tersimpan; tinjau ulang preview final.|Draft saved; review the final preview again.
 Detail postingan|Post details
+Tinjau gambar final, persetujuan, dan riwayat publikasi.|Review the final image, approval, and publishing history.
+Pratinjau Instagram|Instagram preview
+Pratinjau Instagram diperbesar|Enlarged Instagram preview
+Tutup pratinjau|Close preview
+Konten postingan|Post content
+Teks ini akan tampil bersama gambar di Instagram.|This text will appear with the image on Instagram.
+Bantu pembaca layar memahami isi gambar.|Help screen readers understand the image.
+/1.000 karakter|/1,000 characters
+Persetujuan konten|Content approval
+Persetujuan mengikuti revisi konten, sumber, dan gambar final.|Approval follows the content revision, source, and final image.
+Perubahan konten dapat membatalkan persetujuan.|Content changes may invalidate approval.
+Setujui konten sebelum memposting.|Approve the content before posting.
+Simpan perubahan sebelum menyetujui konten.|Save changes before approving the content.
+Tinjau versi terbaru sebelum menyimpan.|Review the latest version before saving.
+Periksa status terbaru sebelum melanjutkan.|Check the latest status before continuing.
+Tinjau gambar final yang siap sebelum menyetujui.|Review a ready final image before approving.
+Periksa hasil melalui status operasi publikasi.|Check the result in the publishing operation status.
+Postingan sudah diterbitkan di Instagram.|The post has been published on Instagram.
+Memproses tindakan…|Processing action…
+baru|new
 Tinjau gambar final, persetujuan, dan riwayat operasi.|Review the final image, approval, and operation history.
 Periksa penyimpanan draf|Check draft save status
 Simpan draf|Save draft
