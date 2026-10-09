@@ -34,7 +34,7 @@ export default function MobileAccountMenu({ user, onNavigate, onSignOut, signing
 
     <section className={s.menuSection} aria-labelledby="mobile-activity-label">
       <h2 id="mobile-activity-label">{t("Aktivitas saya")}</h2>
-      <div className={s.rowGroup}>{mainNav.filter(item => item.id === "activities" || item.id === "history" || item.id === "achievements").map(item => <MenuRow key={item.id} {...item} onClick={() => onNavigate(item.id)} />)}</div>
+      <div className={s.rowGroup}>{mainNav.filter(item => item.id === "activities" || item.id === "history" || item.id === "achievements" || item.id === "notifications" || item.id === "assignments").map(item => <MenuRow key={item.id} {...item} onClick={() => onNavigate(item.id)} />)}</div>
     </section>
 
     {user.role === "admin" && <button type="button" className={s.adminEntry} onClick={() => onNavigate("admin-menu")}>

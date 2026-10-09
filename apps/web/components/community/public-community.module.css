@@ -102,7 +102,7 @@
 .cardMetadata { display: grid; gap: 7px; color: #53718d; font-size: 13px; line-height: 1.55; }
 .metadataItem { display: flex; align-items: flex-start; gap: 9px; min-width: 0; overflow-wrap: anywhere; }
 .metadataItem > svg { margin-top: 2px; flex: none; color: #2c527a; }
-.cardSummary { margin: 0; color: #53718d; font-size: 13px; line-height: 1.6; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; overflow-wrap: anywhere; }
+.cardSummary { margin: 0; color: #53718d; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .evidenceFrame { display: grid; gap: 6px; align-content: start; min-width: 0; }
 .evidenceFrame > div { display: block; }
 .evidenceFrame figure { gap: 0; }

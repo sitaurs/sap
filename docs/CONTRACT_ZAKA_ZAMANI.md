@@ -448,6 +448,7 @@ type ActivityViewer = {
 };
 type ManagedActivity = ActivityInput & {
   id: string; revision: number; status: ActivityStatus; coordinatorAcceptedAt: string | null;
+  coordinatorDisplayName?: string | null;
   acceptedCount: number; availableSeats: number; registrationOpen: boolean;
   registrationClosedReason: RegistrationClosedReason; holdReason: string | null;
   priorState: ActivityStatus | null; createdAt: string; updatedAt: string;

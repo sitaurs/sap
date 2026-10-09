@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
-import { fixtureApi, failure, future, ids, json, permission, time } from "./r1-fixtures";
-import type { SapReport } from "../lib/api/client";
+import { fixtureApi, failure, future, ids, incident, json, permission, time } from "./r1-fixtures";
+import type { SapDuplicateCandidate, SapReport } from "../lib/api/client";
 import type { ReportLifecycle } from "../lib/api/community";
 
 const report: SapReport = {
@@ -12,22 +12,22 @@ const report: SapReport = {
   duplicateOfId: null, timeline: [],
 };
 
-async function setup(page: Page, status: SapReport["status"] = "submitted", readyEvidence = status !== "submitted", photoCount = 1) {
+async function setup(page: Page, status: SapReport["status"] = "submitted", readyEvidence = status !== "submitted", photoCount = 1, candidates: SapDuplicateCandidate[] = []) {
   const current = { ...report, status, mediaIds: Array.from({ length: photoCount }, (_, index) => index === 0 ? ids.media : ids.update) };
-  let approved = false;
+  const approved = new Set<"web" | "instagram">();
   const lifecycle = (): ReportLifecycle => ({
-    reportId: current.id, sourceRevision: approved ? 2 : 1,
+    reportId: current.id, sourceRevision: 1 + approved.size,
     publicVisibility: "hidden", instagramAllowed: false, latestReview: null,
     approvedResolutionEvidence: [], resolutionReviewRequired: false,
-    publicationAssets: approved ? [{ mediaId: ids.media, renditionId: ids.rendition,
-      channels: ["web"], sourceType: "report", sourceId: current.id }] : [],
+    publicationAssets: approved.size ? [{ mediaId: ids.media, renditionId: ids.rendition,
+      channels: [...approved], sourceType: "report", sourceId: current.id }] : [],
     publicationMilestones: [], instagramPublicationSeries: [], actions: { moderate: permission, withdraw: permission,
       restore: permission, createInstagramDraft: permission },
   });
   const uploads: string[] = [];
   const requests = await fixtureApi(page, { role: "admin", handler: async (route, path) => {
     if (path === `/reports/${current.id}`) { await json(route, current); return true; }
-    if (path === "/admin/reports" || path === "/admin/audit-events") {
+    if (path === "/admin/reports" || path === "/admin/audit") {
       await json(route, { items: [], nextCursor: null }); return true;
     }
     if (path === "/admin/stats") {
@@ -35,6 +35,11 @@ async function setup(page: Page, status: SapReport["status"] = "submitted", read
         resolvedReports: 0, oldestPendingAt: time }); return true;
     }
     if (path.endsWith("/lifecycle")) { await json(route, lifecycle()); return true; }
+    if (path.endsWith("/duplicates")) { await json(route, { items: candidates, nextCursor: null }); return true; }
+    if (path === `/public/incidents/${current.id}`) {
+      await json(route, { ...incident, evidence: approved.has("web") ? [{ id: ids.rendition,
+        url: "/images/instagram/publication-empty.svg", expiresAt: future, observedAt: time, caption: "Bukti publik sintetis" }] : [] }); return true;
+    }
     if (path.endsWith("/url")) {
       await json(route, { url: "/images/instagram/publication-empty.svg", expiresAt: future }); return true;
     }
@@ -44,12 +49,15 @@ async function setup(page: Page, status: SapReport["status"] = "submitted", read
     }
     if (path.endsWith("/approvals")) {
       if (status === "submitted") await failure(route, 422, "EVIDENCE_INVALID");
-      else { approved = true; await json(route, lifecycle()); }
+      else { approved.add(route.request().postDataJSON().channel); await json(route, lifecycle()); }
       return true;
     }
     if (path === "/media") {
       uploads.push(route.request().postDataBuffer()?.toString() ?? "");
       await json(route, { id: ids.update }); return true;
+    }
+    if (path.endsWith("/evidence-requests")) {
+      await json(route, { reportId: current.id, notified: true }); return true;
     }
     if (path.endsWith("/decisions")) {
       await json(route, { ...current, status: route.request().postDataJSON().nextStatus }); return true;
@@ -188,4 +196,103 @@ test("empty evidence and multiple photos preserve the decision form and footer",
   const viewport = page.viewportSize()!;
   const footer = (await state.dialog.locator("footer").boundingBox())!;
   expect(footer.y + footer.height).toBeLessThanOrEqual(viewport.height);
+});
+
+test("requirements update progressively and switch with the chosen decision", async ({ page }) => {
+  const { dialog } = await setup(page);
+  const checklist = dialog.getByRole("region", { name: "Prasyarat keputusan", exact: true });
+  await expect(checklist.getByText("Belum terpenuhi", { exact: true })).toHaveCount(2);
+  await dialog.getByLabel("Alasan keputusan").fill("Lokasi telah diperiksa moderator.");
+  await expect(checklist.getByText("Terpenuhi", { exact: true })).toHaveCount(1);
+  await dialog.getByLabel("Ringkasan publik").fill("Sampah ditemukan di area taman.");
+  await expect(checklist.getByText("Terpenuhi", { exact: true })).toHaveCount(2);
+  await dialog.getByLabel("Status baru").selectOption("rejected");
+  await expect(checklist.getByText("Terpenuhi", { exact: true })).toHaveCount(1);
+  await expect(checklist.getByText("Ringkasan publik 1–500 karakter tanpa data pribadi")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Simpan keputusan", exact: true })).toBeEnabled();
+});
+
+test("automatic suggestions load before choosing duplicate and exclude ineligible statuses", async ({ page }) => {
+  const statuses: SapReport["status"][] = ["submitted", "verified", "in_progress", "resolved", "rejected", "duplicate"];
+  const candidates = statuses.map((status, index) => ({
+    reportId: `0000000${index + 2}-1000-4000-8000-000000000002`, status,
+    distanceMeters: 10 + index, occurredAt: time, reasonCodes: ["proximity", "temporal_proximity"],
+  }));
+  const { dialog, requests } = await setup(page, "submitted", false, 1, candidates);
+  const suggestions = dialog.getByRole("region", { name: "Saran duplikat", exact: true });
+  await expect(dialog.getByLabel("Status baru")).toHaveValue("verified");
+  await expect(suggestions.getByRole("button")).toHaveCount(3);
+  await expect(suggestions.getByText("Menunggu pemeriksaan", { exact: true })).toHaveCount(0);
+  await expect(suggestions.getByText("Ditolak", { exact: true })).toHaveCount(0);
+  await suggestions.getByRole("button", { name: /Dalam penanganan/ }).click();
+  await expect(dialog.getByLabel("Status baru")).toHaveValue("duplicate");
+  await dialog.getByLabel("Alasan keputusan").fill("Lokasi dan waktu cocok dengan laporan kanonis.");
+  await dialog.getByRole("button", { name: "Simpan keputusan", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(requests.find(request => request.path.endsWith("/decisions"))?.body).toEqual({
+    nextStatus: "duplicate", reason: "Lokasi dan waktu cocok dengan laporan kanonis.", duplicateOfId: candidates[2].reportId,
+  });
+});
+
+test("Instagram approval stays separate from the public web evidence", async ({ page }) => {
+  const { dialog, requests } = await setup(page, "verified");
+  await dialog.getByRole("button", { name: "Setujui Instagram", exact: true }).click();
+  await expect(dialog.getByText("Instagram: foto disetujui", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("Web: foto belum disetujui", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "Batal", exact: true }).click();
+  await page.goto(`/incidents/${ids.incident}`);
+  await expect(page.getByText("Belum ada bukti yang disetujui untuk publik.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Bukti publik sintetis", exact: true })).toHaveCount(0);
+  await page.goto(`/dashboard?view=admin-moderation&reviewReport=${ids.incident}`);
+  const review = page.getByRole("dialog", { name: "Tinjau laporan", exact: true });
+  await review.getByRole("button", { name: "Setujui web", exact: true }).click();
+  await expect(review.getByText("Web: foto publik disetujui", { exact: true })).toBeVisible();
+  await review.getByRole("button", { name: "Batal", exact: true }).click();
+  await page.goto(`/incidents/${ids.incident}`);
+  await expect(page.getByRole("img", { name: "Bukti publik sintetis", exact: true }).first()).toBeVisible();
+  expect(requests.filter(request => request.path.endsWith("/approvals")).map(request => request.body)).toEqual([
+    { channel: "instagram", approved: true, renditionId: ids.rendition, reason: "Disetujui moderator untuk publikasi bukti laporan." },
+    { channel: "web", approved: true, renditionId: ids.rendition, reason: "Disetujui moderator untuk publikasi bukti laporan." },
+  ]);
+  expect(requests.some(request => request.path.includes("consents") || request.path.endsWith("/decisions"))).toBe(false);
+});
+
+test("admin can contact a pending reporter without publishing consent or changing status", async ({ page }, testInfo) => {
+  const { dialog, requests } = await setup(page);
+  await dialog.getByRole("button", { name: "Minta klarifikasi/bukti", exact: true }).click();
+  const request = page.getByRole("dialog", { name: "Minta klarifikasi/bukti", exact: true });
+  await expect(request).toBeVisible();
+  const send = request.getByRole("button", { name: "Kirim permintaan", exact: true });
+  await expect(send).toBeDisabled();
+  await request.getByLabel("Pesan kepada pelapor", { exact: true }).fill("Mohon tambahkan foto kondisi terbaru dan waktu pengamatan.");
+  await page.screenshot({ path: testInfo.outputPath("request-evidence.png") });
+  const bounds = (await request.boundingBox())!;
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(page.viewportSize()!.height);
+  await send.click();
+  await expect(request.getByText("Permintaan klarifikasi/bukti terkirim ke notifikasi pelapor. Status laporan tetap sama.")).toBeVisible();
+  await expect(send).toHaveCount(0);
+  await request.getByRole("button", { name: "Selesai", exact: true }).click();
+  await expect(request).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Menunggu pemeriksaan", { exact: true })).toBeVisible();
+  const sent = requests.filter(item => item.path.endsWith("/evidence-requests"));
+  expect(sent).toHaveLength(1);
+  expect(sent[0]).toMatchObject({ method: "POST", body: { message: "Mohon tambahkan foto kondisi terbaru dan waktu pengamatan." } });
+  expect(sent[0].key).toMatch(/^[0-9a-f-]{36}$/);
+  expect(requests.some(item => /consents|approvals|decisions/.test(item.path))).toBe(false);
+});
+
+test("evidence request failure retains the message and does not claim delivery", async ({ page }) => {
+  const { dialog } = await setup(page);
+  await page.route("**/api/v1/admin/reports/*/evidence-requests", route => failure(route, 409, "REPORTER_UNAVAILABLE"));
+  await dialog.getByRole("button", { name: "Minta klarifikasi/bukti", exact: true }).click();
+  const request = page.getByRole("dialog", { name: "Minta klarifikasi/bukti", exact: true });
+  await request.getByLabel("Pesan kepada pelapor", { exact: true }).fill("Mohon konfirmasi waktu pengamatan di lokasi.");
+  await request.getByRole("button", { name: "Kirim permintaan", exact: true }).click();
+  await expect(request.getByRole("alert")).toHaveText("Synthetic error: REPORTER_UNAVAILABLE");
+  await expect(request.getByLabel("Pesan kepada pelapor", { exact: true })).toHaveValue("Mohon konfirmasi waktu pengamatan di lokasi.");
+  await expect(request.getByText("Permintaan klarifikasi/bukti terkirim ke notifikasi pelapor. Status laporan tetap sama.")).toHaveCount(0);
+  await request.getByRole("button", { name: "Batal", exact: true }).click();
+  await expect(dialog).toBeVisible();
 });

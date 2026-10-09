@@ -157,14 +157,14 @@ function ScanView({ onScanFinished, onScanActivity, onOpenReport, onNavigate, ca
         <button className={styles.scanDrop} type="button" onClick={() => uploadRef.current?.click()} disabled={busy} aria-label={t("Pilih foto sampah dari perangkat")}>
           <span className={styles.scanDropInner}>
             <span className={styles.scanArtwork}>{preview ? <Image src={preview} alt={t("Pratinjau foto sampah")} fill unoptimized sizes="(max-width: 800px) 80vw, 500px" /> : <Image src="/images/dashboard/views/scan-bottle.webp" alt="" fill sizes="(max-width: 800px) 80vw, 500px" />}</span>
-            <strong>{file ? file.name : "Ambil foto atau unggah gambar\nuntuk mulai."}</strong>
+            <strong>{file ? file.name : <>{t("Ambil foto atau unggah gambar")}<br />{t("untuk mulai.")}</>}</strong>
             <span className={styles.scanLink}><ImagePlus size={20} />{file ? t("Ganti foto") : t("Pilih foto dari perangkat")}</span>
           </span>
         </button>
       </div>
       <div className={styles.scanAside}>
         <section className={styles.tipsCard}><div className={styles.tipsTitle}><span><Lightbulb size={26} /></span><h2>{t("Tips foto")}</h2></div><div className={styles.tipRow}><Focus size={29} />{t("Objek terlihat jelas")}</div><div className={styles.tipRow}><Sun size={29} />{t("Gunakan cahaya cukup")}</div><div className={styles.tipRow}><Leaf size={29} />{t("Fokus pada sampah yang ingin dikenali.")}</div></section>
-        <section className={styles.scanResult}>{file ? <><span className={styles.resultIcon}><ScanLine size={29} /></span><h2>{t("Foto siap diproses")}</h2><p>{t("Foto akan diunggah dan diproses oleh layanan AI SAP. Hasil dapat dilihat kembali di riwayat scan.")}</p><button className={styles.primaryButton} type="button" onClick={runBackendScan} disabled={busy}><ScanLine size={19} />{busy ? t("Memproses foto...") : t("Pindai dengan AI")}</button>{scanError && <p role="alert" className={styles.scanError}>{scanError}</p>}</> : <><Image src="/images/dashboard/views/report-empty.webp" alt="" width={235} height={105} /><p>{t("Hasil scan akan muncul")}<br />{t("setelah pemrosesan.")}</p>{scanError && <p role="alert" className={styles.scanError}>{scanError}</p>}</>}</section>
+        <section className={styles.scanResult}>{file ? <><span className={styles.resultIcon}><ScanLine size={29} /></span><h2>{t("Foto siap diproses")}</h2><p>{t("Foto akan diunggah dan diproses oleh layanan AI SAP. Hasil dapat dilihat kembali di riwayat scan.")}</p><button className={styles.primaryButton} type="button" onClick={runBackendScan} disabled={busy}><ScanLine size={19} />{busy ? t("Memproses foto...") : t("Pindai dengan AI")}</button>{scanError && <p role="alert" className={styles.scanError}>{t(scanError)}</p>}</> : <><Image src="/images/dashboard/views/report-empty.webp" alt="" width={235} height={105} /><p>{t("Hasil scan akan muncul")}<br />{t("setelah pemrosesan.")}</p>{scanError && <p role="alert" className={styles.scanError}>{t(scanError)}</p>}</>}</section>
       </div>
     </div>
     {cameraOpen && <CameraCapture onClose={() => setCameraOpen(false)} onUpload={() => { setCameraOpen(false); uploadRef.current?.click(); }} onPhoto={photo => { selectFile(photo); setCameraOpen(false); }} />}
@@ -243,7 +243,7 @@ function HelpView({ onNavigate }: Pick<Props, "onNavigate">) {
   const [query, setQuery] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const visibleTopics = helpTopics.filter(topic => `${t(topic.title)} ${t(topic.description)}`.toLowerCase().includes(query.toLowerCase()));
-  const visibleFaqs = faqs.map((item, index) => ({ item, index })).filter(({ item }) => `${item[0]} ${item[1]}`.toLowerCase().includes(query.toLowerCase()));
+  const visibleFaqs = faqs.map((item, index) => ({ item, index })).filter(({ item }) => `${t(item[0])} ${t(item[1])}`.toLowerCase().includes(query.toLowerCase()));
   return <>
     <PageTitle title={t("Pusat bantuan")} description={t("Temukan panduan untuk memakai SAP.")} />
     <label className={styles.helpSearch}><Search size={24} /><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder={t("Cari bantuan...")} aria-label={t("Cari bantuan")} />{query && <button type="button" onClick={() => setQuery("")} aria-label={t("Hapus pencarian")}><X size={18} /></button>}</label>
@@ -251,7 +251,7 @@ function HelpView({ onNavigate }: Pick<Props, "onNavigate">) {
       const index = helpTopics.indexOf(topic);
       return <button data-motion="card" className={`${styles.helpCard} ${styles[`helpTone${index}`]}`} key={topic.title} type="button" onClick={() => onNavigate(topic.tab)}><span className={styles.helpCardIcon}>{index === 0 ? <ScanLine size={30} /> : index === 1 ? <FileText size={30} /> : <Map size={30} />}</span><span className={styles.helpCardCopy}><strong>{t(topic.title)}</strong><small>{t(topic.description)}</small></span><ChevronDown className={styles.helpCardArrow} size={21} /><Image src={`/images/dashboard/views/${topic.image}`} alt="" width={317} height={132} /></button>;
     })}</div>}
-    <section className={styles.helpFaq}><h2><SlidersHorizontal size={22} />{t("Pertanyaan yang sering diajukan (FAQ)")}</h2>{visibleFaqs.length ? visibleFaqs.map(({ item, index }) => <div className={styles.helpFaqItem} key={item[0]}><button type="button" onClick={() => setOpenFaq(openFaq === index ? null : index)} aria-expanded={openFaq === index}>{item[0]}<ChevronDown size={19} /></button>{openFaq === index && <p>{item[1]}</p>}</div>) : <p className={styles.noHelp}>{t("Tidak ada panduan yang cocok. Coba kata kunci lain.")}</p>}<div className={styles.helpInfo}><Info size={22} />{t("Foto dan lokasi laporan tidak langsung ditampilkan ke publik.")}<span aria-hidden="true"><Leaf size={70} /></span></div></section>
+    <section className={styles.helpFaq}><h2><SlidersHorizontal size={22} />{t("Pertanyaan yang sering diajukan (FAQ)")}</h2>{visibleFaqs.length ? visibleFaqs.map(({ item, index }) => <div className={styles.helpFaqItem} key={item[0]}><button type="button" onClick={() => setOpenFaq(openFaq === index ? null : index)} aria-expanded={openFaq === index}>{t(item[0])}<ChevronDown size={19} /></button>{openFaq === index && <p>{t(item[1])}</p>}</div>) : <p className={styles.noHelp}>{t("Tidak ada panduan yang cocok. Coba kata kunci lain.")}</p>}<div className={styles.helpInfo}><Info size={22} />{t("Foto dan lokasi laporan tidak langsung ditampilkan ke publik.")}<span aria-hidden="true"><Leaf size={70} /></span></div></section>
   </>;
 }
 

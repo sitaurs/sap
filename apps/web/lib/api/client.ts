@@ -196,6 +196,10 @@ export async function listAdminReports(status?: SapReportStatus, cursor?: string
 }
 export const getReportDuplicates = (reportId: string, signal?: AbortSignal) =>
   apiGet<Schema["DuplicateCandidatePage"]>(`/admin/reports/${encodeURIComponent(reportId)}/duplicates`, signal);
+export const askReportEvidence = (reportId: string, message: string) =>
+  apiMutate<{reportId:string;notified:boolean}>("POST", `/admin/reports/${encodeURIComponent(reportId)}/evidence-requests`, {
+    body: { message }, headers: { "idempotency-key": crypto.randomUUID() },
+  });
 export const decideReport = (reportId: string, revision: number, input: DecisionInput) =>
   apiMutate<SapReport>("POST", `/admin/reports/${encodeURIComponent(reportId)}/decisions`, {
     body: input,

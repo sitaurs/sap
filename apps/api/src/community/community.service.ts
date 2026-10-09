@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { areaRef } from '../areas/locality.js';
 import { randomUUID } from 'node:crypto';
 import { getConfig } from '@sap/config';
 import { ObjectStorageService } from '../media/object-storage.service.js';
@@ -105,7 +106,7 @@ export class CommunityService {
       return { items: await Promise.all(chosen.map(async row => {
         const evidence = await this.publicEvidence(row.id,undefined,tx,1);
         return { id: row.id, title: row.public_summary || 'Kejadian lingkungan', summary: row.public_summary || '', status: row.status,
-          categoryId: row.category_id, area: { cellId: row.h3_cell, label: `Area ${row.h3_cell}` }, occurredAt: iso(row.occurred_at ?? row.sort_at),
+          categoryId: row.category_id, area: await areaRef(tx,row.h3_cell), occurredAt: iso(row.occurred_at ?? row.sort_at),
           lastObservedAt: iso(row.last_observed_at), updatedAt: iso(row.updated_at), evidence, supportCount: row.support_count ?? 0,
           canonicalPath: `/incidents/${row.id}` };
       })), nextCursor: rows.length>page.limit ? page.encode({ id: chosen[chosen.length-1]!.id, created_at: chosen[chosen.length-1]!.sort_at }) : null };
@@ -121,7 +122,7 @@ export class CommunityService {
       const activities = await tx<Row[]>`SELECT id FROM activities WHERE report_id=${report.id} AND status<>'draft' AND public_ever ORDER BY created_at DESC`;
       return { kind: 'incident', id: report.id, sourceRevision: report.revision,
         title: report.public_summary || 'Kejadian lingkungan', summary: report.public_summary || '', status: report.status,
-        categoryId: report.category_id, area: { cellId: report.h3_cell, label: `Area ${report.h3_cell}` },
+        categoryId: report.category_id, area: await areaRef(tx,report.h3_cell),
         occurredAt: iso(report.occurred_at ?? report.created_at), lastObservedAt: iso(report.last_observed_at), updatedAt: iso(report.updated_at),
         evidence: await this.publicEvidence(report.id,undefined,tx), supportCount: counts[0]?.count ?? 0, supportClosed: report.status === 'resolved',
         relatedActivityIds: activities.map(row => row.id), canonicalPath: `/incidents/${report.id}` };

@@ -131,6 +131,8 @@ export class MaintenanceRepository {
       await tx`DELETE FROM incident_supports WHERE user_id=${userId}`;
       await tx`DELETE FROM incident_follows WHERE user_id=${userId}`;
       await tx`DELETE FROM notifications WHERE user_id=${userId}`;
+      await tx`DELETE FROM report_notification_emails WHERE user_id=${userId}`;
+      await tx`DELETE FROM report_assignments WHERE assignee_id=${userId}`;
       await tx`DELETE FROM instagram_oauth_states WHERE user_id=${userId}`;
       await tx`DELETE FROM sessions WHERE user_id=${userId}`;
       await tx`DELETE FROM auth_challenges WHERE user_id=${userId}`;
@@ -203,6 +205,8 @@ export class MaintenanceRepository {
         if (pending) throw new Error('DELETION_OBJECTS_PENDING');
       }
       if (userId) {
+        await tx`DELETE FROM report_notification_emails WHERE user_id=${userId}`;
+        await tx`DELETE FROM report_assignments WHERE assignee_id=${userId}`;
         await tx`UPDATE media SET state='deleted',deleted_at=coalesce(deleted_at,now()),public_derivative_key=NULL,updated_at=now() WHERE owner_id=${userId} AND state<>'deleted'`;
         await tx`UPDATE reports SET reporter_id=NULL,updated_at=now() WHERE reporter_id=${userId}`;
         await tx`UPDATE users SET display_name=${DELETED_DISPLAY_NAME},password_hash=NULL,email_normalized=${`deleted+${userId}@deleted.invalid`},email_verified_at=NULL,deleted_at=coalesce(deleted_at,now()),updated_at=now() WHERE id=${userId}`;

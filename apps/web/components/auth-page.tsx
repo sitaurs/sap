@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,6 +14,14 @@ import { useI18n } from "../lib/i18n/provider";
 
 type Mode = "login" | "signup";
 type Stage = "form" | "verify" | "forgot" | "reset" | "mfa";
+
+function usableEmailDomain(email: string) {
+  const domain = email.slice(email.lastIndexOf("@") + 1).toLowerCase();
+  const labels = domain.split(".");
+  return domain.length <= 253 && labels.length > 1
+    && labels.every(label => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))
+    && !/\.(test|invalid|example|localhost)$/.test(domain);
+}
 
 function Brand() {
   const { t } = useI18n();
@@ -44,74 +52,96 @@ export default function AuthPage({ mode }: { mode: Mode }) {
   const [mfaPreauthToken, setMfaPreauthToken] = useState("");
   const [mfaCode, setMfaCode] = useState("");
   const [mfaRecoveryMode, setMfaRecoveryMode] = useState(false);
+  const requestInFlight = useRef(false);
 
   useEffect(() => {
     setReturnTo(safeReturnTo(new URLSearchParams(window.location.search).get("returnTo")));
     if (!isSignup) {
-      const savedEmail = window.localStorage.getItem("sap-remembered-email");
-      if (savedEmail) {
-        setEmail(savedEmail);
-        setRemember(true);
-      }
+      try {
+        const savedEmail = window.localStorage.getItem("sap-remembered-email");
+        if (savedEmail) {
+          setEmail(savedEmail);
+          setRemember(true);
+        }
+      } catch { /* Remembering an email is optional when browser storage is unavailable. */ }
     }
   }, [isSignup]);
 
+  function rememberEmail(value: string) {
+    try {
+      if (remember) window.localStorage.setItem("sap-remembered-email", value);
+      else window.localStorage.removeItem("sap-remembered-email");
+    } catch { /* A storage failure must not interrupt a successful login. */ }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (requestInFlight.current) return;
+    const fields = new FormData(event.currentTarget);
+    const submittedEmail = String(fields.get("email") ?? email).trim();
+    const submittedPassword = String(fields.get("password") ?? password);
+    const submittedName = String(fields.get("displayName") ?? name).trim();
+    if (isSignup && stage === "form" && !usableEmailDomain(submittedEmail)) {
+      setError("Gunakan alamat email dengan domain publik yang valid. Domain .test, .invalid, .example, dan .localhost tidak dapat menerima kode verifikasi.");
+      return;
+    }
+    requestInFlight.current = true;
+    if (stage === "form" || stage === "forgot") setEmail(submittedEmail);
     setError(""); setNotice(""); setBusy(true);
     try {
       if (stage === "mfa") {
         await completeMfaLogin(mfaPreauthToken, mfaCode.trim());
         setMfaPreauthToken(""); setMfaCode(""); setMfaRecoveryMode(false);
-        if (remember) window.localStorage.setItem("sap-remembered-email", email.trim());
-        else window.localStorage.removeItem("sap-remembered-email");
+        rememberEmail(submittedEmail);
         router.replace(returnTo); router.refresh();
       } else if (stage === "verify") {
         await verifyEmail(challengeId, code);
         router.replace(returnTo); router.refresh();
       } else if (stage === "forgot") {
-        const challenge = await forgotPassword(email.trim());
+        const challenge = await forgotPassword(submittedEmail);
         setChallengeId(challenge.challengeId); setStage("reset");
         setNotice("Jika email terdaftar, kode pemulihan telah dikirim. Periksa kotak masuk Anda.");
       } else if (stage === "reset") {
-        await resetPassword(challengeId, code, password);
+        await resetPassword(challengeId, code, submittedPassword);
         setStage("form"); setCode(""); setPassword("");
         setNotice("Kata sandi diperbarui. Silakan masuk.");
       } else if (isSignup) {
-        const challenge = await register(name.trim(), email.trim(), password);
+        const challenge = await register(submittedName, submittedEmail, submittedPassword);
         setChallengeId(challenge.challengeId); setStage("verify"); setPassword("");
         setNotice(challenge.message);
       } else {
-        const result = await login(email.trim(), password);
+        const result = await login(submittedEmail, submittedPassword);
         if (isMfaLoginRequired(result)) {
           setMfaPreauthToken(result.preauthToken);
           setMfaCode(""); setMfaRecoveryMode(false); setStage("mfa");
           setPassword("");
           setNotice("Masukkan kode dari aplikasi autentikator atau gunakan kode pemulihan.");
         } else {
-          if (remember) window.localStorage.setItem("sap-remembered-email", email.trim());
-          else window.localStorage.removeItem("sap-remembered-email");
+          rememberEmail(submittedEmail);
           router.replace(returnTo); router.refresh();
         }
       }
     } catch (cause) {
       if (cause instanceof ApiError && cause.code === "EMAIL_UNVERIFIED" && stage === "form" && !isSignup) {
         try {
-          const challenge = await resendVerification(email.trim());
+          const challenge = await resendVerification(submittedEmail);
           setChallengeId(challenge.challengeId); setStage("verify");
           setNotice("Email belum diverifikasi. Kode telah dikirim kembali.");
         } catch (retryCause) { setError(retryCause instanceof Error ? retryCause.message : "Kode belum dapat dikirim."); }
+      } else if (isSignup && stage === "form" && cause instanceof ApiError
+        && (cause.fields?.email || ["INVALID_EMAIL", "INVALID_EMAIL_DOMAIN", "EMAIL_DOMAIN_INVALID"].includes(cause.code))) {
+        setError("Alamat email tidak valid atau tidak dapat menerima pesan. Periksa alamat dan domain email Anda.");
       } else setError(cause instanceof Error ? cause.message : "Permintaan belum berhasil. Coba lagi.");
-    } finally { setBusy(false); }
+    } finally { requestInFlight.current = false; setBusy(false); }
   }
 
   async function resendCode() {
-    if (busy) return;
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
     setBusy(true); setResendingCode(true); setError(""); setNotice("");
     try { const challenge = stage === "reset" ? await forgotPassword(email.trim()) : await resendVerification(email.trim()); setChallengeId(challenge.challengeId); setCode(""); setNotice("Jika akun memenuhi syarat, kode baru telah dikirim."); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Kode belum dapat dikirim."); }
-    finally { setBusy(false); setResendingCode(false); }
+    finally { requestInFlight.current = false; setBusy(false); setResendingCode(false); }
   }
 
   const title = stage === "mfa" ? "Verifikasi masuk" : stage === "verify" ? "Verifikasi email" : stage === "forgot" ? "Lupa kata sandi?" : stage === "reset" ? "Atur kata sandi baru" : isSignup ? "Buat akun SAP" : "Selamat datang kembali";
@@ -130,12 +160,12 @@ export default function AuthPage({ mode }: { mode: Mode }) {
               <form className={styles.form} onSubmit={submit}>
                 {stage === "form" && isSignup && <div className={styles.fieldGroup}>
                   <label htmlFor="auth-name">{t("Nama lengkap")}</label>
-                  <div className={styles.field}><UserRound size={23} /><input id="auth-name" type="text" autoComplete="name" placeholder={t("Nama lengkap")} value={name} onChange={event => setName(event.target.value)} minLength={2} maxLength={80} required /></div>
+                  <div className={styles.field}><UserRound size={23} /><input id="auth-name" name="displayName" type="text" autoComplete="name" placeholder={t("Nama lengkap")} value={name} onChange={event => setName(event.target.value)} minLength={2} maxLength={80} required /></div>
                 </div>}
 
                 {(stage === "form" || stage === "forgot") && <div className={styles.fieldGroup}>
                   <label htmlFor="auth-email">Email</label>
-                  <div className={styles.field}><Mail size={22} /><input id="auth-email" type="email" autoComplete="email" placeholder="nama@email.com" value={email} onChange={event => setEmail(event.target.value)} required /></div>
+                  <div className={styles.field}><Mail size={22} /><input id="auth-email" name="email" type="email" autoComplete="email" placeholder="nama@email.com" value={email} onChange={event => setEmail(event.target.value)} required /></div>
                 </div>}
 
                 {(stage === "verify" || stage === "reset") && <div className={styles.fieldGroup}>
@@ -151,7 +181,7 @@ export default function AuthPage({ mode }: { mode: Mode }) {
 
                 {(stage === "form" || stage === "reset") && <div className={styles.fieldGroup}>
                   <label htmlFor="auth-password">{stage === "reset" ? t("Kata sandi baru") : t("Kata sandi")}</label>
-                  <div className={styles.field}><LockKeyhole size={22} /><input id="auth-password" type={showPassword ? "text" : "password"} autoComplete={stage === "reset" || isSignup ? "new-password" : "current-password"} placeholder={stage === "reset" || isSignup ? t("Minimal 12 karakter") : t("Kata sandi")} value={password} onChange={event => setPassword(event.target.value)} minLength={stage === "reset" || isSignup ? 12 : 1} maxLength={128} required /><button className={styles.reveal} type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? t("Sembunyikan kata sandi") : t("Tampilkan kata sandi")} aria-pressed={showPassword}>{showPassword ? <EyeOff size={23} /> : <Eye size={23} />}</button></div>
+                  <div className={styles.field}><LockKeyhole size={22} /><input id="auth-password" name="password" type={showPassword ? "text" : "password"} autoComplete={stage === "reset" || isSignup ? "new-password" : "current-password"} placeholder={stage === "reset" || isSignup ? t("Minimal 12 karakter") : t("Kata sandi")} value={password} onChange={event => setPassword(event.target.value)} minLength={stage === "reset" || isSignup ? 12 : 1} maxLength={128} required /><button className={styles.reveal} type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? t("Sembunyikan kata sandi") : t("Tampilkan kata sandi")} aria-pressed={showPassword}>{showPassword ? <EyeOff size={23} /> : <Eye size={23} />}</button></div>
                 </div>}
 
                 {stage === "form" && !isSignup && <div className={styles.options}><label className={styles.remember}><input type="checkbox" checked={remember} onChange={event => setRemember(event.target.checked)} /><span className={styles.customCheck} aria-hidden="true" />{t("Ingat email saya")}</label><button type="button" className={styles.textButton} onClick={() => { setStage("forgot"); setError(""); setNotice(""); }}>{t("Lupa kata sandi?")}</button></div>}

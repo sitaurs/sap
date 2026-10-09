@@ -191,7 +191,7 @@ export default function VolunteerActivitiesPage({ categories }: { categories: Sa
       }} onReview={() => setMessage("Pemeriksaan dan keputusan hasil dilakukan moderator admin. Hermes hanya memberikan rekomendasi.")} />
     </div>;
   if (screen === "unsupported")
-    return <div className={s.page}><PageHead title={t("Kegiatan relawan")} subtitle={t(message)} onBack={() => setScreen("manage")} /><Notice>{t(message)}</Notice></div>;
+    return <div className={s.page}><PageHead title={t("Kegiatan relawan")} subtitle={t(message)} onBack={() => setScreen("manage")} kicker="KEGIATAN RELAWAN" /><Notice>{t(message)}</Notice></div>;
 
   const registrations = myActivities.filter((item) => !item.isCoordinator);
 

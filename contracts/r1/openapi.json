@@ -33555,6 +33555,1151 @@
         "x-implementation-file": "apps/api/src/publications/publications.controller.ts",
         "x-required-role": "admin"
       }
+    },
+    "/admin/users": {
+      "get": {
+        "operationId": "listOperationalUsers",
+        "summary": "listOperationalUsers",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                          }
+                        },
+                        "nextCursor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "nextCursor"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "admin"
+      }
+    },
+    "/admin/users/{id}/role": {
+      "put": {
+        "operationId": "changeOperationalUserRole",
+        "summary": "changeOperationalUserRole",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "admin recent reauthentication",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "user",
+                      "admin"
+                    ]
+                  },
+                  "expectedRole": {
+                    "type": "string",
+                    "enum": [
+                      "user",
+                      "admin"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "role",
+                  "expectedRole",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/report-operations": {
+      "get": {
+        "operationId": "listOperationalReports",
+        "summary": "listOperationalReports",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "submitted",
+                "verified",
+                "in_progress",
+                "resolved",
+                "rejected",
+                "duplicate"
+              ]
+            }
+          },
+          {
+            "name": "assigneeId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "overdue",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                          }
+                        },
+                        "nextCursor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "nextCursor"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "admin"
+      }
+    },
+    "/admin/reports/{id}/assignment": {
+      "put": {
+        "operationId": "setReportAssignment",
+        "summary": "setReportAssignment",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "if-match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "assigneeId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "dueAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "assigneeId",
+                  "dueAt",
+                  "note"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/reports/pending-map": {
+      "get": {
+        "operationId": "listPendingReportsMap",
+        "summary": "listPendingReportsMap",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                          }
+                        },
+                        "truncated": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "truncated"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "admin"
+      }
+    },
+    "/admin/reports/export.csv": {
+      "get": {
+        "operationId": "exportOperationalReports",
+        "summary": "exportOperationalReports",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "submitted",
+                "verified",
+                "in_progress",
+                "resolved",
+                "rejected",
+                "duplicate"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "CSV export",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "admin"
+      }
+    },
+    "/admin/area-localities": {
+      "get": {
+        "operationId": "listAdminLocalities",
+        "summary": "listAdminLocalities",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                          }
+                        }
+                      },
+                      "required": [
+                        "items"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "admin"
+      }
+    },
+    "/admin/areas/{cellId}/locality": {
+      "put": {
+        "operationId": "setAdminLocality",
+        "summary": "setAdminLocality",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cellId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{15}$"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kelurahan": {
+                    "type": "string"
+                  },
+                  "kecamatan": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kelurahan",
+                  "kecamatan",
+                  "city"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/report-notification-preferences": {
+      "get": {
+        "operationId": "getReportNotificationPreferences",
+        "summary": "getReportNotificationPreferences",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "emailEnabled": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "emailEnabled"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "session"
+      },
+      "put": {
+        "operationId": "setReportNotificationPreferences",
+        "summary": "setReportNotificationPreferences",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "emailEnabled": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "emailEnabled"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "verified session",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "emailEnabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "emailEnabled"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/me/report-assignments": {
+      "get": {
+        "operationId": "listMyReportAssignments",
+        "summary": "listMyReportAssignments",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "submitted",
+                "verified",
+                "in_progress",
+                "resolved",
+                "rejected",
+                "duplicate"
+              ]
+            }
+          },
+          {
+            "name": "overdue",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                          }
+                        },
+                        "nextCursor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "nextCursor"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "session"
+      }
+    },
+    "/users/me/report-assignments/{id}/progress": {
+      "put": {
+        "operationId": "updateMyReportAssignment",
+        "summary": "updateMyReportAssignment",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "if-match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "verified assigned user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "progress": {
+                    "type": "string",
+                    "enum": [
+                      "accepted",
+                      "working",
+                      "done"
+                    ]
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "progress",
+                  "note"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/areas/{cellId}/locality": {
+      "get": {
+        "operationId": "getAreaLocality",
+        "summary": "getAreaLocality",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "cellId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{15}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "public"
+      }
+    },
+    "/area-localities": {
+      "get": {
+        "operationId": "listPublicLocalities",
+        "summary": "listPublicLocalities",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "cells",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                          }
+                        }
+                      },
+                      "required": [
+                        "items"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "public"
+      }
+    },
+    "/admin/reports/{id}/evidence-requests": {
+      "post": {
+        "operationId": "requestReporterEvidence",
+        "summary": "requestReporterEvidence",
+        "tags": [
+          "r1-operations"
+        ],
+        "security": [
+          {
+            "sessionCookie": [],
+            "csrfHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "x-contract-stage": "draft",
+        "x-runtime-readiness": "implemented-locally-unverified-in-production",
+        "x-authorization-policy": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "message"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -39369,6 +40514,16 @@
           },
           "registrationClosedReason": {
             "$ref": "#/components/schemas/RegistrationClosedReason"
+          },
+          "coordinatorDisplayName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [

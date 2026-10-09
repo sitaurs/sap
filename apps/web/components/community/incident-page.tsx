@@ -26,7 +26,7 @@ import {
 } from "./community-ui";
 import s from "./community.module.css";
 import p from "./public-community.module.css";
-import { CardOptions, CommunityHero, ExploreEmpty, ListSkeleton } from "./public-community";
+import { CardOptions, CommunityHero, ExploreEmpty, ListSkeleton, publicAreaLabel } from "./public-community";
 import { useI18n } from "../../lib/i18n/provider";
 
 type IncidentCard = R1["PublicIncidentListItem"];
@@ -141,7 +141,7 @@ export function IncidentExplore() {
           <h2 className={p.cardTitle}><Link href={incident.canonicalPath}>{incident.title}</Link></h2>
           <div className={[p.incidentBody, incident.evidence.length ? p.incidentBodyWithEvidence : ""].join(" ")}>
             <div className={p.incidentText}>
-              <div className={p.cardMetadata}><span className={p.metadataItem}><MapPin size={16} aria-hidden="true" />{incident.area.label}</span>
+              <div className={p.cardMetadata}><span className={p.metadataItem}><MapPin size={16} aria-hidden="true" />{publicAreaLabel(incident.area, t)}</span>
                 <span className={p.metadataItem}><CalendarDays size={16} aria-hidden="true" /><time dateTime={incident.lastObservedAt ?? incident.occurredAt}>{date(incident.lastObservedAt ?? incident.occurredAt, intlLocale)}</time></span>
               </div>
               <p className={p.cardSummary}>{incident.summary || t("Ringkasan publik belum tersedia.")}</p>
@@ -149,7 +149,7 @@ export function IncidentExplore() {
             {incident.evidence.length > 0 && <div className={p.evidenceFrame}><Evidence items={incident.evidence.slice(0, 1)} /><span className={p.evidenceLabel}><ImageIcon size={12} aria-hidden="true" />{t("Bukti yang disetujui SAP")}</span></div>}
           </div>
           {!incident.evidence.length && <p className={p.evidenceNotice}><Info size={19} aria-hidden="true" /><span>{t("Bukti publik belum tersedia; pembaruan warga masih bisa dikirim untuk ditinjau.")}</span></p>}
-          <div className={p.cardFooter}><span className={p.supportCount}><UsersRound size={17} aria-hidden="true" />{incident.supportCount} {t("dukungan warga")}</span>
+          <div className={p.cardFooter}><span className={p.supportCount}><UsersRound size={17} aria-hidden="true" /><span>{incident.supportCount}{" "}{t("dukungan warga")}</span></span>
             <Link className={p.cardButton} href={incident.canonicalPath + "#kontribusi-warga"}>{t("Lihat detail & kontribusi")}<ChevronRight size={18} aria-hidden="true" /></Link>
           </div>
         </article>)}
@@ -304,7 +304,7 @@ export default function IncidentPage({ id }: { id: string }) {
         <Failure error={error} retry={() => setEpoch((v) => v + 1)} />
       ) : incident ? (
         <>
-          <Heading title={incident.title}>{incident.area.label}</Heading>
+          <Heading title={incident.title}>{publicAreaLabel(incident.area, t)}</Heading>
           <div className={s.grid}>
             <div className={s.page}>
               <section className={s.card}>
@@ -397,7 +397,7 @@ export default function IncidentPage({ id }: { id: string }) {
             <aside className={s.card}>
               <h2>{t("Ikut peduli")}</h2>
               <p>
-                <strong>{incident.supportCount}</strong> {" "}{t("dukungan warga")}</p>
+                {incident.supportCount}{" "}{t("dukungan warga")}</p>
               <p className={s.muted}>
                 {t("Dukung kejadian untuk menunjukkan kepedulian. Ikuti kabar untuk menerima pembaruan.")}</p>
               {guest ? (

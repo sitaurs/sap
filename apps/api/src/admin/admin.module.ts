@@ -15,12 +15,15 @@ import { ModerationRepository } from './moderation.repository.js';
 import { ScanSettingsRepository } from './scan-settings.repository.js';
 import { ScanSettingsService } from './scan-settings.service.js';
 import { ExtensionStore } from '../extensions/extension.store.js';
+import { OperationsService } from './operations.service.js';
+import { OperationsAdminController, OperationsAreaController, OperationsPublicLocalitiesController, OperationsUserController } from './operations.controller.js';
 
 @Module({
   imports: [DatabaseModule, CommunityModule, ActivitiesModule],
-  controllers: [AdminController],
+  controllers: [AdminController, OperationsAdminController, OperationsUserController, OperationsAreaController, OperationsPublicLocalitiesController],
   providers: [
     AdminService,
+    OperationsService,
     ScanSettingsService,
     ScanSettingsRepository,
     ModerationRepository,

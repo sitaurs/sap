@@ -14,6 +14,7 @@ const statusLabels: Record<SapReport["status"], string> = {
   submitted: "Menunggu pemeriksaan", verified: "Terverifikasi", in_progress: "Dalam penanganan",
   resolved: "Selesai", rejected: "Ditolak", duplicate: "Duplikat",
 };
+const severityLabels: Record<SapReport["reportedSeverity"], string> = { small: "Kecil", medium: "Sedang", large: "Besar" };
 type PhotoConsent = {
   mediaId: string;
   url: string;
@@ -164,7 +165,7 @@ export default function ReportDetail({ id, categories, onClose, onUpdated }: { i
       {!report ? <p className={styles.loading}>{t("Memuat laporan…")}</p> : <>
         <div className={styles.status}>{t(statusLabels[report.status])} <small>{t("Revisi")}{" "}{report.revision}</small></div>
         {report.publicSummary && ["verified", "in_progress", "resolved"].includes(report.status) && <a className={styles.publicLink} href={`/incidents/${encodeURIComponent(report.id)}`}>{t("Buka kronologi publik dan kirim pembaruan warga")} ↗</a>}
-        <div className={styles.facts}><span><CalendarDays size={18} />{new Date(report.occurredAt).toLocaleString(intlLocale)}</span><span><MapPin size={18} />{report.location.latitude.toFixed(5)}, {report.location.longitude.toFixed(5)}</span><span><FileText size={18} />{categories.find(item => item.id === report.categoryId)?.name || t("Tanpa kategori")} {" "}{t("· Tumpukan")}{" "}{report.reportedSeverity}</span></div>
+        <div className={styles.facts}><span><CalendarDays size={18} />{new Date(report.occurredAt).toLocaleString(intlLocale)}</span><span><MapPin size={18} />{report.location.latitude.toFixed(5)}, {report.location.longitude.toFixed(5)}</span><span><FileText size={18} />{t(categories.find(item => item.id === report.categoryId)?.name || "Tanpa kategori")}{" "}{t("· Tumpukan")}{" "}{t(severityLabels[report.reportedSeverity])}</span></div>
         {photos.length > 0 && <div className={styles.photos}>{photos.map((photo, index) => <figure key={photo.mediaId} className={styles.photoConsent}>
           <img src={photo.url} alt={t("Bukti laporan {0}", { "0": index + 1 })} onLoad={() => photoLoaded(photo.mediaId)} onError={() => void refreshPhotoUrl(photo.mediaId)} />
           {photo.refreshingUrl && <small role="status">{t("Memuat ulang foto…")}</small>}

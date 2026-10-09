@@ -1,4 +1,5 @@
 import {Injectable,Logger} from '@nestjs/common';
+import { areaRef } from '../areas/locality.js';
 import {getConfig} from '@sap/config';
 import {createHash,createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
 import {ExtensionStore,fail,requireAdmin,requireFeature,iso,permission,type Actor,type Executor} from '../extensions/extension.store.js';
@@ -325,7 +326,7 @@ export class PublicationsService{
   }
   return false;
  }
- private async sourceSnapshot(db:Executor,report:Row,mediaId:string,milestone:Row|null=null){const [category]=await db`SELECT name_id FROM categories WHERE id=${report.category_id}`;return {reportId:report.id,sourceRevision:report.revision,scanId:report.scan_id,status:report.status,occurredAt:iso(milestone?.observed_at??report.occurred_at??report.created_at),area:{cellId:report.h3_cell,label:`Area ${report.h3_cell}`},title:`Laporan ${category?.name_id??'lingkungan'}`,categoryName:category?.name_id??'Belum dikategorikan',mediaId,publicSummary:milestone?.summary??report.public_summary};}
+ private async sourceSnapshot(db:Executor,report:Row,mediaId:string,milestone:Row|null=null){const [category]=await db`SELECT name_id FROM categories WHERE id=${report.category_id}`;return {reportId:report.id,sourceRevision:report.revision,scanId:report.scan_id,status:report.status,occurredAt:iso(milestone?.observed_at??report.occurred_at??report.created_at),area:await areaRef(db,report.h3_cell),title:`Laporan ${category?.name_id??'lingkungan'}`,categoryName:category?.name_id??'Belum dikategorikan',mediaId,publicSummary:milestone?.summary??report.public_summary};}
  private async milestone(db:Executor,reportId:string,id:string):Promise<Row>{
   const [m]=await db`SELECT id,verified_outcome AS outcome,public_summary AS summary,observed_at,data AS payload,'activity_result'::text AS source_type FROM activity_results WHERE id=${id} AND report_id=${reportId} AND status='approved'
    UNION ALL SELECT d.id,'complete' AS outcome,COALESCE(d.decision_payload->>'publicSummary',r.public_summary) AS summary,COALESCE((d.decision_payload->>'observedAt')::timestamptz,d.created_at) AS observed_at,d.decision_payload AS payload,'moderation_decision'::text AS source_type FROM moderation_decisions d JOIN reports r ON r.id=d.report_id WHERE d.id=${id} AND d.report_id=${reportId} AND d.decision_payload->>'nextStatus'='resolved' AND r.status='resolved'`;

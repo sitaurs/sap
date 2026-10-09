@@ -59,6 +59,15 @@ const VolunteerActivitiesPage = dynamic(() => import("./activities/volunteer-act
 const ImpactPage = dynamic(() => import("./impact/impact-page"), {
   loading: () => <div role="status" style={{ padding: 32, color: "#647e98" }}><UiText source="Memuat dampak…" /></div>,
 });
+const AdminOperations = dynamic(() => import("./operations/admin-operations"), {
+  loading: () => <div role="status" style={{ padding: 32 }}><UiText source="Memuat operasional laporan…" /></div>,
+});
+const NotificationsPage = dynamic(() => import("./notifications-page"), {
+  loading: () => <div role="status" style={{ padding: 32 }}><UiText source="Memuat notifikasi…" /></div>,
+});
+const MyReportAssignments = dynamic(() => import("./operations/admin-operations").then(module => module.MyReportAssignments), {
+  loading: () => <div role="status" style={{ padding: 32 }}><UiText source="Memuat tugas laporan…" /></div>,
+});
 
 type Tab = DashboardTab;
 
@@ -318,7 +327,7 @@ export default function Dashboard() {
             <StatCard label={t("Total scan")} value={String(stats?.totalScans ?? 0)} icon={ScanLine} tone="green" onClick={() => openTab("history")} />
             <StatCard label={t("Laporan saya")} value={String(reports.length)} icon={FileText} tone="blue" onClick={() => openTab("reports")} />
             <StatCard label={t("Poin")} value={String(stats?.ecoPoints ?? 0)} icon={Star} tone="gold" onClick={() => openTab("achievements")} />
-            <StatCard label={t("Streak")} value={`${stats?.streakDays ?? 0} hari`} icon={Flame} tone="indigo" onClick={() => openTab("achievements")} />
+            <StatCard label={t("Streak")} value={t("{0} hari", { "0": stats?.streakDays ?? 0 })} icon={Flame} tone="indigo" onClick={() => openTab("achievements")} />
           </div>
           <div className={styles.overviewGrid}>
             <section className={`${styles.panel} ${styles.categoryPanel}`}><div className={styles.panelTitle}><LayoutDashboard size={22} /><h2>{t("Hasil scan per kategori")}</h2></div>
@@ -332,10 +341,12 @@ export default function Dashboard() {
         </>}
 
         {activeTab === "activities" && <VolunteerActivitiesPage categories={categories} />}
-        {activeTab !== "dashboard" && activeTab !== "account" && activeTab !== "admin-menu" && activeTab !== "activities" && !isAdminTab(activeTab) && <DashboardViews key={activeTab} tab={activeTab} scans={scans} reports={reports} stats={stats} achievements={achievements} categories={categories} email={user?.email || ""} displayName={displayName} avatarMediaId={user?.avatarMediaId ?? null} onNavigate={openTab} onScanFinished={() => void refreshData()} onScanActivity={setPetActivity} onOpenReport={openReportFromScan} reportComposerRequested={reportComposerRequested} onReportSubmitted={reportSubmitted} onReportsChanged={() => void refreshData()} onReportWizardChange={setReportWizardOpen} onSaveProfile={saveProfile} onAvatarChanged={avatarChanged} onSignOut={signOut} onAccountDeleted={() => { setUser(null); setStats(null); setScans([]); setReports([]); router.replace("/login"); }} sapaEnabled={sapaEnabled} sapaSaving={sapaSaving} onToggleSapa={toggleSapa} />}
+        {activeTab === "notifications" && <NotificationsPage />}
+        {activeTab === "assignments" && <MyReportAssignments />}
+        {activeTab !== "dashboard" && activeTab !== "account" && activeTab !== "admin-menu" && activeTab !== "activities" && activeTab !== "notifications" && activeTab !== "assignments" && !isAdminTab(activeTab) && <DashboardViews key={activeTab} tab={activeTab} scans={scans} reports={reports} stats={stats} achievements={achievements} categories={categories} email={user?.email || ""} displayName={displayName} avatarMediaId={user?.avatarMediaId ?? null} onNavigate={openTab} onScanFinished={() => void refreshData()} onScanActivity={setPetActivity} onOpenReport={openReportFromScan} reportComposerRequested={reportComposerRequested} onReportSubmitted={reportSubmitted} onReportsChanged={() => void refreshData()} onReportWizardChange={setReportWizardOpen} onSaveProfile={saveProfile} onAvatarChanged={avatarChanged} onSignOut={signOut} onAccountDeleted={() => { setUser(null); setStats(null); setScans([]); setReports([]); router.replace("/login"); }} sapaEnabled={sapaEnabled} sapaSaving={sapaSaving} onToggleSapa={toggleSapa} />}
 
         {isAdminTab(activeTab) && (user?.role === "admin"
-          ? activeTab === "admin-instagram" ? <InstagramPublication categories={categories} onModeration={() => openTab("admin-moderation")} /> : activeTab === "admin-community" ? <AdminCommunityReview /> : activeTab === "admin-activities" ? <ActivitiesPage categories={categories} /> : activeTab === "admin-impact" ? <ImpactPage /> : <div className={`${styles.subPage} ${styles.referenceView}`}>
+          ? activeTab === "admin-instagram" ? <InstagramPublication categories={categories} onModeration={() => openTab("admin-moderation")} /> : activeTab === "admin-community" ? <AdminCommunityReview /> : activeTab === "admin-activities" ? <ActivitiesPage categories={categories} /> : activeTab === "admin-impact" ? <ImpactPage /> : activeTab === "admin-users" ? <AdminOperations view="users" /> : activeTab === "admin-operations" ? <AdminOperations view="reports" /> : activeTab === "admin-pending-map" ? <AdminOperations view="map" /> : <div className={`${styles.subPage} ${styles.referenceView}`}>
               <div data-motion="heading" className={styles.referenceHeading}>
                 <h1>{activeTab === "admin-settings" ? t("Pengaturan scan") : t("Moderasi laporan")}</h1>
                 <p>{activeTab === "admin-settings" ? t("Atur strategi deteksi hybrid ML → vision LLM.") : t("Periksa, verifikasi, dan tindak lanjuti laporan warga.")}</p>
@@ -347,7 +358,7 @@ export default function Dashboard() {
       </main>
     </div>
     {!reportWizardOpen && <MobileBottomNav tab={tab} sapaEnabled={sapaEnabled} onNavigate={openTab} />}
-    {sapaEnabled && !reportWizardOpen && <SapaPet tab={isAdminTab(activeTab) || isMobileMenuTab(activeTab) || activeTab === "activities" ? "dashboard" : (activeTab satisfies SapaDashboardTab)} backendLinked activity={sapaActivity} onNavigate={openTab} mobileDock />}
+    {sapaEnabled && !reportWizardOpen && <SapaPet tab={isAdminTab(activeTab) || isMobileMenuTab(activeTab) || activeTab === "activities" || activeTab === "notifications" || activeTab === "assignments" ? "dashboard" : (activeTab satisfies SapaDashboardTab)} backendLinked activity={sapaActivity} onNavigate={openTab} mobileDock />}
     {toast && <div data-motion="feedback" className={styles.toast} role="status"><Sparkles size={18} /><span>{t(toast)}</span><button type="button" onClick={() => setToast("")} aria-label={t("Tutup pesan")}><X size={16} /></button></div>}
   </div>;
 }

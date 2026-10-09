@@ -1,5 +1,13 @@
 import type { SapReport } from "../../lib/api/client";
 import type { PublicationSettings, PublicationSource } from "./types";
+import { r1Error } from "../../lib/api/r1";
+
+export function publicationError(error: unknown): string {
+  const message = r1Error(error).trim();
+  return message && !/^[\s"']+$/.test(message)
+    ? message
+    : "Permintaan belum berhasil. Coba lagi.";
+}
 
 export function publicationDate(value: string, locale = "id-ID") {
   const date = new Date(value);

@@ -253,6 +253,36 @@ test('public and managed activity DTOs share effective registration state at the
   }
 });
 
+test('resolved public source remains eligible for volunteer publication and registration', async () => {
+  const h = fullCapacityHarness(0);
+  h.row.report_status = 'resolved';
+  h.row.status = 'draft';
+  h.row.coordinator_name = 'Dewi Lestari';
+  const admin = actor({ id: COORDINATOR_ID, role: 'admin', emailVerified: true });
+
+  const draft = await h.service.managed(h.tx as never, h.row, admin);
+  assert.equal(draft.coordinatorDisplayName, 'Dewi Lestari');
+  assert.equal(draft.actions.publish.allowed, true);
+  assert.equal(h.service.sourceOpen(h.row), true);
+
+  h.row.status = 'registration_open';
+  const published = await h.service.publicDto(h.tx as never, h.row);
+  assert.equal(published.kind, 'activity');
+  if (published.kind === 'activity') assert.equal(published.registrationOpen, true);
+});
+
+test('available-only public activity query includes resolved report sources', async () => {
+  const statements: string[] = [];
+  const db = async (parts: TemplateStringsArray) => {
+    statements.push(parts.join(' '));
+    return [];
+  };
+  const service = new ActivitiesService({ db, cursor: () => ({ limit: 20, boundary: null, encode: () => '' }) } as never);
+  await service.list({ availableOnly: 'true' });
+  assert.match(statements[0]!, /r\.status IN \('verified','in_progress','resolved'\)/);
+  assert.doesNotMatch(statements[0]!, /r\.status<>'resolved'/);
+});
+
 test('managed registration filters classify expired open rows as closed', async () => {
   const queries: { sql: string; values: unknown[] }[] = [];
   const db = async (parts: TemplateStringsArray, ...values: unknown[]) => {
@@ -270,7 +300,7 @@ test('managed registration filters classify expired open rows as closed', async 
   const adminQuery = queries[0]!;
   assert.match(adminQuery.sql, /a\.status='registration_closed'/);
   assert.match(adminQuery.sql, /registrationClosesAt.*timestamptz<=now\(\)/);
-  assert.match(adminQuery.sql, /r\.status NOT IN \('verified','in_progress'\)/);
+  assert.match(adminQuery.sql, /r\.status NOT IN \('verified','in_progress','resolved'\)/);
   assert.ok(adminQuery.values.includes('registration_closed'));
   for (const query of queries) assertBalancedSqlParentheses(query.sql);
 });

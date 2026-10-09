@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, ImageOff, Info, Loader2, RefreshCw, X } from "lucide-react";
+import { Check, Circle, ImageOff, Info, Loader2, MessageSquare, RefreshCw, X } from "lucide-react";
 import { ApiError, decideReport, getReportDuplicates, uploadMedia, type DecisionInput, type SapDuplicateCandidate, type SapReport, type SapReportStatus } from "../../lib/api/client";
 import { approveReportEvidence, getReportLifecycle, getReportPhotoUrl, listReportEvidenceRenditions, requestReportEvidenceRendition, type ReportLifecycle } from "../../lib/api/community";
 import { r1Error } from "../../lib/api/r1";
@@ -10,6 +10,7 @@ import admin from "../admin-panel.module.css";
 import ui from "./decision-dialog.module.css";
 import { DecisionDialogShell } from "./decision-dialog-shell";
 import { ReportEvidenceCard, type ReviewPhoto } from "./report-evidence-card";
+import { RequestEvidenceModal } from "./request-evidence-modal";
 import { STATUS_LABEL, TRANSITIONS, VERIFIED_FAMILY } from "./report-status";
 
 function fmt(value: string, locale: string) {
@@ -38,6 +39,8 @@ export function DecisionModal({ report, categoryName, onClose, onDecided }: {
   const [publicSummary, setPublicSummary] = useState(report.publicSummary ?? "");
   const [duplicateOfId, setDuplicateOfId] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<SapDuplicateCandidate[] | null>(null);
+  const [duplicateError, setDuplicateError] = useState("");
+  const [duplicateAttempt, setDuplicateAttempt] = useState(0);
   const [resolutionIds, setResolutionIds] = useState<string[]>([]);
   const [reportRevision, setReportRevision] = useState(report.revision);
   const [mediaReview, setMediaReview] = useState<ReviewPhoto[]>([]);
@@ -50,20 +53,28 @@ export function DecisionModal({ report, categoryName, onClose, onDecided }: {
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [requestOpen, setRequestOpen] = useState(false);
 
   const isInitialVerify = next === "verified" && !VERIFIED_FAMILY.includes(report.status);
   const needsDuplicate = next === "duplicate";
   const needsResolutionMedia = next === "resolved";
   const canPublish = VERIFIED_FAMILY.includes(next);
+  const canSuggestDuplicates = options.includes("duplicate");
 
   useEffect(() => {
-    if (!needsDuplicate || duplicates !== null) return;
+    if (!canSuggestDuplicates) return;
     const controller = new AbortController();
+    setDuplicateError("");
+    setDuplicates(null);
     getReportDuplicates(report.id, controller.signal)
-      .then(page => setDuplicates(page.items))
-      .catch(() => { if (!controller.signal.aborted) setDuplicates([]); });
+      .then(page => {
+        if (!controller.signal.aborted) setDuplicates(page.items.filter(candidate =>
+          candidate.reportId !== report.id && VERIFIED_FAMILY.includes(candidate.status),
+        ));
+      })
+      .catch(() => { if (!controller.signal.aborted) setDuplicateError("Saran duplikat belum dapat dimuat."); });
     return () => controller.abort();
-  }, [needsDuplicate, duplicates, report.id]);
+  }, [canSuggestDuplicates, duplicateAttempt, report.id]);
 
   async function addResolutionMedia(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -79,10 +90,18 @@ export function DecisionModal({ report, categoryName, onClose, onDecided }: {
   }
 
   const reasonOk = reason.trim().length >= 5 && reason.trim().length <= 1000;
+  const summaryOk = publicSummary.trim().length > 0 && publicSummary.trim().length <= 500;
+  const duplicateOk = Boolean(duplicates?.some(candidate => candidate.reportId === duplicateOfId));
+  const requirements = [
+    { label: "Alasan keputusan 5–1000 karakter", met: reasonOk },
+    ...(isInitialVerify ? [{ label: "Ringkasan publik 1–500 karakter tanpa data pribadi", met: summaryOk }] : []),
+    ...(needsDuplicate ? [{ label: "Laporan kanonis terverifikasi dipilih", met: duplicateOk }] : []),
+    ...(needsResolutionMedia ? [{ label: "Minimal satu foto bukti penyelesaian", met: resolutionIds.length > 0 && !uploading }] : []),
+  ];
   const saveBlockers = [
     ...(!reasonOk ? ["Isi alasan keputusan sepanjang 5–1000 karakter."] : []),
-    ...(needsDuplicate && !duplicateOfId ? ["Pilih laporan kanonis untuk keputusan duplikat."] : []),
-    ...(isInitialVerify && !publicSummary.trim() ? ["Isi ringkasan publik untuk verifikasi awal."] : []),
+    ...(needsDuplicate && !duplicateOk ? ["Pilih laporan kanonis untuk keputusan duplikat."] : []),
+    ...(isInitialVerify && !summaryOk ? ["Isi ringkasan publik untuk verifikasi awal."] : []),
     ...(needsResolutionMedia && !resolutionIds.length ? ["Unggah minimal satu foto bukti penyelesaian."] : []),
     ...(uploading ? ["Tunggu unggahan bukti penyelesaian selesai."] : []),
     ...(evidenceBusy ? ["Tunggu perubahan bukti publik selesai."] : []),
@@ -221,7 +240,7 @@ export function DecisionModal({ report, categoryName, onClose, onDecided }: {
   }
 
   const pending = busy || uploading || Boolean(evidenceBusy);
-  return <DecisionDialogShell pending={pending} onClose={onClose}
+  return <><DecisionDialogShell pending={pending || requestOpen} onClose={onClose}
     metadata={<><span>{t("Laporan #{0} · Revisi {1}", { "0": report.id.slice(0, 8), "1": reportRevision })}</span><span className={ui.status} data-status={report.status}>{t(STATUS_LABEL[report.status])}</span></>}
     footer={<>
       <div className={ui.requirements} id="decision-save-requirements" role="status"><Info size={21} /><div>
@@ -258,14 +277,15 @@ export function DecisionModal({ report, categoryName, onClose, onDecided }: {
             {options.map(value => <option key={value} value={value}>{t(STATUS_LABEL[value])}{value === report.status ? t(" (perbarui)") : ""}</option>)}
           </select>
         </label>
-        {needsDuplicate && <div className={ui.field}>
-          <span>{t("Duplikat dari")}</span><small>{t("pilih laporan kanonis (terverifikasi) dalam radius 100 m & 24 jam.")}</small>
-          {duplicates === null ? <div className={ui.loading}><Loader2 className={ui.spin} size={18} />{t("Memuat kandidat…")}</div>
+        {canSuggestDuplicates && <section className={ui.field} aria-label={t("Saran duplikat")}>
+          <span>{t(needsDuplicate ? "Duplikat dari" : "Saran duplikat")}</span><small>{t("Kandidat dalam radius 100 m dan 24 jam: Terverifikasi, Dalam penanganan, atau Selesai.")}</small>
+          {duplicateError ? <div className={ui.error} role="alert"><p>{t(duplicateError)}</p><button type="button" className={ui.textButton} disabled={pending} onClick={() => setDuplicateAttempt(value => value + 1)}><RefreshCw size={15} />{t("Muat ulang kandidat")}</button></div>
+            : duplicates === null ? <div className={ui.loading}><Loader2 className={ui.spin} size={18} />{t("Memuat kandidat…")}</div>
             : duplicates.length === 0 ? <p className={ui.fieldHint}>{t("Tidak ada kandidat duplikat yang cocok.")}</p>
-            : <div className={admin.dupList}>{duplicates.map(candidate => <button key={candidate.reportId} type="button" className={admin.dupRow} data-active={duplicateOfId === candidate.reportId} aria-pressed={duplicateOfId === candidate.reportId} disabled={pending} onClick={() => setDuplicateOfId(candidate.reportId)}>
+            : <div className={admin.dupList}>{duplicates.map(candidate => <button key={candidate.reportId} type="button" className={admin.dupRow} data-active={needsDuplicate && duplicateOfId === candidate.reportId} aria-pressed={needsDuplicate && duplicateOfId === candidate.reportId} disabled={pending} onClick={() => { setDuplicateOfId(candidate.reportId); setNext("duplicate"); }}>
               <span className={ui.status} data-status={candidate.status}>{t(STATUS_LABEL[candidate.status])}</span><span>{Math.round(candidate.distanceMeters)} m · {fmt(candidate.occurredAt, intlLocale)}</span><span className={admin.rev}>{candidate.reportId.slice(0, 8)}</span>
             </button>)}</div>}
-        </div>}
+        </section>}
         {canPublish && <label className={ui.field}><span>{t("Ringkasan publik")}{!isInitialVerify && <small>{" "}{t("(opsional)")}</small>}</span>
           <textarea value={publicSummary} maxLength={500} disabled={busy} onChange={event => setPublicSummary(event.target.value)} placeholder={t("Tulis ringkasan yang akan tampil ke publik…")} aria-label={t("Ringkasan publik")} aria-describedby="decision-summary-help" required={isInitialVerify} />
           <span id="decision-summary-help" className={ui.fieldHint}>{t("Gunakan informasi yang telah diperiksa; hindari data pribadi.")}</span>
@@ -280,9 +300,19 @@ export function DecisionModal({ report, categoryName, onClose, onDecided }: {
           <textarea value={reason} maxLength={1000} required minLength={5} disabled={busy} onChange={event => setReason(event.target.value)} placeholder={t("Tulis alasan keputusan untuk jejak audit…")} aria-label={t("Alasan keputusan")} aria-describedby="decision-reason-help" />
           <span className={ui.fieldMeta}><span id="decision-reason-help">{t("Wajib diisi · minimal 5 karakter.")}</span><span>{reason.length}/1000</span></span>
         </label>
+        <section className={ui.checklist} aria-label={t("Prasyarat keputusan")} aria-live="polite">
+          <h4>{t("Prasyarat keputusan")}</h4>
+          <ul>{requirements.map(item => <li key={item.label} data-met={item.met}>
+            {item.met ? <Check size={16} aria-hidden="true" /> : <Circle size={16} aria-hidden="true" />}
+            <span>{t(item.label)}</span><small>{t(item.met ? "Terpenuhi" : "Belum terpenuhi")}</small>
+          </li>)}</ul>
+        </section>
         <aside className={ui.notice}><Info size={20} /><p>{t("Verifikasi laporan tidak otomatis mempublikasikan foto.")}</p></aside>
+        {report.status === "submitted" && <button type="button" className={ui.outline} disabled={pending} onClick={() => setRequestOpen(true)}><MessageSquare size={18} />{t("Minta klarifikasi/bukti")}</button>}
         {error && <p className={ui.error} role="alert">{t(error)}</p>}
       </section>
     </div>
-  </DecisionDialogShell>;
+  </DecisionDialogShell>
+  {requestOpen && <RequestEvidenceModal report={report} onClose={() => setRequestOpen(false)} />}
+  </>;
 }

@@ -89,8 +89,8 @@ export default function ActivityDetail({
   const intentKey = useIntentKey();
   useEffect(() => {
     const c = new AbortController();
-    setName("Koordinator SAP");
-    if (a.status !== "draft")
+    setName(admin ? a.coordinatorDisplayName || "Koordinator SAP" : "Koordinator SAP");
+    if (!admin && a.status !== "draft")
       void getPublicActivity(a.id, c.signal)
         .then((p) => {
           if (!c.signal.aborted && p.kind === "activity")
@@ -98,7 +98,7 @@ export default function ActivityDetail({
         })
         .catch(() => {});
     return () => c.abort();
-  }, [a.id, a.status, a.revision]);
+  }, [admin, a.coordinatorDisplayName, a.id, a.status, a.revision]);
   useEffect(() => {
     if (tab === "summary") return;
     const c = new AbortController();
@@ -221,6 +221,7 @@ export default function ActivityDetail({
           title={t("Detail kegiatan")}
           subtitle={t("Laporan sumber #{0} · diperbarui {1}", { "0": shortId(a.reportId), "1": dateLabel(a.updatedAt, true, intlLocale) })}
           onBack={onBack}
+          kicker={admin ? undefined : "KEGIATAN RELAWAN"}
           action={
             <>
               <button

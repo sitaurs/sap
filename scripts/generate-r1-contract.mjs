@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import ts from 'typescript';
+import { addOperationalRoutes } from './r1-operational-addendum.mjs';
 
 // Generates handoff artifacts only. It does not start services, execute routes or promote the published contract.
 const root = path.resolve(import.meta.dirname, '..');
@@ -408,6 +409,7 @@ spec['x-domain-reference'] = 'docs/CONTRACT_ZAKA_ZAMANI.md';
 
 const output = path.join(root, 'contracts/r1');
 fs.mkdirSync(output, { recursive: true });
+addOperationalRoutes(spec);
 fs.writeFileSync(path.join(output, 'openapi.json'), JSON.stringify(spec, null, 2) + '\n');
 const fileHash = file => crypto.createHash('sha256').update(read(file)).digest('hex');
 const manifest = {

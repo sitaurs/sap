@@ -1,0 +1,37 @@
+.areaList {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  overflow: auto;
+  background: #f9fcfd;
+}
+
+.areaRow {
+  display: grid;
+  gap: 6px;
+  flex: none;
+  width: 100%;
+  padding: 16px;
+  text-align: left;
+  border: 1px solid #dfece9;
+  border-radius: 8px;
+  background: white;
+  color: #1a3c37;
+  font: inherit;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.areaRow:hover { border-color: #438b76; }
+.areaRow:focus-visible, .areaMethod summary:focus-visible { outline: 2px solid #438b76; outline-offset: 3px; }
+.areaFacts { width: 100%; padding: 12px; text-align: left; overflow-wrap: anywhere; }
+.areaFacts h3 { margin: 0 0 12px; font-size: 17px; line-height: 1.5; }
+.areaMethod { margin-top: 12px; color: #5c708b; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.areaMethod summary { padding: 8px 0; color: #24364b; font-weight: 700; cursor: pointer; }
+.areaMethod p { margin: 8px 0; }
+.updatedAt { display: block; margin-top: 12px; color: #718198; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }

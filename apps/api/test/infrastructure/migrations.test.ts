@@ -83,6 +83,10 @@ const EXPECTED_TABLES = [
   'publication_map_snapshots',
   'publication_map_budgets',
   'media_cleanup_tasks',
+  // 0021 report operations and opt-in status email delivery
+  'report_assignments',
+  'area_localities',
+  'report_notification_emails',
 ].sort();
 
 test('there are at least five migration files', async () => {

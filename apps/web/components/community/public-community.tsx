@@ -9,6 +9,13 @@ import BrandLogo from "../brand-logo";
 import { useI18n } from "../../lib/i18n/provider";
 import p from "./public-community.module.css";
 
+export function publicAreaLabel(area: { cellId: string; label: string }, t: (source: string) => string): string {
+  const label = area.label.trim();
+  return !label || label === "Area laporan" || label === area.cellId || /^Area\s+[0-9a-f]{15}$/i.test(label)
+    ? t("Area laporan")
+    : label;
+}
+
 export function PublicHeader() {
   const { t } = useI18n();
   const pathname = usePathname();

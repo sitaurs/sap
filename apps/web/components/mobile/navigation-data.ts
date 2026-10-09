@@ -1,13 +1,15 @@
-import { BarChart3, Camera, CircleHelp, Clock3, FileText, Instagram, LayoutDashboard, Leaf, Map, MessageCircle, Settings, ShieldCheck, Sliders, Trophy, type LucideIcon } from "lucide-react";
+import { BarChart3, Bell, Camera, CircleHelp, Clock3, ClipboardList, FileText, Instagram, LayoutDashboard, Leaf, Map, MessageCircle, Settings, ShieldCheck, Sliders, Trophy, Users, type LucideIcon } from "lucide-react";
 
-export type AdminTab = "admin-moderation" | "admin-community" | "admin-settings" | "admin-instagram" | "admin-activities" | "admin-impact";
-export type DashboardTab = "dashboard" | "scan" | "reports" | "activities" | "map" | "history" | "achievements" | "settings" | "help" | "account" | "admin-menu" | AdminTab;
+export type AdminTab = "admin-moderation" | "admin-community" | "admin-settings" | "admin-instagram" | "admin-activities" | "admin-impact" | "admin-users" | "admin-operations" | "admin-pending-map";
+export type DashboardTab = "dashboard" | "scan" | "reports" | "activities" | "map" | "history" | "achievements" | "notifications" | "assignments" | "settings" | "help" | "account" | "admin-menu" | AdminTab;
 type NavigationItem<T extends DashboardTab = DashboardTab> = { id: T; label: string; icon: LucideIcon; description?: string };
 
 export const mainNav: NavigationItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "scan", label: "Scan", icon: Camera },
   { id: "reports", label: "Laporan saya", icon: FileText },
+  { id: "notifications", label: "Notifikasi", icon: Bell },
+  { id: "assignments", label: "Tugas laporan", icon: ClipboardList },
   { id: "activities", label: "Relawan", icon: Leaf, description: "Cari kegiatan dan kelola pendaftaran." },
   { id: "map", label: "Peta area", icon: Map },
   { id: "history", label: "Riwayat scan", icon: Clock3 },
@@ -15,6 +17,9 @@ export const mainNav: NavigationItem[] = [
 ];
 export const adminNav: NavigationItem<AdminTab>[] = [
   { id: "admin-moderation", label: "Moderasi laporan", icon: ShieldCheck, description: "Tinjau laporan yang masuk." },
+  { id: "admin-operations", label: "Penugasan & SLA", icon: ClipboardList, description: "Tugaskan laporan dan pantau tenggat." },
+  { id: "admin-pending-map", label: "Peta laporan menunggu", icon: Map, description: "Lihat laporan yang belum diverifikasi." },
+  { id: "admin-users", label: "Pengguna & peran", icon: Users, description: "Kelola akses pengguna SAP." },
   { id: "admin-community", label: "Komunitas & Hermes", icon: MessageCircle, description: "Tinjau pembaruan warga dan rekomendasi Hermes." },
   { id: "admin-activities", label: "Kegiatan relawan", icon: Leaf, description: "Kelola kegiatan dan peserta." },
   { id: "admin-impact", label: "Dampak", icon: BarChart3, description: "Pantau hasil aksi lingkungan." },

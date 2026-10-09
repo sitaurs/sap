@@ -18,6 +18,7 @@ export function ReportEvidenceCard({ item, index, canPublish, selected, webAppro
   const viewer = useRef<HTMLDialogElement>(null);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const ready = item.renditions.some(rendition => rendition.status === "ready");
+  const selectedReady = item.renditions.some(rendition => rendition.id === selected && rendition.status === "ready");
   const photoName = t("Bukti laporan {0}", { "0": index + 1 });
   return <article className={ui.evidenceCard}>
     <figure className={ui.figure}>
@@ -48,11 +49,11 @@ export function ReportEvidenceCard({ item, index, canPublish, selected, webAppro
             <div className={ui.permissionAction}>
               <span className={ui.permissionStatus} data-approved={approved}>{t(approved ? "Disetujui" : "Belum disetujui")}</span>
               <span className={ui.srOnly}>{t(channel === "web" ? approved ? "Web: foto publik disetujui" : "Web: foto belum disetujui" : approved ? "Instagram: foto disetujui" : "Instagram: foto belum disetujui")}</span>
-              {ready && !approved && <button type="button" className={ui.channelButton} disabled={!selected || pending} onClick={() => onApprove(channel)}>{t(channel === "web" ? "Setujui web" : "Setujui Instagram")}</button>}
+              {ready && !approved && <button type="button" className={ui.channelButton} disabled={!selectedReady || pending} onClick={() => onApprove(channel)}>{t(channel === "web" ? "Setujui web" : "Setujui Instagram")}</button>}
             </div>
           </div>;
         })}
-        <p className={ui.permissionHint}><Info size={16} />{t(selected ? "Persetujuan memerlukan izin pemilik untuk kanal yang dipilih." : "Pilih versi siap untuk mengaktifkan persetujuan.")}</p>
+        <p className={ui.permissionHint}><Info size={16} />{t(selectedReady ? "Persetujuan memerlukan izin pemilik untuk kanal yang dipilih." : "Pilih versi siap untuk mengaktifkan persetujuan.")}</p>
       </section>
     </>}
     {pending && <span className={ui.loading} role="status"><Loader2 size={15} className={ui.spin} />{t("Memproses bukti…")}</span>}

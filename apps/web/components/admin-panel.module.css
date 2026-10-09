@@ -100,6 +100,12 @@
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
+.selectionRow { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.selectionRow > input, .selectionLabel input { width: 18px; height: 18px; flex-shrink: 0; accent-color: #007e69; }
+.selectionLabel { display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #33413b; }
+.selectionRow .reportRow { min-width: 0; }
+.reportRow > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+
 .reportRow:hover {
   border-color: #bcdccf;
   background: #f4faf7;
@@ -165,12 +171,19 @@
   font-size: 0.82rem;
 }
 
-.auditRow code {
+.auditAction {
   font-size: 0.76rem;
   color: #3473c8;
   background: #eef4fb;
   padding: 1px 6px;
   border-radius: 6px;
+}
+
+@media (max-width: 680px) {
+  .selectionRow { gap: 8px; }
+  .reportRow { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px; }
+  .reportRow > span:first-child { grid-column: 1 / -1; }
+  .reportRow > .rev { text-align: right; }
 }
 
 .auditRow time {

@@ -7,9 +7,11 @@ import { useI18n } from "../../lib/i18n/provider";
 import ui from "./decision-dialog.module.css";
 
 /** The browser's top layer keeps this dialog outside transformed dashboard panels. */
-export function DecisionDialogShell({ metadata, children, footer, pending, onClose }: {
+export function DecisionDialogShell({ metadata, children, footer, pending, onClose, title = "Tinjau laporan", description = "Periksa bukti dan tentukan hasil moderasi.", compact = false }: {
   metadata: ReactNode; children: ReactNode; footer: ReactNode;
   pending: boolean; onClose: () => void;
+  title?: string; description?: string;
+  compact?: boolean;
 }) {
   const { t } = useI18n();
   const id = useId();
@@ -30,7 +32,7 @@ export function DecisionDialogShell({ metadata, children, footer, pending, onClo
     };
   }, [target]);
   if (!target) return null;
-  return createPortal(<dialog data-motion="dialog" ref={ref} className={ui.dialog} aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}
+  return createPortal(<dialog data-motion="dialog" ref={ref} className={`${ui.dialog} ${compact ? ui.compact : ""}`} aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}
     onCancel={event => {
       if (event.target !== event.currentTarget) return;
       event.preventDefault();
@@ -50,7 +52,7 @@ export function DecisionDialogShell({ metadata, children, footer, pending, onClo
     }}>
     <header className={ui.header}>
       <span className={ui.headerIcon} aria-hidden="true"><ShieldCheck size={25} /></span>
-      <div className={ui.heading}><h2 id={`${id}-title`}>{t("Tinjau laporan")}</h2><p id={`${id}-description`}>{t("Periksa bukti dan tentukan hasil moderasi.")}</p></div>
+      <div className={ui.heading}><h2 id={`${id}-title`}>{t(title)}</h2><p id={`${id}-description`}>{t(description)}</p></div>
       <div className={ui.metadata}>{metadata}</div>
       <button className={ui.close} type="button" onClick={onClose} disabled={pending} aria-label={t("Tutup")}><X size={23} /></button>
     </header>

@@ -25,7 +25,7 @@ import { displayedActivityStatus, memberLabels, statusLabels } from "../activiti
 import s from "./community.module.css";
 import p from "./public-community.module.css";
 import d from "./public-activity-detail.module.css";
-import { ActivityIllustration, CardOptions, CommunityHero, ExploreEmpty, ListSkeleton } from "./public-community";
+import { ActivityIllustration, CardOptions, CommunityHero, ExploreEmpty, ListSkeleton, publicAreaLabel } from "./public-community";
 import { ActivityDetailHeading, ActivityDetailSkeleton, ActivityInformation, ActivityParticipation } from "./public-activity-detail";
 import { useI18n } from "../../lib/i18n/provider";
 
@@ -75,9 +75,9 @@ export function ActivityExplore() {
             <ActivityIllustration id={activity.id} title={activity.title} description={activity.description} />
             <h2 className={p.cardTitle}><Link href={"/activities/" + activity.id}>{activity.title}</Link></h2>
             <div className={p.cardMetadata}>
-              <span className={p.metadataItem}><MapPin size={16} aria-hidden="true" />{activity.area.label}</span>
+              <span className={p.metadataItem}><MapPin size={16} aria-hidden="true" />{publicAreaLabel(activity.area, t)}</span>
               <span className={p.metadataItem}><CalendarDays size={16} aria-hidden="true" /><time dateTime={activity.startsAt}>{date(activity.startsAt, intlLocale)}</time></span>
-              <span className={p.metadataItem}><UsersRound size={17} aria-hidden="true" /><span>{activity.acceptedCount}/{activity.capacity} {t("peserta")} · {activity.registrationOpen ? activity.availableSeats + " " + t("tempat tersedia") : t(status === "completed" ? "Kegiatan selesai" : "Pendaftaran ditutup")}</span></span>
+              <span className={p.metadataItem}><UsersRound size={17} aria-hidden="true" /><span>{activity.acceptedCount}/{activity.capacity}{" "}{t("peserta")} · {activity.registrationOpen ? <>{activity.availableSeats}{" "}{t("tempat tersedia")}</> : t(status === "completed" ? "Kegiatan selesai" : "Pendaftaran ditutup")}</span></span>
             </div>
             <div className={p.cardFooter}><Link className={p.cardButton} href={"/activities/" + activity.id}>{t("Lihat kegiatan")}<ChevronRight size={18} aria-hidden="true" /></Link></div>
           </article>;

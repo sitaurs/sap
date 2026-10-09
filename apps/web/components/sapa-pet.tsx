@@ -84,6 +84,7 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate, mobi
   const lastAttention = useRef(0);
   const suppressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatController = useRef<AbortController | null>(null);
+  const chatRequestSequence = useRef(0);
   const dragStart = useRef<{ pointerId: number; pointerX: number; pointerY: number; x: number; y: number; moved: boolean } | null>(null);
   const latestPosition = useRef<Position | null>(null);
   const suppressClick = useRef(false);
@@ -234,10 +235,14 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate, mobi
 
   async function sendMessage(value: string) {
     const message = value.trim();
-    if (!message || sending) return;
+    if (!message || chatController.current) return;
     const id = crypto.randomUUID();
     const controller = new AbortController();
+    const requestSequence = ++chatRequestSequence.current;
     chatController.current = controller;
+    const isCurrentRequest = () => chatController.current === controller
+      && chatRequestSequence.current === requestSequence
+      && !controller.signal.aborted;
     setError("");
     setDraft("");
     setSuggestedActions([]);
@@ -245,19 +250,26 @@ export default function SapaPet({ tab, backendLinked, activity, onNavigate, mobi
     setSending(true);
     try {
       const result = await sendSapaMessage(message, contextByTab[tab], conversationId, controller.signal);
-      if (controller.signal.aborted) return;
+      if (!isCurrentRequest()) return;
       setConversationId(result.conversationId);
-      setMessages(current => [...current, { id: crypto.randomUUID(), role: "assistant", content: result.reply, citations: result.citations }]);
+      const replyId = `assistant:${id}`;
+      setMessages(current => chatRequestSequence.current !== requestSequence
+        || controller.signal.aborted || current.some(item => item.id === replyId)
+        ? current
+        : [...current, { id: replyId, role: "assistant", content: result.reply, citations: result.citations }]);
       setSuggestedActions(result.suggestedActions);
       react("success");
     } catch (cause) {
-      if (controller.signal.aborted) return;
+      if (!isCurrentRequest()) return;
       setMessages(current => current.filter(item => item.id !== id));
       setDraft(message);
       setError(cause instanceof Error ? cause.message : "Pesan belum dapat dikirim.");
       react("error");
     } finally {
-      if (!controller.signal.aborted) setSending(false);
+      if (chatController.current === controller && chatRequestSequence.current === requestSequence) {
+        chatController.current = null;
+        if (!controller.signal.aborted) setSending(false);
+      }
     }
   }
 

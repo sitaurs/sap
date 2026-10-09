@@ -5,11 +5,11 @@ import {
 } from "../../lib/api/client";
 import { getIncident } from "../../lib/api/community";
 import { reportLifecycle, reportPublications, searchInstagramReportSources, type InstagramReportSourcePage } from "../../lib/api/instagram";
-import { r1Error, type R1 } from "../../lib/api/r1";
+import { permissionReason, type R1 } from "../../lib/api/r1";
 import PublicationPhoto from "./publication-photo";
 import DialogShell from "./dialog-shell";
 import { Notice } from "./publication-ui";
-import { shortId } from "./publication-utils";
+import { publicationError, shortId } from "./publication-utils";
 import { publicationLabels, type PostPreview } from "./types";
 import { Empty, Failure } from "../community/community-ui";
 import styles from "./instagram.module.css";
@@ -133,6 +133,7 @@ function EligibleSource({
   const [open, setOpen] = useState(false),
     [loading, setLoading] = useState(false),
     [error, setError] = useState(""),
+    [checkVersion, setCheckVersion] = useState(0),
     [lifecycle, setLifecycle] = useState<R1["ReportLifecycle"] | null>(null),
     [incident, setIncident] = useState<R1["PublicIncident"] | null>(null),
     [posts, setPosts] = useState<R1["InstagramPost"][]>([]),
@@ -143,6 +144,10 @@ function EligibleSource({
     const c = new AbortController();
     setLoading(true);
     setError("");
+    setLifecycle(null);
+    setIncident(null);
+    setPosts([]);
+    setMilestone("");
     Promise.all([
       reportLifecycle(report.reportId, c.signal),
       getIncident(report.reportId, c.signal),
@@ -159,13 +164,13 @@ function EligibleSource({
         setPosts(p.items);
       })
       .catch((e) => {
-        if (!c.signal.aborted) setError(r1Error(e));
+        if (!c.signal.aborted) setError(publicationError(e));
       })
       .finally(() => {
         if (!c.signal.aborted) setLoading(false);
       });
     return () => c.abort();
-  }, [open, report.reportId]);
+  }, [open, report.reportId, checkVersion]);
   const selected = lifecycle?.publicationMilestones.find(
       (m) => m.id === milestone,
     ),
@@ -250,15 +255,15 @@ function EligibleSource({
           {loading ? (
             <p role="status">{t("Memeriksa lifecycle dan foto berizin…")}</p>
           ) : error ? (
-            <p className={styles.error} role="alert">
-              {t(error)}
-            </p>
+            <div>
+              <p className={styles.error} role="alert">{t(error)}</p>
+              <button type="button" className={styles.secondary} onClick={() => setCheckVersion(v => v + 1)}>{t("Muat ulang")}</button>
+            </div>
           ) : !eligible ? (
             <Notice warning>
               {t("Publikasi belum diizinkan:")}{" "}
-              {lifecycle?.actions.createInstagramDraft.reasonCode ??
-                t("sumber belum tersedia")}
-              .
+              {t(permissionReason(lifecycle?.actions.createInstagramDraft.reasonCode) ||
+                "Sumber laporan belum memenuhi syarat publikasi.")}
             </Notice>
           ) : (
             <>

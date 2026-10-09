@@ -7,6 +7,7 @@ import {
 import styles from "./dashboard.module.css";
 import admin from "./admin-panel.module.css";
 import { DecisionModal } from "./moderation/decision-modal";
+import { BulkVerifyModal } from "./moderation/bulk-verify-modal";
 import { STATUS_LABEL, STATUS_COLOR } from "./moderation/report-status";
 import {
   ApiError, getReport, getAdminStats, getScanSettings, listAdminReports,
@@ -155,12 +156,15 @@ function ModerationPanel({ categories }: { categories: SapCategory[] }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [active, setActive] = useState<SapReport | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
   useEffect(() => { const id=new URLSearchParams(window.location.search).get("reviewReport"); if(!id)return;const controller=new AbortController();getReport(id,controller.signal).then(value=>{if(!controller.signal.aborted)setActive(value);}).catch(cause=>{if(!controller.signal.aborted)setError(cause instanceof Error?cause.message:"Laporan belum dapat dimuat.");});return()=>controller.abort(); }, []);
 
   const categoryName = useCallback((id: string | null) => t(categories.find(c => c.id === id)?.name || id || "Belum dikenali"), [categories, t]);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true); setError("");
+    setSelected([]);
     try {
       const [statsData, page, auditPage] = await Promise.all([
         getAdminStats(signal), listAdminReports(status, undefined, signal), listAuditEvents(undefined, signal),
@@ -189,6 +193,8 @@ function ModerationPanel({ categories }: { categories: SapCategory[] }) {
   }
 
   function onDecided() { setActive(null); void load(); }
+  const selectedReports = reports.filter(report => selected.includes(report.id) && report.status === "submitted");
+  const selectable = reports.filter(report => report.status === "submitted").slice(0, 20);
 
   return <div className={admin.wrap}>
     <div className={admin.statRow}>
@@ -209,13 +215,22 @@ function ModerationPanel({ categories }: { categories: SapCategory[] }) {
         </span>
         <button className={styles.outlineButton} type="button" onClick={() => void load()} disabled={loading}>
           <RefreshCw size={17} className={loading ? admin.spin : undefined} />{t("Muat ulang")}</button>
+        {status === "submitted" && !loading && reports.length > 0 && <>
+          <label className={admin.selectionLabel}><input type="checkbox" checked={selectable.length > 0 && selectable.every(report => selected.includes(report.id))}
+            onChange={event => setSelected(event.target.checked ? selectable.map(report => report.id) : [])} />{t("Pilih semua (maks. 20)")}</label>
+          <button className={styles.primaryButton} type="button" disabled={selectedReports.length === 0} onClick={() => setBulkOpen(true)}><ShieldCheck size={17} />{t("Verifikasi massal")}{" "}({selectedReports.length})</button>
+        </>}
       </div>
       {error && <p className={admin.formError} role="alert">{t(error)}</p>}
       {loading ? <div className={admin.empty} role="status"><Loader2 className={admin.spin} size={22} /> {" "}{t("Memuat…")}</div>
         : reports.length === 0 ? <div className={admin.empty}>{t("Tidak ada laporan berstatus")}{" "}{STATUS_LABEL[status].toLowerCase()}.</div>
         : <div className={admin.reportList}>
             {reports.map(report => (
-              <button key={report.id} type="button" className={admin.reportRow} onClick={() => setActive(report)}>
+              <div key={report.id} className={admin.selectionRow}>
+              {status === "submitted" && report.status === "submitted" && <input type="checkbox" aria-label={t("Pilih laporan #{0}", { "0": report.id.slice(0, 8) })}
+                checked={selected.includes(report.id)} disabled={!selected.includes(report.id) && selected.length >= 20}
+                onChange={event => setSelected(current => event.target.checked ? [...current, report.id] : current.filter(id => id !== report.id))} />}
+              <button type="button" className={admin.reportRow} onClick={() => setActive(report)}>
                 <span>
                   <strong>{t(categoryName(report.categoryId))} · {report.description.slice(0, 60) || t("Tanpa deskripsi")}</strong>
                   <small><MapPin size={12} /> {report.location.latitude.toFixed(4)}, {report.location.longitude.toFixed(4)} · {fmt(report.createdAt, intlLocale)}</small>
@@ -223,6 +238,7 @@ function ModerationPanel({ categories }: { categories: SapCategory[] }) {
                 <StatusBadge status={report.status} />
                 <span className={admin.rev}>rev {report.revision}</span>
               </button>
+              </div>
             ))}
           </div>}
       {nextCursor && !loading && <div className={admin.pager}><button className={styles.outlineButton} type="button" onClick={loadMore}>{t("Muat lebih banyak")}</button></div>}
@@ -234,7 +250,7 @@ function ModerationPanel({ categories }: { categories: SapCategory[] }) {
         : <div className={admin.auditList}>
             {audit.map(event => (
               <div key={event.id} className={admin.auditRow}>
-                <code>{event.action}</code>
+                <span className={admin.auditAction}>{t(event.action === "report.decision" ? "Keputusan laporan" : event.action === "report.evidence_requested" ? "Permintaan klarifikasi laporan" : event.action)}</span>
                 <span>{t("oleh")}{" "}{event.actorDisplayName}</span>
                 <time>{fmt(event.createdAt, intlLocale)}</time>
               </div>
@@ -243,5 +259,6 @@ function ModerationPanel({ categories }: { categories: SapCategory[] }) {
     </section>
 
     {active && <DecisionModal key={active.id} report={active} categoryName={categoryName} onClose={() => setActive(null)} onDecided={onDecided} />}
+    {bulkOpen && <BulkVerifyModal reports={selectedReports} categoryName={categoryName} onClose={() => setBulkOpen(false)} onFinished={() => { setBulkOpen(false); void load(); }} />}
   </div>;
 }

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { areaRef } from '../areas/locality.js';
 import { isValidCell } from 'h3-js';
 import type { Tx } from '../infrastructure/idempotency.store.js';
 import { ExtensionStore, type Actor, type Executor, fail, hash, iso, permission, requireAdmin, requireVerified } from '../extensions/extension.store.js';
@@ -17,7 +18,8 @@ export class ActivitiesService {
   if(!rows[0])fail(404,'NOT_FOUND');return rows[0];
  }
  sourcePublic(row:ActivityRow):boolean {return row.public_visibility==='public'&&row.duplicate_of_id===null&&['verified','in_progress','resolved'].includes(row.report_status);}
- sourceOpen(row:ActivityRow):boolean {return this.sourcePublic(row)&&row.report_status!=='resolved';}
+ // A resolved public report can still anchor a volunteer cleanup activity.
+ sourceOpen(row:ActivityRow):boolean {return this.sourcePublic(row);}
  registrationState(row:ActivityRow,now=Date.now()):{registrationOpen:boolean;registrationClosedReason:RegistrationClosedReason} {
   if(row.status!=='registration_open')return {registrationOpen:false,registrationClosedReason:row.status==='registration_closed'?'manually_closed':'activity_not_open'};
   if(!this.sourceOpen(row))return {registrationOpen:false,registrationClosedReason:'source_unavailable'};
@@ -44,7 +46,7 @@ export class ActivitiesService {
  async managed(db:Executor,row:ActivityRow,actor:Actor) {
   const acceptedCount=await this.count(db,row.id);const canManage=actor.role==='admin'||(actor.id===row.coordinator_id&&row.coordinator_accepted_at!==null&&actor.emailVerified);const registration=this.registrationState(row);
   const active=!['completed','cancelled'].includes(row.status);const open=this.sourceOpen(row);
-  return {...row.data,id:row.id,revision:row.revision,status:row.status,coordinatorAcceptedAt:iso(row.coordinator_accepted_at),acceptedCount,availableSeats:Math.max(0,(row.data.capacity??0)-acceptedCount),...registration,holdReason:row.hold_reason,priorState:row.prior_state,createdAt:iso(row.created_at),updatedAt:iso(row.updated_at),actions:{
+  return {...row.data,id:row.id,revision:row.revision,status:row.status,coordinatorAcceptedAt:iso(row.coordinator_accepted_at),coordinatorDisplayName:row.coordinator_name,acceptedCount,availableSeats:Math.max(0,(row.data.capacity??0)-acceptedCount),...registration,holdReason:row.hold_reason,priorState:row.prior_state,createdAt:iso(row.created_at),updatedAt:iso(row.updated_at),actions:{
    publish:permission(actor.role==='admin'&&row.status==='draft'&&open&&this.publishReady(row),'ACTIVITY_NOT_READY'),edit:permission(canManage&&active,'ACTIVITY_NOT_EDITABLE'),cancel:permission(canManage&&active,'ACTIVITY_CLOSED'),start:permission(canManage&&this.canStart(row),'ACTIVITY_NOT_READY'),closeRegistration:permission(canManage&&registration.registrationOpen,'INVALID_TRANSITION'),hold:permission(canManage&&active&&row.status!=='on_hold','INVALID_TRANSITION'),resume:permission(canManage&&this.canResume(row),'ACTIVITY_NOT_READY'),requestResult:permission(canManage&&row.status==='in_progress'&&this.sourcePublic(row),'INVALID_TRANSITION')}};
  }
  publishReady(row:ActivityRow):boolean {const d=row.data;return !!row.coordinator_accepted_at&&!!d.startsAt&&!!d.endsAt&&!!d.registrationClosesAt&&d.capacity!==null&&d.meetingPoint!==null&&d.wasteHandoverPlan.length>0&&Date.parse(d.startsAt)>Date.now()&&Date.parse(d.registrationClosesAt)>Date.now();}
@@ -53,7 +55,7 @@ export class ActivitiesService {
   const cancellationReason=row.status==='cancelled'?row.public_cancel_reason:null;
   if(!this.sourcePublic(row))return {kind:'activity_notice' as const,id:row.id,status:row.status==='cancelled'?'cancelled' as const:'on_hold' as const,message:'Informasi kegiatan sedang ditinjau atau tidak tersedia.',cancellationReason,canonicalPath:`/activities/${row.id}`};
   const d=row.data;if(!d.startsAt||!d.endsAt||!d.registrationClosesAt||d.capacity===null)fail(409,'ACTIVITY_NOT_READY');
-  const acceptedCount=await this.count(db,row.id);const registration=this.registrationState(row);return {kind:'activity' as const,id:row.id,reportId:row.report_id,revision:row.revision,title:d.title,description:d.description,status:row.status,cancellationReason,area:{cellId:row.h3_cell,label:`Area ${row.h3_cell}`},coordinatorDisplayName:row.publish_display_name?(row.coordinator_name??'Koordinator SAP'):'Koordinator SAP',startsAt:d.startsAt,endsAt:d.endsAt,registrationClosesAt:d.registrationClosesAt,timezone:d.timezone,capacity:d.capacity,acceptedCount,availableSeats:Math.max(0,d.capacity-acceptedCount),...registration,equipment:d.equipment,accessibilityNotes:d.accessibilityNotes,wasteHandoverPlan:d.wasteHandoverPlan,resultOutcome:row.result_outcome,canonicalPath:`/activities/${row.id}`};
+  const acceptedCount=await this.count(db,row.id);const registration=this.registrationState(row);return {kind:'activity' as const,id:row.id,reportId:row.report_id,revision:row.revision,title:d.title,description:d.description,status:row.status,cancellationReason,area:await areaRef(db,row.h3_cell),coordinatorDisplayName:row.publish_display_name?(row.coordinator_name??'Koordinator SAP'):'Koordinator SAP',startsAt:d.startsAt,endsAt:d.endsAt,registrationClosesAt:d.registrationClosesAt,timezone:d.timezone,capacity:d.capacity,acceptedCount,availableSeats:Math.max(0,d.capacity-acceptedCount),...registration,equipment:d.equipment,accessibilityNotes:d.accessibilityNotes,wasteHandoverPlan:d.wasteHandoverPlan,resultOutcome:row.result_outcome,canonicalPath:`/activities/${row.id}`};
  }
  memberDto(row:MembershipRow) {return {id:row.id,activityId:row.activity_id,revision:row.revision,status:row.status,attendance:row.attendance,reason:row.reason,createdAt:iso(row.created_at),updatedAt:iso(row.updated_at)};}
   async get(id:string) {
@@ -69,7 +71,7 @@ export class ActivitiesService {
   object(query,['limit','cursor','cellId','from','to','availableOnly']);const cell=query.cellId===undefined?null:this.cell(query.cellId);const from=query.from===undefined?null:date(query.from,true);const to=query.to===undefined?null:date(query.to,true);if(from&&to&&from>=to)fail(400,'VALIDATION_ERROR');const available=queryBool(query.availableOnly);const page=this.store.cursor(query,{route:'activities',cell,from,to,available});
   const rows=await this.store.db<{id:string;created_at:Date}[]>`SELECT a.id,a.created_at FROM activities a JOIN reports r ON r.id=a.report_id WHERE a.public_ever AND a.status<>'draft' AND r.public_visibility='public' AND r.duplicate_of_id IS NULL AND r.status IN ('verified','in_progress','resolved')
     AND (${cell}::text IS NULL OR r.h3_cell=${cell}) AND (${from}::timestamptz IS NULL OR (a.data->>'startsAt')::timestamptz>=${from}::timestamptz) AND (${to}::timestamptz IS NULL OR (a.data->>'startsAt')::timestamptz<${to}::timestamptz)
-    AND (NOT ${available} OR (a.status='registration_open' AND r.status<>'resolved' AND (a.data->>'registrationClosesAt')::timestamptz>now() AND (SELECT count(*) FROM activity_memberships m WHERE m.activity_id=a.id AND m.status='accepted')<(a.data->>'capacity')::int))
+    AND (NOT ${available} OR (a.status='registration_open' AND (a.data->>'registrationClosesAt')::timestamptz>now() AND (SELECT count(*) FROM activity_memberships m WHERE m.activity_id=a.id AND m.status='accepted')<(a.data->>'capacity')::int))
     AND (${page.boundary?.at??null}::timestamptz IS NULL OR (a.created_at,a.id)<(${page.boundary?.at??null}::timestamptz,${page.boundary?.id??null}::uuid)) ORDER BY a.created_at DESC,a.id DESC LIMIT ${page.limit+1}`;
   const selected=rows.slice(0,page.limit);return {items:await Promise.all(selected.map(async r=>this.publicDto(this.store.db,await this.load(this.store.db,r.id)))),nextCursor:rows.length>page.limit?page.encode(selected[selected.length-1]!):null};
  }
@@ -80,10 +82,10 @@ export class ActivitiesService {
     WHERE (${own}=false OR a.coordinator_id=${actor.id})
     AND (
       ${state}::text IS NULL
-      OR (${state}='registration_open' AND a.status='registration_open' AND r.public_visibility='public' AND r.duplicate_of_id IS NULL AND r.status IN ('verified','in_progress') AND (a.data->>'registrationClosesAt')::timestamptz>now())
+      OR (${state}='registration_open' AND a.status='registration_open' AND r.public_visibility='public' AND r.duplicate_of_id IS NULL AND r.status IN ('verified','in_progress','resolved') AND (a.data->>'registrationClosesAt')::timestamptz>now())
       OR (${state}='registration_closed' AND (
         a.status='registration_closed'
-        OR (a.status='registration_open' AND (r.public_visibility<>'public' OR r.duplicate_of_id IS NOT NULL OR r.status NOT IN ('verified','in_progress') OR (a.data->>'registrationClosesAt')::timestamptz<=now()))
+        OR (a.status='registration_open' AND (r.public_visibility<>'public' OR r.duplicate_of_id IS NOT NULL OR r.status NOT IN ('verified','in_progress','resolved') OR (a.data->>'registrationClosesAt')::timestamptz<=now()))
       ))
       OR (${state} NOT IN ('registration_open','registration_closed') AND a.status=${state})
     )

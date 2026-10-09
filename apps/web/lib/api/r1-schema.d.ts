@@ -2023,6 +2023,245 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** listOperationalUsers */
+        get: operations["listOperationalUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** changeOperationalUserRole */
+        put: operations["changeOperationalUserRole"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/report-operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** listOperationalReports */
+        get: operations["listOperationalReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/{id}/assignment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** setReportAssignment */
+        put: operations["setReportAssignment"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/pending-map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** listPendingReportsMap */
+        get: operations["listPendingReportsMap"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** exportOperationalReports */
+        get: operations["exportOperationalReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/area-localities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** listAdminLocalities */
+        get: operations["listAdminLocalities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/areas/{cellId}/locality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** setAdminLocality */
+        put: operations["setAdminLocality"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/report-notification-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** getReportNotificationPreferences */
+        get: operations["getReportNotificationPreferences"];
+        /** setReportNotificationPreferences */
+        put: operations["setReportNotificationPreferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/report-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** listMyReportAssignments */
+        get: operations["listMyReportAssignments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/me/report-assignments/{id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** updateMyReportAssignment */
+        put: operations["updateMyReportAssignment"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/areas/{cellId}/locality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** getAreaLocality */
+        get: operations["getAreaLocality"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/area-localities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** listPublicLocalities */
+        get: operations["listPublicLocalities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/reports/{id}/evidence-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** requestReporterEvidence */
+        post: operations["requestReporterEvidence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3254,6 +3493,7 @@ export interface components {
             };
             registrationOpen: boolean;
             registrationClosedReason: components["schemas"]["RegistrationClosedReason"];
+            coordinatorDisplayName?: string | null;
         };
         ManagedActivityPage: {
             items: components["schemas"]["ManagedActivity"][];
@@ -21424,6 +21664,469 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listOperationalUsers: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            items: {
+                                [key: string]: unknown;
+                            }[];
+                            nextCursor: string | null;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    changeOperationalUserRole: {
+        parameters: {
+            query?: never;
+            header?: {
+                "idempotency-key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    role: "user" | "admin";
+                    /** @enum {string} */
+                    expectedRole: "user" | "admin";
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    listOperationalReports: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+                status?: "submitted" | "verified" | "in_progress" | "resolved" | "rejected" | "duplicate";
+                assigneeId?: string;
+                overdue?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            items: {
+                                [key: string]: unknown;
+                            }[];
+                            nextCursor: string | null;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    setReportAssignment: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: number;
+                "idempotency-key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    assigneeId: string | null;
+                    dueAt: string | null;
+                    note: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    listPendingReportsMap: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            items: {
+                                [key: string]: unknown;
+                            }[];
+                            truncated: boolean;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    exportOperationalReports: {
+        parameters: {
+            query?: {
+                status?: "submitted" | "verified" | "in_progress" | "resolved" | "rejected" | "duplicate";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSV export */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+        };
+    };
+    listAdminLocalities: {
+        parameters: {
+            query?: {
+                search?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            items: {
+                                [key: string]: unknown;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+    };
+    setAdminLocality: {
+        parameters: {
+            query?: never;
+            header?: {
+                "idempotency-key"?: string;
+            };
+            path: {
+                cellId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    kelurahan: string;
+                    kecamatan: string;
+                    city: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    getReportNotificationPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            emailEnabled: boolean;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    setReportNotificationPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    emailEnabled: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            emailEnabled: boolean;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    listMyReportAssignments: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string;
+                status?: "submitted" | "verified" | "in_progress" | "resolved" | "rejected" | "duplicate";
+                overdue?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            items: {
+                                [key: string]: unknown;
+                            }[];
+                            nextCursor: string | null;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    updateMyReportAssignment: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: number;
+                "idempotency-key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    progress: "accepted" | "working" | "done";
+                    note: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    getAreaLocality: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cellId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    listPublicLocalities: {
+        parameters: {
+            query?: {
+                cells?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            items: {
+                                [key: string]: unknown;
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+    };
+    requestReporterEvidence: {
+        parameters: {
+            query?: never;
+            header?: {
+                "idempotency-key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    message: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: {
+                            [key: string]: unknown;
+                        };
+                    };
                 };
             };
         };

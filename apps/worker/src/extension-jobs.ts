@@ -7,6 +7,7 @@ import type { ObjectStore } from './object-store.js';
 import { ReviewProcessor } from './review-processor.js';
 import { RenditionProcessor } from './rendition-processor.js';
 import { PublicationProcessor } from './publication-processor.js';
+import { ReportNotificationProcessor } from './report-notification-processor.js';
 
 export type ExtensionEvent = { topic: string; aggregate_id: string; payload_minimal: Record<string, unknown>; outbox_id?: string };
 type OutboxRow = ExtensionEvent & { id: string; attempts: number };
@@ -15,10 +16,11 @@ const topics = ['review.requested', 'evidence.rendition.requested', 'instagram.r
   'publication.source.changed', 'media.consent.changed', 'report.created', 'report.updated',
   'report.changed', 'report.decided', 'community.update.submitted', 'community.update.decided',
   'activity.changed', 'membership.changed', 'activity.result.submitted', 'activity.result.decided',
-  'measurement.changed'];
-type Lane = 'review' | 'render' | 'publish' | 'retract' | 'domain';
+  'measurement.changed', 'notification.email'];
+type Lane = 'review' | 'render' | 'publish' | 'retract' | 'domain' | 'email';
 const METRICS_INTERVAL_MS = 60_000;
 function lane(topic: string): Lane {
+  if (topic === 'notification.email') return 'email';
   if (topic === 'review.requested') return 'review';
   if (topic === 'evidence.rendition.requested' || topic === 'instagram.render.requested') return 'render';
   if (topic === 'instagram.publish.requested') return 'publish';
@@ -33,6 +35,7 @@ export class ExtensionJobs {
   private readonly review: ReviewProcessor;
   private readonly rendition: RenditionProcessor;
   private readonly publication: PublicationProcessor;
+  private readonly reportNotifications: ReportNotificationProcessor;
   private stopping = false;
   private timer: NodeJS.Timeout | undefined;
   private metricsTimer: NodeJS.Timeout | undefined;
@@ -43,7 +46,8 @@ export class ExtensionJobs {
     this.review = new ReviewProcessor(sql, config, objects);
     this.rendition = new RenditionProcessor(sql, config, objects);
     this.publication = new PublicationProcessor(sql, config, objects);
-    const lanes: Lane[] = ['review', 'render', 'publish', 'retract', 'domain'];
+    this.reportNotifications = new ReportNotificationProcessor(sql, config);
+    const lanes: Lane[] = ['review', 'render', 'publish', 'retract', 'domain', 'email'];
     this.queues = Object.fromEntries(lanes.map(name => [name, new Queue(`sap-${name}`, { connection })])) as Record<Lane, Queue>;
     this.workers = lanes.map(name => {
       const worker = new Worker(`sap-${name}`, job => this.handle(job.data as ExtensionEvent), {
@@ -173,7 +177,7 @@ export class ExtensionJobs {
       const row = await this.sql.begin(async tx => {
         const [event] = await tx<OutboxRow[]>`SELECT id,topic,aggregate_id,payload_minimal,attempts FROM outbox_events
           WHERE topic=ANY(${topics}::text[]) AND next_attempt_at<=now()
-            AND ((${this.config.SAP_EXTENSION_ENABLED} AND (${this.config.SAP_INSTAGRAM_ENABLED} OR topic NOT IN ('instagram.render.requested','instagram.publish.requested'))) OR topic IN ('instagram.retract.requested','instagram.disconnect.requested','publication.source.changed','media.consent.changed'))
+            AND ((${this.config.SAP_EXTENSION_ENABLED} AND (${this.config.SAP_INSTAGRAM_ENABLED} OR topic NOT IN ('instagram.render.requested','instagram.publish.requested'))) OR topic IN ('instagram.retract.requested','instagram.disconnect.requested','publication.source.changed','media.consent.changed','report.decided','notification.email'))
             AND (state='pending' OR (state='processing' AND lease_expires_at<now()))
           ORDER BY CASE WHEN topic IN ('instagram.retract.requested','instagram.disconnect.requested') THEN 0 ELSE 1 END,created_at,id
           FOR UPDATE SKIP LOCKED LIMIT 1`;
@@ -224,6 +228,8 @@ export class ExtensionJobs {
       lease_expires_at=NULL,last_error_code=NULL,updated_at=now() WHERE id=${event.outbox_id}`;
   }
   private async execute(event: ExtensionEvent): Promise<void> {
+    if (event.topic === 'notification.email') return this.reportNotifications.process(event);
+    if (event.topic === 'report.decided') await this.reportNotifications.process(event);
     const maintenance=new Set(['instagram.retract.requested','instagram.disconnect.requested','publication.source.changed','media.consent.changed']);
     if (!this.config.SAP_EXTENSION_ENABLED && !maintenance.has(event.topic)) return;
     if (!this.config.SAP_INSTAGRAM_ENABLED && (event.topic==='instagram.render.requested'||event.topic==='instagram.publish.requested')) return;
