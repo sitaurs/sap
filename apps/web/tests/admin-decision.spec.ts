@@ -12,8 +12,8 @@ const report: SapReport = {
   duplicateOfId: null, timeline: [],
 };
 
-async function setup(page: Page, status: SapReport["status"] = "submitted", readyEvidence = status !== "submitted") {
-  const current = { ...report, status };
+async function setup(page: Page, status: SapReport["status"] = "submitted", readyEvidence = status !== "submitted", photoCount = 1) {
+  const current = { ...report, status, mediaIds: Array.from({ length: photoCount }, (_, index) => index === 0 ? ids.media : ids.update) };
   let approved = false;
   const lifecycle = (): ReportLifecycle => ({
     reportId: current.id, sourceRevision: approved ? 2 : 1,
@@ -132,4 +132,60 @@ test("explicit web approval shows channel status and decision uses its latest re
   expect(decision?.revision).toBe("2");
   expect(decision?.body).not.toHaveProperty("publishMediaIds");
   expect(requests.filter(r => r.path.endsWith("/approvals"))).toHaveLength(1);
+});
+
+test("dialog fills the viewport layer, keeps actions visible, and restores keyboard focus", async ({ page }) => {
+  const { dialog, requests } = await setup(page);
+  const viewport = page.viewportSize()!;
+  const bounds = (await dialog.boundingBox())!;
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.y).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+  expect(Math.abs(bounds.x + bounds.width / 2 - viewport.width / 2)).toBeLessThan(2);
+  expect(await dialog.evaluate(element => (element as HTMLDialogElement).matches(":modal"))).toBe(true);
+  expect(await page.evaluate(() => document.body.style.overflow)).toBe("hidden");
+  const footer = dialog.locator("footer");
+  const before = await footer.boundingBox();
+  await dialog.locator("[data-moderation-body]").evaluate(element => { element.scrollTop = element.scrollHeight; });
+  expect(await footer.boundingBox()).toEqual(before);
+  const close = dialog.getByRole("button", { name: "Tutup", exact: true });
+  await close.focus();
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog.getByRole("button", { name: "Batal", exact: true })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(close).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
+  expect(requests.some(request => request.path.endsWith("/decisions") || request.path.endsWith("/approvals"))).toBe(false);
+});
+
+test("reviewing a rejection retains private evidence and photo enlargement has its own close", async ({ page }) => {
+  const { dialog, requests } = await setup(page);
+  await dialog.getByLabel("Status baru").selectOption("rejected");
+  await expect(dialog.getByRole("img", { name: "Bukti laporan 1", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("region", { name: "Izin publikasi foto 1" })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Perbesar foto 1" }).click();
+  const viewer = page.getByRole("dialog", { name: "Bukti laporan 1", exact: true });
+  await expect(viewer).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(viewer).not.toBeVisible();
+  await expect(dialog).toBeVisible();
+  expect(requests.some(request => request.path.endsWith("/decisions") || request.path.endsWith("/approvals"))).toBe(false);
+});
+
+test("empty evidence and multiple photos preserve the decision form and footer", async ({ page }) => {
+  let state = await setup(page, "submitted", false, 0);
+  await expect(state.dialog.getByText("Laporan ini tidak memiliki foto bukti.")).toBeVisible();
+  await state.dialog.getByRole("button", { name: "Batal", exact: true }).click();
+  await page.unrouteAll({ behavior: "wait" });
+  state = await setup(page, "submitted", false, 2);
+  await expect(state.dialog.getByRole("button", { name: "Perbesar foto 2" })).toBeVisible();
+  await state.dialog.getByLabel("Alasan keputusan").fill("Bukti telah diperiksa oleh moderator.");
+  await state.dialog.getByLabel("Ringkasan publik").fill("Tumpukan sampah ditemukan di area taman.");
+  await expect(state.dialog.getByRole("button", { name: "Simpan keputusan", exact: true })).toBeEnabled();
+  const viewport = page.viewportSize()!;
+  const footer = (await state.dialog.locator("footer").boundingBox())!;
+  expect(footer.y + footer.height).toBeLessThanOrEqual(viewport.height);
 });
