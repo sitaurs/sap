@@ -60,7 +60,7 @@ export default function AreaView({ categories }: { categories: SapCategory[] }) 
   const feature = detail?.feature;
   const features = areas?.features || [];
   return <>
-    <div className={styles.referenceHeading}><h1>{t("Peta area")}</h1><p>{t("Jelajahi ringkasan laporan terverifikasi.")}</p></div>
+    <div data-motion="heading" className={styles.referenceHeading}><h1>{t("Peta area")}</h1><p>{t("Jelajahi ringkasan laporan terverifikasi.")}</p></div>
     <div className={styles.mapFilters}>
       <label>{t("Rentang tanggal")}<span className={styles.selectWrap}><CalendarDays size={19} /><select aria-label={t("Rentang tanggal peta")} value={period} onChange={event => setPeriod(event.target.value)}><option value="7">{t("7 hari terakhir")}</option><option value="30">{t("30 hari terakhir")}</option><option value="90">{t("90 hari terakhir")}</option></select></span></label>
       <label>{t("Kategori sampah")}<span className={styles.selectWrap}><Filter size={19} /><select aria-label={t("Kategori sampah peta")} value={category} onChange={event => setCategory(event.target.value)}><option value="">{t("Semua kategori")}</option>{categories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></span></label>

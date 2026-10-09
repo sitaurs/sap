@@ -158,7 +158,7 @@ export default function ReportDetail({ id, categories, onClose, onUpdated }: { i
   if (!portalTarget) return null;
 
   return createPortal(<div className={styles.backdrop} role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-    <section ref={dialogRef} tabIndex={-1} className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="report-detail-title">
+    <section data-motion="dialog" ref={dialogRef} tabIndex={-1} className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="report-detail-title">
       <div className={styles.heading}><div><span>{t("DETAIL LAPORAN")}</span><h2 id="report-detail-title">{t("Laporan saya")}</h2></div><button type="button" onClick={onClose} aria-label={t("Tutup detail laporan")}><X size={22} /></button></div>
       {error && <p className={styles.error} role="alert">{t(error)}</p>}
       {!report ? <p className={styles.loading}>{t("Memuat laporan…")}</p> : <>

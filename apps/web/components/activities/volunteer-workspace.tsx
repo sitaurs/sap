@@ -36,7 +36,7 @@ export function WorkspaceActivityCard({ activity, onOpen }: { activity: PublicAc
   const tone = status === "cancelled" ? "red" : status === "completed" || status === "registration_open" ? "green" : status === "in_progress" ? "blue" : status === "awaiting_result" || status === "on_hold" ? "amber" : "neutral";
   const Icon = status === "cancelled" ? XCircle : status === "completed" || status === "registration_open" ? CheckCircle2 : status === "registration_closed" ? LockKeyhole : Clock3;
   const leaf = tone === "red" ? "leaf-red.webp" : tone === "green" ? "leaf-green.webp" : "leaf-neutral.webp";
-  return <button type="button" className={v.activityCard} data-tone={tone} onClick={() => onOpen(activity)}>
+  return <button data-motion="card" type="button" className={v.activityCard} data-tone={tone} onClick={() => onOpen(activity)}>
     <Image className={v.cardLeaf} src={"/images/volunteer/" + leaf} alt="" width={48} height={53} aria-hidden="true" />
     <span className={v.badge}><Icon size={14} aria-hidden="true" />{t(statusLabels[status])}</span>
     <strong className={v.activityTitle}>{activity.title}</strong>

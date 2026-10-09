@@ -218,7 +218,7 @@ export default function VolunteerActivitiesPage({ categories }: { categories: Sa
       <p className={v.workspaceFooter}><Leaf size={16} aria-hidden="true" />{t("Bersama untuk lingkungan yang lebih bersih.")}</p>
     </>}
 
-    {screen === "public-detail" && <div className={s.activityOverlay} role="dialog" aria-modal="true" aria-label={t("Detail kegiatan relawan")}>
+    {screen === "public-detail" && <div data-motion="overlay" className={s.activityOverlay} role="dialog" aria-modal="true" aria-label={t("Detail kegiatan relawan")}>
       <div className={s.activityDialog}><button type="button" className={s.dialogClose} onClick={() => setScreen("list")}>{t("Tutup")}</button>
         {busy && !selectedPublic ? <Busy /> : selectedPublic?.kind === "activity" ? <>
           <p className={s.eyebrow}>{t("KEGIATAN RELAWAN")}</p><h2>{selectedPublic.title}</h2><Status status={displayedActivityStatus(selectedPublic)} />

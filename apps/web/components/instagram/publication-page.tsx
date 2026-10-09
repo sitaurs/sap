@@ -193,7 +193,7 @@ export default function InstagramPublication({
   }
   return (
     <div className={styles.page}>
-      <header className={styles.pageHeader}>
+      <header data-motion="heading" className={styles.pageHeader}>
         <div>
           <span className={styles.eyebrow}>
             <CircleDot size={13} />

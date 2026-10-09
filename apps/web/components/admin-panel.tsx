@@ -15,6 +15,7 @@ import {
   type SapReport, type SapReportStatus, type SapScanSettings,
 } from "../lib/api/client";
 import { useI18n } from "../lib/i18n/provider";
+import AnimatedNumber from "./motion/animated-number";
 
 
 const MODE_INFO: Record<SapScanSettings["mode"], { label: string; hint: string }> = {
@@ -191,11 +192,11 @@ function ModerationPanel({ categories }: { categories: SapCategory[] }) {
 
   return <div className={admin.wrap}>
     <div className={admin.statRow}>
-      <div className={admin.statBox}><span>{t("Menunggu")}</span><strong>{stats?.submittedReports ?? "—"}</strong><small>{t("Perlu diperiksa")}</small></div>
-      <div className={admin.statBox}><span>{t("Terverifikasi")}</span><strong>{stats?.verifiedReports ?? "—"}</strong></div>
-      <div className={admin.statBox}><span>{t("Dalam penanganan")}</span><strong>{stats?.inProgressReports ?? "—"}</strong></div>
-      <div className={admin.statBox}><span>{t("Selesai")}</span><strong>{stats?.resolvedReports ?? "—"}</strong></div>
-      <div className={admin.statBox}><span>{t("Tertua menunggu")}</span><strong style={{ fontSize: "1rem" }}>{stats?.oldestPendingAt ? fmt(stats.oldestPendingAt, intlLocale) : "—"}</strong></div>
+      <div data-motion="card" className={admin.statBox}><span>{t("Menunggu")}</span><strong><AnimatedNumber value={stats?.submittedReports ?? "—"} /></strong><small>{t("Perlu diperiksa")}</small></div>
+      <div data-motion="card" className={admin.statBox}><span>{t("Terverifikasi")}</span><strong><AnimatedNumber value={stats?.verifiedReports ?? "—"} /></strong></div>
+      <div data-motion="card" className={admin.statBox}><span>{t("Dalam penanganan")}</span><strong><AnimatedNumber value={stats?.inProgressReports ?? "—"} /></strong></div>
+      <div data-motion="card" className={admin.statBox}><span>{t("Selesai")}</span><strong><AnimatedNumber value={stats?.resolvedReports ?? "—"} /></strong></div>
+      <div data-motion="card" className={admin.statBox}><span>{t("Tertua menunggu")}</span><strong style={{ fontSize: "1rem" }}>{stats?.oldestPendingAt ? fmt(stats.oldestPendingAt, intlLocale) : "—"}</strong></div>
     </div>
 
     <section className={admin.panel}>

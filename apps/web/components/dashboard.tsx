@@ -44,6 +44,7 @@ import type { ReportSummary } from "./report-wizard";
 import { saveSapaAccountPreference } from "./sapa-client";
 import { ApiError, getAchievements, getMe, getStats, listCategories, listReports, listScans, logout, updateProfile, type SapAchievement, type SapCategory, type SapReport, type SapScan, type SapStats, type SapUser } from "../lib/api/client";
 import { useI18n, UiText } from "../lib/i18n/provider";
+import AnimatedNumber from "./motion/animated-number";
 
 
 const InstagramPublication = dynamic(() => import("./instagram/publication-page"), {
@@ -97,9 +98,9 @@ function EmptyArt() {
 
 function StatCard({ label, value, icon: Icon, tone, onClick }: { label: string; value: string; icon: LucideIcon; tone: string; onClick: () => void }) {
   const { t } = useI18n();
-  return <button className={`${styles.statCard} ${styles[tone]}`} type="button" onClick={onClick}>
+  return <button data-motion="card" className={`${styles.statCard} ${styles[tone]}`} type="button" onClick={onClick}>
     <span className={styles.statIcon}><Icon size={30} strokeWidth={2.2} /></span>
-    <span className={styles.statText}><span>{t(label)}</span><strong>{value}</strong></span>
+    <span className={styles.statText}><span>{t(label)}</span><strong><AnimatedNumber value={value} /></strong></span>
     <span className={styles.statGhost}><Icon size={82} strokeWidth={1.3} /></span>
   </button>;
 }
@@ -265,19 +266,19 @@ export default function Dashboard() {
       <Link className={styles.brand} href="/" aria-label={t("SAP, kembali ke beranda")}><BrandLogo width={165} /></Link>
       <div className={styles.sideLabel}>{t("MENU")}</div>
       <nav className={styles.sideNav} aria-label={t("Navigasi dashboard")}>
-        {mainNav.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={`${styles.navItem} ${activeTab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={activeTab === id ? "page" : undefined}><Icon size={23} /><span>{t(label)}</span></button>)}
+        {mainNav.map(({ id, label, icon: Icon }) => <button data-motion-nav key={id} type="button" className={`${styles.navItem} ${activeTab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={activeTab === id ? "page" : undefined}><Icon size={23} /><span>{t(label)}</span></button>)}
       </nav>
       {user?.role === "admin" && <>
         <div className={styles.sideDivider} />
         <div className={styles.sideLabel}>{t("ADMIN")}</div>
         <nav className={styles.sideNav} aria-label={t("Admin")}>
-          {adminNav.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={`${styles.navItem} ${activeTab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={activeTab === id ? "page" : undefined}><Icon size={23} /><span>{t(label)}</span></button>)}
+          {adminNav.map(({ id, label, icon: Icon }) => <button data-motion-nav key={id} type="button" className={`${styles.navItem} ${activeTab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={activeTab === id ? "page" : undefined}><Icon size={23} /><span>{t(label)}</span></button>)}
         </nav>
       </>}
       <div className={styles.sideDivider} />
       <div className={styles.sideLabel}>{t("LAINNYA")}</div>
       <nav className={styles.sideNav} aria-label={t("Lainnya")}>
-        {otherNav.map(({ id, label, icon: Icon }) => <button key={id} type="button" className={`${styles.navItem} ${activeTab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={activeTab === id ? "page" : undefined}><Icon size={23} /><span>{t(label)}</span></button>)}
+        {otherNav.map(({ id, label, icon: Icon }) => <button data-motion-nav key={id} type="button" className={`${styles.navItem} ${activeTab === id ? styles.navActive : ""}`} onClick={() => openTab(id)} aria-current={activeTab === id ? "page" : undefined}><Icon size={23} /><span>{t(label)}</span></button>)}
         <button className={styles.navItem} type="button" onClick={signOut}><LogOut size={23} /><span>{t("Keluar")}</span></button>
       </nav>
       <div className={styles.sideGarden} aria-hidden="true" />
@@ -296,11 +297,11 @@ export default function Dashboard() {
           </div>}
         </div>
         <div className={styles.headerTools}>
-          <div className={styles.popoverAnchor}><button className={styles.profileButton} type="button" onClick={() => setProfileOpen(value => !value)} aria-expanded={profileOpen} aria-label={t("Buka menu akun {0}", { "0": displayName })}><span className={styles.avatar}>{user?.avatarMediaId ? <MediaThumbnail mediaId={user.avatarMediaId} alt={t("Foto profil {0}", { "0": displayName })} className={styles.headerAvatarPhoto} fallback={<UserRound size={21} aria-hidden="true" />} /> : <UserRound size={21} aria-hidden="true" />}</span><span>{displayName}</span><ChevronDown size={18} /></button>{profileOpen && <div className={styles.popover}><strong>{t("Akun SAP")}</strong><p>{user?.email}</p><button className={styles.popoverAction} type="button" onClick={() => openTab("settings")}>{t("Pengaturan")}</button><button className={styles.popoverAction} type="button" onClick={() => void signOut()}>{t("Keluar")}</button></div>}</div>
+          <div className={styles.popoverAnchor}><button className={styles.profileButton} type="button" onClick={() => setProfileOpen(value => !value)} aria-expanded={profileOpen} aria-label={t("Buka menu akun {0}", { "0": displayName })}><span className={styles.avatar}>{user?.avatarMediaId ? <MediaThumbnail mediaId={user.avatarMediaId} alt={t("Foto profil {0}", { "0": displayName })} className={styles.headerAvatarPhoto} fallback={<UserRound size={21} aria-hidden="true" />} /> : <UserRound size={21} aria-hidden="true" />}</span><span>{displayName}</span><ChevronDown size={18} /></button>{profileOpen && <div data-motion="feedback" className={styles.popover}><strong>{t("Akun SAP")}</strong><p>{user?.email}</p><button className={styles.popoverAction} type="button" onClick={() => openTab("settings")}>{t("Pengaturan")}</button><button className={styles.popoverAction} type="button" onClick={() => void signOut()}>{t("Keluar")}</button></div>}</div>
         </div>
       </header>
 
-      <main className={styles.content}>
+      <main className={styles.content} data-motion-scope data-motion-view={activeTab}>
         {mobile && isAdminTab(activeTab) && <button
           type="button"
           className={styles.mobileAdminBack}
@@ -312,7 +313,7 @@ export default function Dashboard() {
         {mobile && tab === "account" && user && <MobileAccountMenu user={user} onNavigate={openTab} onSignOut={() => void signOut()} signingOut={signingOut} />}
         {mobile && tab === "admin-menu" && <MobileAdminMenu isAdmin={user?.role === "admin"} onNavigate={openTab} />}
         {activeTab === "dashboard" && <>
-          <div className={styles.pageHeading}><div><p className={styles.kicker}><span /> {" "}{t("RUANG KERJA ANDA")}</p><h1>{t("Dashboard")}</h1><p>{t("Pantau aktivitas scan dan laporan Anda.")}</p></div><div className={styles.quickActions}><button className={styles.primaryButton} type="button" onClick={() => openTab("scan")}><Camera size={22} strokeWidth={2.2} />{t("Scan sampah")}</button><button className={styles.outlineButton} type="button" onClick={openReportFromScan}><FilePlus2 size={22} />{t("Buat laporan")}</button></div></div>
+          <div data-motion="heading" className={styles.pageHeading}><div><p className={styles.kicker}><span /> {" "}{t("RUANG KERJA ANDA")}</p><h1>{t("Dashboard")}</h1><p>{t("Pantau aktivitas scan dan laporan Anda.")}</p></div><div className={styles.quickActions}><button className={styles.primaryButton} type="button" onClick={() => openTab("scan")}><Camera size={22} strokeWidth={2.2} />{t("Scan sampah")}</button><button className={styles.outlineButton} type="button" onClick={openReportFromScan}><FilePlus2 size={22} />{t("Buat laporan")}</button></div></div>
           <div className={styles.statGrid}>
             <StatCard label={t("Total scan")} value={String(stats?.totalScans ?? 0)} icon={ScanLine} tone="green" onClick={() => openTab("history")} />
             <StatCard label={t("Laporan saya")} value={String(reports.length)} icon={FileText} tone="blue" onClick={() => openTab("reports")} />
@@ -321,7 +322,7 @@ export default function Dashboard() {
           </div>
           <div className={styles.overviewGrid}>
             <section className={`${styles.panel} ${styles.categoryPanel}`}><div className={styles.panelTitle}><LayoutDashboard size={22} /><h2>{t("Hasil scan per kategori")}</h2></div>
-              {counts.length ? <div className={styles.categoryBreakdown}>{counts.map(item => <button key={item.name} type="button" onClick={() => openTab("history")}><span className={styles.categoryName}>{t(item.name)}</span><span className={styles.barTrack}><span style={{ width: `${Math.max(12, item.count / Math.max(1, stats?.classifiedScans ?? 0) * 100)}%` }} /></span><strong>{item.count}</strong></button>)}<p>{t("Berdasarkan scan yang berhasil dikenali.")}</p></div> : <div className={styles.emptyCategory}><EmptyArt /><p>{t("Kategori sampah akan muncul")}<br />{t("setelah AI mengenali foto Anda.")}</p><button className={styles.primaryButton} type="button" onClick={() => openTab("scan")}><Camera size={21} strokeWidth={2.2} />{t("Scan sampah")}</button></div>}
+              {counts.length ? <div className={styles.categoryBreakdown}>{counts.map(item => <button key={item.name} type="button" onClick={() => openTab("history")}><span className={styles.categoryName}>{t(item.name)}</span><span className={styles.barTrack}><span data-motion="chart" style={{ width: `${Math.max(12, item.count / Math.max(1, stats?.classifiedScans ?? 0) * 100)}%` }} /></span><strong>{item.count}</strong></button>)}<p>{t("Berdasarkan scan yang berhasil dikenali.")}</p></div> : <div className={styles.emptyCategory}><EmptyArt /><p>{t("Kategori sampah akan muncul")}<br />{t("setelah AI mengenali foto Anda.")}</p><button className={styles.primaryButton} type="button" onClick={() => openTab("scan")}><Camera size={21} strokeWidth={2.2} />{t("Scan sampah")}</button></div>}
             </section>
             <div className={styles.rightPanels}>
               <section className={`${styles.panel} ${styles.recentPanel}`}><div className={styles.panelTitle}><FileText size={22} /><h2>{t("Laporan terbaru")}</h2></div>{reports.length ? <div className={styles.recentList}>{reports.slice(0, 2).map(item => <button type="button" key={item.id} onClick={() => openTab("reports")}><span className={styles.reportIcon}><FileText size={20} /></span><span><strong>{t("Laporan")}{" "}{t(categoryName(item.categoryId))}</strong><small>{item.status} · {formatDate(item.createdAt, intlLocale)}</small></span><ArrowRight size={17} /></button>)}</div> : <div className={styles.emptyRecent}><FileText size={45} /><p>{t("Belum ada laporan.")}</p><button type="button" onClick={() => openTab("reports")}>{t("Buat laporan pertama")}{" "}<ArrowRight size={16} /></button></div>}</section>
@@ -335,18 +336,18 @@ export default function Dashboard() {
 
         {isAdminTab(activeTab) && (user?.role === "admin"
           ? activeTab === "admin-instagram" ? <InstagramPublication categories={categories} onModeration={() => openTab("admin-moderation")} /> : activeTab === "admin-community" ? <AdminCommunityReview /> : activeTab === "admin-activities" ? <ActivitiesPage categories={categories} /> : activeTab === "admin-impact" ? <ImpactPage /> : <div className={`${styles.subPage} ${styles.referenceView}`}>
-              <div className={styles.referenceHeading}>
+              <div data-motion="heading" className={styles.referenceHeading}>
                 <h1>{activeTab === "admin-settings" ? t("Pengaturan scan") : t("Moderasi laporan")}</h1>
                 <p>{activeTab === "admin-settings" ? t("Atur strategi deteksi hybrid ML → vision LLM.") : t("Periksa, verifikasi, dan tindak lanjuti laporan warga.")}</p>
               </div>
               <AdminPanel section={activeTab === "admin-settings" ? "settings" : "moderation"} categories={categories} />
             </div>
-          : <div className={`${styles.subPage} ${styles.referenceView}`}><div className={styles.referenceHeading}><h1>{t("Akses ditolak")}</h1><p>{t("Halaman ini hanya untuk admin.")}</p></div></div>)}
+          : <div className={`${styles.subPage} ${styles.referenceView}`}><div data-motion="heading" className={styles.referenceHeading}><h1>{t("Akses ditolak")}</h1><p>{t("Halaman ini hanya untuk admin.")}</p></div></div>)}
 
       </main>
     </div>
     {!reportWizardOpen && <MobileBottomNav tab={tab} sapaEnabled={sapaEnabled} onNavigate={openTab} />}
     {sapaEnabled && !reportWizardOpen && <SapaPet tab={isAdminTab(activeTab) || isMobileMenuTab(activeTab) || activeTab === "activities" ? "dashboard" : (activeTab satisfies SapaDashboardTab)} backendLinked activity={sapaActivity} onNavigate={openTab} mobileDock />}
-    {toast && <div className={styles.toast} role="status"><Sparkles size={18} /><span>{t(toast)}</span><button type="button" onClick={() => setToast("")} aria-label={t("Tutup pesan")}><X size={16} /></button></div>}
+    {toast && <div data-motion="feedback" className={styles.toast} role="status"><Sparkles size={18} /><span>{t(toast)}</span><button type="button" onClick={() => setToast("")} aria-label={t("Tutup pesan")}><X size={16} /></button></div>}
   </div>;
 }

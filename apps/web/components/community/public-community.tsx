@@ -32,12 +32,12 @@ export function CommunityHero({ variant, title, children }: { variant: "incident
   const { t } = useI18n();
   const activities = variant === "activities";
   return <header className={[p.hero, activities ? p.activityHero : p.incidentHero].join(" ")}>
-    <div className={p.heroText}>
+    <div data-motion="heading" className={p.heroText}>
       <span className={p.eyebrow}>{t("SAP · Aksi warga")}</span>
       <h1>{title}</h1>
       <p>{children}</p>
     </div>
-    <div className={p.heroArt} aria-hidden="true">
+    <div data-motion="card" className={p.heroArt} aria-hidden="true">
       <Image src={activities ? "/images/community/volunteer-hero.webp" : "/images/community/incidents-river.webp"} alt="" fill sizes="(max-width: 680px) 90vw, (max-width: 1100px) 42vw, 510px" preload />
     </div>
   </header>;

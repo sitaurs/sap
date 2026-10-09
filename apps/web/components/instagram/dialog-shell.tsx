@@ -35,8 +35,8 @@ export default function DialogShell({ title, subtitle, children, footer, onClose
     return () => { document.removeEventListener("keydown", key); document.body.style.overflow = overflow; if (previous?.isConnected) previous.focus(); };
   }, []);
   return createPortal(<div className={styles.overlay}>
-    <div className={styles.shade} onClick={() => { if (!busyRef.current) closeRef.current(); }} aria-hidden="true" />
-    <section ref={ref} className={`${styles.drawer} ${wide ? styles.wideDrawer : ""}`} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} aria-describedby={`${id}-subtitle`} tabIndex={-1}>
+    <div data-motion="backdrop" className={styles.shade} onClick={() => { if (!busyRef.current) closeRef.current(); }} aria-hidden="true" />
+    <section data-motion="drawer" ref={ref} className={`${styles.drawer} ${wide ? styles.wideDrawer : ""}`} role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} aria-describedby={`${id}-subtitle`} tabIndex={-1}>
       <header className={styles.drawerHeader}><div><h2 id={`${id}-title`}>{title}</h2><p id={`${id}-subtitle`}>{subtitle}</p></div><button type="button" className={styles.iconButton} onClick={onClose} disabled={busy} aria-label={t("Tutup panel")}><X size={23} /></button></header>
       <div className={styles.drawerBody}>{children}</div>
       {footer && <footer className={styles.drawerFooter}>{footer}</footer>}

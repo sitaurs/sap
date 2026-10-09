@@ -30,7 +30,7 @@ export default function PostDetailDialog({ status, children, footer, busy, onClo
     };
   }, [target]);
   if (!target) return null;
-  return createPortal(<dialog ref={ref} className={ui.dialog} aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}
+  return createPortal(<dialog data-motion="dialog" ref={ref} className={ui.dialog} aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}
     onCancel={event => {
       if (event.target !== event.currentTarget) return;
       event.preventDefault();

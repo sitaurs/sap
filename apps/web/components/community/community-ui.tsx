@@ -29,7 +29,7 @@ export function PublicShell({ children, variant }: { children: ReactNode; varian
       <a href="#konten-publik" className={p.skipLink}>{t("Lewati navigasi")}</a>
       <div className={detail ? d.shell : p.frame}>
         <PublicHeader />
-        <main id="konten-publik" className={detail ? d.content : p.content}>{children}</main>
+        <main id="konten-publik" data-motion-scope className={detail ? d.content : p.content}>{children}</main>
         <footer className={[p.footer, detail ? d.footer : ""].join(" ")}>
           <span><Leaf size={15} aria-hidden="true" />{t("Bersama untuk lingkungan yang lebih bersih.")}</span>
           <Link href="/#cara-kerja">{t("Pelajari cara kerja SAP")} →</Link>
@@ -47,7 +47,7 @@ export function Heading({
 }) {
   const { t } = useI18n();
   return (
-    <header className={s.heading}>
+    <header data-motion="heading" className={s.heading}>
       <span className={s.eyebrow}>{t("SAP · Aksi warga")}</span>
       <h1>{title}</h1>
       {children && <p className={s.muted}>{children}</p>}

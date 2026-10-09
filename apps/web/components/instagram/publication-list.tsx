@@ -13,6 +13,7 @@ import {
   Send,
 } from "lucide-react";
 import PublicationPhoto from "./publication-photo";
+import AnimatedNumber from "../motion/animated-number";
 import { listInstagramPosts } from "../../lib/api/instagram";
 import {
   Busy,
@@ -132,6 +133,7 @@ export default function PublicationList({
           <button
             key={label}
             type="button"
+            data-motion="card"
             className={styles.stat}
             onClick={() => filter(selection)}
             disabled={!available}
@@ -142,7 +144,7 @@ export default function PublicationList({
             </span>
             <span>
               <small>{t(label)}</small>
-              <strong>{value ?? "—"}</strong>
+              <strong><AnimatedNumber value={value ?? "—"} /></strong>
             </span>
           </button>
         ))}

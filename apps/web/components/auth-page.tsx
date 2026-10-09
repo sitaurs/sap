@@ -118,12 +118,12 @@ export default function AuthPage({ mode }: { mode: Mode }) {
   const intro = stage === "mfa" ? mfaRecoveryMode ? "Masukkan salah satu kode pemulihan yang Anda simpan." : "Masukkan kode 6 digit dari aplikasi autentikator Anda." : stage === "verify" ? t("Masukkan enam digit kode yang dikirim ke {0}.", { "0": email }) : stage === "forgot" ? "Masukkan email akun untuk menerima kode pemulihan." : stage === "reset" ? "Masukkan kode dari email dan kata sandi baru." : isSignup ? "Mulai kenali sampah, laporkan penumpukan, dan pantau area." : "Masuk untuk melanjutkan aksi peduli lingkungan.";
 
   return (
-    <main className={`${styles.stage} ${isSignup ? styles.signup : styles.login}`}>
+    <main data-motion-scope className={`${styles.stage} ${isSignup ? styles.signup : styles.login}`}>
       <div className={styles.browser}>
         <section className={styles.paper} aria-label={t(title)}>
           <div className={styles.formSide}>
             <Brand />
-            <div className={styles.formContent}>
+            <div data-motion="card" data-motion-view={stage} className={styles.formContent}>
               <h1>{t(title)}</h1>
               <p className={styles.intro}>{t(intro)}</p>
 

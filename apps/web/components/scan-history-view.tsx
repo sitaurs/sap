@@ -131,7 +131,7 @@ function ScanDetail({ initial, categories, onClose, onOpenReport, onScanAgain, o
     ML_INVALID_RESPONSE: "Hasil pengenalan belum dapat dibaca. Coba scan ulang.",
     MEDIA_INVALID: "Foto belum dapat diproses. Pilih foto lain yang jelas.",
   };
-  return <dialog ref={dialog} className={styles.drawer} aria-labelledby={titleId}
+  return <dialog data-motion="drawer" ref={dialog} className={styles.drawer} aria-labelledby={titleId}
     onCancel={event => { event.preventDefault(); onClose(); }}
     onClick={event => { if (event.target !== event.currentTarget) return; const bounds = event.currentTarget.getBoundingClientRect(); if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onClose(); }}>
     <div className={styles.drawerLayout}>
@@ -197,7 +197,7 @@ export default function ScanHistoryView({ scans, categories, onNavigate, onOpenR
   function resetFilters() { setFilter("all"); setPeriod("all"); setQuery(""); setShown(20); }
   function navigate(action: () => void) { setSelected(null); action(); }
   return <div className={styles.screen}>
-    <header className={styles.heading}><div><span className={styles.eyebrow}>{t("AKTIVITAS ANDA")}</span><h1>{t("Riwayat scan")}</h1><p>{t("Lihat kembali hasil pemindaian Anda.")}</p></div><button type="button" className={styles.primaryButton} onClick={() => onNavigate("scan")}><Camera size={21} strokeWidth={2.2} />{t("Scan baru")}</button></header>
+    <header data-motion="heading" className={styles.heading}><div><span className={styles.eyebrow}>{t("AKTIVITAS ANDA")}</span><h1>{t("Riwayat scan")}</h1><p>{t("Lihat kembali hasil pemindaian Anda.")}</p></div><button type="button" className={styles.primaryButton} onClick={() => onNavigate("scan")}><Camera size={21} strokeWidth={2.2} />{t("Scan baru")}</button></header>
     <div className={styles.stats} aria-label={t("Ringkasan seluruh riwayat scan")}>
       <div className={styles.stat}><span className={styles.iconTile}><FileText size={26} /></span><div><span>{t("Total scan")}</span><strong>{totals.all}</strong></div></div>
       <div className={styles.stat}><span className={styles.iconTile}><CheckCircle2 size={28} /></span><div><span>{t("Dikenali")}</span><strong>{totals.recognized}</strong></div></div>

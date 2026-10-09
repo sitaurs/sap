@@ -263,7 +263,7 @@ export default function AdminCommunityReview() {
   }
 
   return <section className={styles.page} aria-label="Moderasi pembaruan komunitas">
-    <header className={styles.header}><div><p className={styles.eyebrow}>ADMIN · KOMUNITAS &amp; HERMES</p><h1>Tinjau pembaruan warga</h1><p>Hermes menyajikan rekomendasi dan bukti untuk membantu pemeriksaan; moderator manusia menentukan hasilnya.</p></div><button type="button" className={styles.refresh} onClick={() => setRefresh((value) => value + 1)} disabled={loading || busy}><RotateCw size={14} aria-hidden="true" />Muat ulang</button></header>
+    <header data-motion="heading" className={styles.header}><div><p className={styles.eyebrow}>ADMIN · KOMUNITAS &amp; HERMES</p><h1>Tinjau pembaruan warga</h1><p>Hermes menyajikan rekomendasi dan bukti untuk membantu pemeriksaan; moderator manusia menentukan hasilnya.</p></div><button type="button" className={styles.refresh} onClick={() => setRefresh((value) => value + 1)} disabled={loading || busy}><RotateCw size={14} aria-hidden="true" />Muat ulang</button></header>
     <div className={styles.layout}>
       <aside className={styles.queue} aria-label="Antrean pembaruan">
         <h2>Antrean moderator <span>{queue.length}</span></h2>

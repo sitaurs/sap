@@ -113,7 +113,7 @@ export function PageHead({
 }) {
   const { t } = useI18n();
   return (
-    <header className={s.pageHead}>
+    <header data-motion="heading" className={s.pageHead}>
       <div>
         {onBack && (
           <button type="button" className={s.back} onClick={onBack}>

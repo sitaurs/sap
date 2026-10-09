@@ -76,7 +76,7 @@ export default function ImpactPage() {
   }
 
   return <div className={s.page}>
-    <header className={s.pageHeading}><div><p className={s.eyebrow}>{t("ADMIN SAP · DAMPAK")}</p><h1>{t("Dampak")}</h1><p className={s.subtitle}>{t("Pantau hasil aksi lingkungan dari bukti yang telah disetujui.")}</p></div><span className={`${s.modeBadge} ${impactMockEnabled ? "" : s.liveBadge}`}>{impactMockEnabled ? t("Mockup · data contoh") : t("Ringkasan terverifikasi")}</span></header>
+    <header data-motion="heading" className={s.pageHeading}><div><p className={s.eyebrow}>{t("ADMIN SAP · DAMPAK")}</p><h1>{t("Dampak")}</h1><p className={s.subtitle}>{t("Pantau hasil aksi lingkungan dari bukti yang telah disetujui.")}</p></div><span className={`${s.modeBadge} ${impactMockEnabled ? "" : s.liveBadge}`}>{impactMockEnabled ? t("Mockup · data contoh") : t("Ringkasan terverifikasi")}</span></header>
 
     <form className={`${s.card} ${s.filters}`} onSubmit={apply} aria-label={t("Filter dampak")}>
       <div className={s.filterRow}>
@@ -118,7 +118,7 @@ function MethodDialog({ data, onClose }: { data: ImpactSummary; onClose: () => v
     // cleanup would dispatch onClose during Strict Mode's effect rehearsal.
     return () => { document.body.style.overflow = previousOverflow; };
   }, []);
-  return <dialog ref={ref} className={s.methodDialog} aria-labelledby="impact-method-dialog-title" onClose={onClose} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+  return <dialog data-motion="dialog" ref={ref} className={s.methodDialog} aria-labelledby="impact-method-dialog-title" onClose={onClose} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
     <div className={s.dialogBody}>
       <header>
         <span className={s.dialogIcon}><ShieldCheck size={26} aria-hidden="true" /></span>

@@ -326,6 +326,7 @@ export function DetailDialog({ detail, onClose }: { detail: BottomDetail | null;
   }
 
   return <dialog
+    data-motion="dialog"
     className={styles.detailDialog}
     ref={dialogRef}
     onClose={onClose}

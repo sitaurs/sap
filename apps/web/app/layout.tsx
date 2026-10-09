@@ -4,7 +4,9 @@ import { LocaleProvider } from "../lib/i18n/provider";
 import { getSavedLocale } from "../lib/i18n/server";
 import { translate } from "../lib/i18n/translate";
 import "./globals.css";
+import "./motion.css";
 import "leaflet/dist/leaflet.css";
+import MotionEnhancer from "../components/motion/motion-enhancer";
 
 const display = Manrope({
   subsets: ["latin"],
@@ -44,7 +46,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const locale = await getSavedLocale();
   return (
     <html lang={locale} className={`${display.variable} ${body.variable}`}>
-      <body><LocaleProvider initialLocale={locale}>{children}</LocaleProvider></body>
+      <body><LocaleProvider initialLocale={locale}><MotionEnhancer />{children}</LocaleProvider></body>
     </html>
   );
 }
