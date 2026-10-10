@@ -40,7 +40,7 @@
 
 The platform brings these flows together with a personal dashboard, geographic insights, and **SAPA**, a friendly AI companion for waste-related guidance.
 
-**Visit the website: [sap.venlab.tech](https://sap.venlab.tech/).** The application interface is currently in Indonesian.
+**Visit the website: [sap.venlab.tech](https://sap.venlab.tech/).** The interface defaults to English; users can choose Indonesian in Settings, and saved language preferences are preserved.
 
 ### Community and operations modules
 

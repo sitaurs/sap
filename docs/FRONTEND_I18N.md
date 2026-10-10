@@ -22,7 +22,7 @@ Kamus memakai teks Indonesia sebagai kunci. `t(source, values?)` mengganti teks 
 
 - `localStorage["sap.locale.v1"]`: `id` atau `en`.
 - Cookie publik `sap_locale`: nilai yang sama, `Path=/`, `SameSite=Lax`, umur satu tahun, `Secure` jika situs memakai HTTPS.
-- Cookie dipakai server untuk locale HTML awal dan metadata; `html.lang` mengikuti pilihan. Tanpa cookie valid, default Indonesia. LocalStorage menjadi fallback setelah hydration jika cookie diblokir.
+- Cookie dipakai server untuk locale HTML awal dan metadata; `html.lang` mengikuti pilihan. Tanpa cookie valid, default English (`en`), termasuk pada kunjungan pertama. Pilihan Indonesia (`id`) atau English (`en`) yang sudah tersimpan tetap dihormati. LocalStorage menjadi fallback setelah hydration jika cookie diblokir.
 - Perubahan localStorage dari tab lain disinkronkan melalui event `storage`.
 - Jika kedua penyimpanan diblokir, pilihan tetap berlaku pada sesi tampilan saat itu dan UI memberi tahu bahwa preferensi belum persisten.
 - Preferensi berlaku di browser ini, bukan otomatis pada semua perangkat atau akun.
