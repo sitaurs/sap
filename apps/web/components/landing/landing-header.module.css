@@ -1,10 +1,10 @@
-.header { position: sticky; top: 0; z-index: 50; height: 88px; padding: 16px 24px 0; background: transparent; }
-.bar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: clamp(12px, 1.8vw, 26px); width: min(1440px, 100%); height: 72px; margin: 0 auto; padding: 0 18px; border: 1px solid #cfe8dc; border-radius: 999px; background: rgba(235, 248, 241, .96); box-shadow: 0 10px 28px rgba(27, 76, 57, .13), inset 0 1px rgba(255, 255, 255, .85); backdrop-filter: blur(16px); }
-.brand { display: inline-flex; flex: none; align-items: center; justify-content: center; min-width: 0; padding: 7px 12px; border: 1px solid #e1eee7; border-radius: 999px; background: #fff; box-shadow: 0 2px 8px rgba(39, 80, 61, .06); }
-.brandImage { display: block; width: 158px; height: auto; }
+.header { position: sticky; top: 0; z-index: 50; height: 100px; padding: 14px 24px 8px; background: transparent; }
+.bar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: clamp(12px, 1.8vw, 26px); width: min(1440px, 100%); height: 78px; margin: 0 auto; padding: 0 20px; border: 1px solid #cfe8dc; border-radius: 999px; background: rgba(235, 248, 241, .96); box-shadow: 0 10px 28px rgba(27, 76, 57, .13), inset 0 1px rgba(255, 255, 255, .85); backdrop-filter: blur(16px); }
+.brand { display: inline-flex; flex: none; align-items: center; justify-content: center; min-width: 0; height: 72px; padding: 2px 9px; border: 1px solid #e1eee7; border-radius: 999px; background: #fff; box-shadow: 0 2px 8px rgba(39, 80, 61, .06); }
+.bar .brandImage { display: block; width: 152px; height: auto; }
 .links { display: flex; align-items: center; justify-content: center; gap: clamp(2px, .55vw, 10px); min-width: 0; height: 100%; }
 .links a { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 clamp(9px, .85vw, 14px); border-radius: 999px; color: #345247; font-size: 14px; font-weight: 650; line-height: 1.2; white-space: nowrap; transition: color .18s, background .18s, box-shadow .18s; }
-.links a:hover { color: #087654; background: rgba(255, 255, 255, .62); }
+.links a:hover { color: #087654; background: rgba(255, 255, 255, .42); }
 .links a[aria-current="location"] { color: #087654; background: #fff; box-shadow: 0 2px 8px rgba(31, 89, 64, .1); }
 .actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: max-content; }
 .loginAction { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 0 14px; border: 1px solid transparent; border-radius: 999px; color: #345247; font-size: 14px; font-weight: 650; white-space: nowrap; transition: background .18s, border-color .18s; }
@@ -46,7 +46,7 @@
 .menuNote svg { color: #15966b; }
 .menuNote strong { color: #244334; font: 750 17px/1.4 var(--font-display), sans-serif; }
 .menuNote span { grid-column: 2; color: #64796c; font-size: 13px; }
-:global(html) { scroll-padding-top: 104px; }
+:global(html) { scroll-padding-top: 114px; }
 
 @media (max-width: 1199px) {
   .bar { grid-template-columns: auto minmax(0, 1fr) auto; }
@@ -57,11 +57,11 @@
 }
 @media (min-width: 1200px) { .menuDialog[open] { display: none; } }
 @media (max-width: 760px) {
-  :global(html) { scroll-padding-top: 92px; }
-  .header { height: 82px; padding: 12px 16px 0; }
-  .bar { grid-template-columns: auto minmax(0, 1fr) auto; height: 62px; padding: 0 12px; gap: 8px; }
-  .brand { padding: 6px 9px; }
-  .brandImage { width: 132px; }
+  :global(html) { scroll-padding-top: 100px; }
+  .header { height: 88px; padding: 12px 16px 8px; }
+  .bar { grid-template-columns: auto minmax(0, 1fr) auto; height: 68px; padding: 0 12px; gap: 8px; }
+  .brand { height: 64px; padding: 2px 8px; }
+  .bar .brandImage { width: 132px; }
   .loginAction { display: none; }
   .primaryAction { min-height: 40px; padding: 0 13px; font-size: 13px; }
   .primaryAction svg { width: 16px; height: 16px; }
@@ -71,15 +71,16 @@
 @media (max-width: 420px) {
   .header { padding-right: 12px; padding-left: 12px; }
   .bar { padding-right: 9px; padding-left: 9px; gap: 6px; }
-  .brand { padding: 6px 7px; }
-  .brandImage { width: 118px; }
+  .brand { height: 58px; padding: 2px 7px; }
+  .bar .brandImage { width: 118px; }
   .primaryAction { gap: 6px; padding-right: 10px; padding-left: 10px; font-size: 12px; }
 }
 @media (max-width: 360px) {
-  .header { height: 74px; padding: 10px 8px 0; }
+  :global(html) { scroll-padding-top: 84px; }
+  .header { height: 76px; padding: 10px 8px 8px; }
   .bar { height: 58px; padding: 0 8px; gap: 5px; }
-  .brand { padding: 5px 6px; }
-  .brandImage { width: 100px; }
+  .brand { height: 52px; padding: 2px 6px; }
+  .bar .brandImage { width: 100px; }
   .primaryAction { min-height: 38px; gap: 5px; padding: 0 8px; font-size: 11px; }
   .primaryAction svg { width: 14px; height: 14px; }
   .menuTrigger { width: 38px; height: 38px; }
