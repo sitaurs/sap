@@ -55,6 +55,22 @@ test("requesting participation stays pending and preserves existing registration
   expect(requests.find(request => request.method === "PUT")?.body).toEqual({ participating: true });
 });
 
+test("pending registration remains visible when the same user coordinates the activity", async ({ page }) => {
+  await fixtureApi(page, { handler: async (route, path) => {
+    if (path === "/users/me/activities") {
+      await json(route, { items: [{ activity, membership, isCoordinator: true }], nextCursor: null });
+      return true;
+    }
+    return false;
+  } });
+
+  await page.goto("/dashboard?view=activities");
+  const registrations = page.getByRole("region", { name: "Pendaftaran saya", exact: true });
+  await expect(registrations).toContainText("1");
+  await expect(registrations.getByLabel("Status: Menunggu", { exact: true })).toBeVisible();
+  await expect(registrations.getByRole("heading", { name: activity.title })).toBeVisible();
+});
+
 test("accepting coordinator assignment preserves explicit consent and revision", async ({ page }) => {
   let accepted = false;
   const requests = await fixtureApi(page, { handler: async (route, path) => {

@@ -1002,6 +1002,7 @@ export interface components {
             reportedSeverity: "small" | "medium" | "large";
             categoryId?: ("battery" | "biological" | "cardboard" | "clothes" | "glass" | "metal" | "paper" | "plastic" | "shoes" | "trash") | null;
             scanId?: string | null;
+            publicationChannels?: ("web" | "instagram")[];
         };
         ReportUpdateInput: {
             mediaIds?: string[];
@@ -6300,6 +6301,16 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
+            /** @description Conversation has another turn in progress (CONVERSATION_BUSY); retry shortly. This request is rejected before provider invocation. */
+            409: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             /** @description Pesan kosong/terlalu panjang atau pageContext tidak dikenal (ASSISTANT_MESSAGE_INVALID) */
             422: {
                 headers: {
@@ -6391,6 +6402,16 @@ export interface operations {
             };
             /** @description Conversation not found atau bukan milik pengguna (CONVERSATION_NOT_FOUND) */
             404: {
+                headers: {
+                    "X-Contract-Version": components["headers"]["ContractVersion"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Conversation has an in-flight chat turn or the delete lost its lease (CONVERSATION_BUSY); retry shortly. */
+            409: {
                 headers: {
                     "X-Contract-Version": components["headers"]["ContractVersion"];
                     [name: string]: unknown;

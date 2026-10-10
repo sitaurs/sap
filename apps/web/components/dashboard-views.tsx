@@ -85,6 +85,7 @@ function ScanView({ onScanFinished, onScanActivity, onOpenReport, onNavigate, ca
   const operationRef = useRef<ScanOperation | null>(null);
   const [result, setResult] = useState<ScanResponse | null>(null);
   const [busy, setBusy] = useState(false);
+  const [scanTakingLong, setScanTakingLong] = useState(false);
   const [scanError, setScanError] = useState("");
 
   useEffect(() => {
@@ -97,6 +98,11 @@ function ScanView({ onScanFinished, onScanActivity, onOpenReport, onNavigate, ca
     controllerRef.current?.abort();
     onScanActivity("idle");
   }, [onScanActivity]);
+  useEffect(() => {
+    if (!busy) { setScanTakingLong(false); return; }
+    const timer = window.setTimeout(() => setScanTakingLong(true), 8_000);
+    return () => window.clearTimeout(timer);
+  }, [busy]);
 
   function selectFile(next: File | null) {
     if (!next) return;
@@ -108,7 +114,9 @@ function ScanView({ onScanFinished, onScanActivity, onOpenReport, onNavigate, ca
     setScanError("");
     if (next && (!(["image/jpeg", "image/png", "image/webp"].includes(next.type)) || next.size > 10 * 1024 * 1024)) {
       setFile(null);
-      setScanError("Pilih foto JPG, PNG, atau WebP dengan ukuran maksimal 10 MB.");
+      setScanError(!["image/jpeg", "image/png", "image/webp"].includes(next.type)
+        ? "Format file tidak didukung. Pilih foto JPG, PNG, atau WebP."
+        : "Ukuran foto melebihi 10 MB. Pilih foto yang lebih kecil.");
       return;
     }
     setFile(next);
@@ -152,7 +160,7 @@ function ScanView({ onScanFinished, onScanActivity, onOpenReport, onNavigate, ca
         <div className={styles.scanActions}>
           <button className={styles.primaryButton} type="button" onClick={() => setCameraOpen(true)} disabled={busy}><Camera size={23} strokeWidth={2.2} />{t("Buka kamera")}</button>
           <button className={styles.outlineButton} type="button" onClick={() => uploadRef.current?.click()} disabled={busy}><Upload size={23} />{t("Unggah foto")}</button>
-          <input ref={uploadRef} className={styles.srOnly} type="file" accept="image/jpeg,image/png,image/webp" onChange={event => { selectFile(event.target.files?.[0] || null); event.target.value = ""; }} aria-label={t("Unggah foto dari perangkat")} />
+          <input ref={uploadRef} className={styles.srOnly} type="file" onChange={event => { selectFile(event.target.files?.[0] || null); event.target.value = ""; }} aria-label={t("Unggah foto dari perangkat")} />
         </div>
         <button className={styles.scanDrop} type="button" onClick={() => uploadRef.current?.click()} disabled={busy} aria-label={t("Pilih foto sampah dari perangkat")}>
           <span className={styles.scanDropInner}>
@@ -164,7 +172,7 @@ function ScanView({ onScanFinished, onScanActivity, onOpenReport, onNavigate, ca
       </div>
       <div className={styles.scanAside}>
         <section className={styles.tipsCard}><div className={styles.tipsTitle}><span><Lightbulb size={26} /></span><h2>{t("Tips foto")}</h2></div><div className={styles.tipRow}><Focus size={29} />{t("Objek terlihat jelas")}</div><div className={styles.tipRow}><Sun size={29} />{t("Gunakan cahaya cukup")}</div><div className={styles.tipRow}><Leaf size={29} />{t("Fokus pada sampah yang ingin dikenali.")}</div></section>
-        <section className={styles.scanResult}>{file ? <><span className={styles.resultIcon}><ScanLine size={29} /></span><h2>{t("Foto siap diproses")}</h2><p>{t("Foto akan diunggah dan diproses oleh layanan AI SAP. Hasil dapat dilihat kembali di riwayat scan.")}</p><button className={styles.primaryButton} type="button" onClick={runBackendScan} disabled={busy}><ScanLine size={19} />{busy ? t("Memproses foto...") : t("Pindai dengan AI")}</button>{scanError && <p role="alert" className={styles.scanError}>{t(scanError)}</p>}</> : <><Image src="/images/dashboard/views/report-empty.webp" alt="" width={235} height={105} /><p>{t("Hasil scan akan muncul")}<br />{t("setelah pemrosesan.")}</p>{scanError && <p role="alert" className={styles.scanError}>{t(scanError)}</p>}</>}</section>
+        <section className={styles.scanResult}>{file ? <><span className={styles.resultIcon}><ScanLine size={29} /></span><h2>{t("Foto siap diproses")}</h2><p>{t("Foto akan diunggah dan diproses oleh layanan AI SAP. Hasil dapat dilihat kembali di riwayat scan.")}</p><button className={styles.primaryButton} type="button" onClick={runBackendScan} disabled={busy}><ScanLine size={19} />{busy ? t("Memproses foto...") : t("Pindai dengan AI")}</button>{busy && scanTakingLong && <p role="status" className={styles.scanStatus}>{t("Pemindaian masih berlangsung. Hasil dipantau otomatis; proses dapat memerlukan beberapa saat.")}</p>}{scanError && <p role="alert" className={styles.scanError}>{t(scanError)}</p>}</> : <><Image src="/images/dashboard/views/report-empty.webp" alt="" width={235} height={105} /><p>{t("Hasil scan akan muncul")}<br />{t("setelah pemrosesan.")}</p>{scanError && <p role="alert" className={styles.scanError}>{t(scanError)}</p>}</>}</section>
       </div>
     </div>
     {cameraOpen && <CameraCapture onClose={() => setCameraOpen(false)} onUpload={() => { setCameraOpen(false); uploadRef.current?.click(); }} onPhoto={photo => { selectFile(photo); setCameraOpen(false); }} />}

@@ -47,6 +47,7 @@ export interface CreateReportInput {
   reportedSeverity: ReportSeverity;
   categoryId: CategoryId | null;
   scanId: string | null;
+  publicationChannels: ('web' | 'instagram')[];
   actorScope: string;
   route: string;
   key: string;
@@ -106,6 +107,12 @@ export class ReportRepository {
       const row = rows[0]!;
 
       await this.insertEvidence(tx, row.id, input.mediaIds);
+      for (const mediaId of input.mediaIds) {
+        await tx`INSERT INTO media_consents(media_id,channels)
+          VALUES(${mediaId},${input.publicationChannels}::text[])
+          ON CONFLICT(media_id) DO UPDATE SET channels=EXCLUDED.channels,
+            revision=media_consents.revision+1,updated_at=now()`;
+      }
       const eventRows = await tx<{ id: string; occurred_at: Date }[]>`
         INSERT INTO report_status_events (report_id, actor_id, from_status, to_status)
         VALUES (${row.id}, ${input.userId}, NULL, 'submitted')

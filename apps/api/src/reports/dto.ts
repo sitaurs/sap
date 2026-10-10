@@ -66,6 +66,13 @@ export class ReportInputDto {
   @ValidateIf((o) => o.scanId !== null)
   @IsUUID()
   scanId?: string | null;
+
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsArray()
+  @ArrayMaxSize(2)
+  @ArrayUnique()
+  @IsIn(['web', 'instagram'], { each: true })
+  publicationChannels?: ('web' | 'instagram')[];
 }
 
 /** Body for updateReport (OpenAPI ReportUpdateInput, minProperties 1). scanId is immutable. */

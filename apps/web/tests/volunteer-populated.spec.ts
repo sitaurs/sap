@@ -2,11 +2,34 @@ import { expect, test } from "@playwright/test";
 import { activityView, fixtureApi, json, membership } from "./r1-fixtures";
 import { populatedActivities, populatedAssignments, populatedRegistrations } from "./volunteer-populated-fixtures";
 
+for (const locale of ["id", "en"] as const) {
+  test(`closed public activity shows a human registration reason in ${locale}`, async ({ page }) => {
+    const publicActivity = { ...populatedActivities[0], status: "registration_closed" as const, registrationOpen: false, registrationClosedReason: "manually_closed" as const };
+    await page.context().addCookies([{ name: "sap_locale", value: locale, url: test.info().project.use.baseURL as string }]);
+    const requests = await fixtureApi(page, { handler: async (route, path) => {
+      if (path === "/activities") { await json(route, { items: [publicActivity], nextCursor: null }); return true; }
+      if (path === `/activities/${publicActivity.id}`) { await json(route, publicActivity); return true; }
+      if (path === `/activities/${publicActivity.id}/viewer`) {
+        await json(route, { ...activityView, activityId: publicActivity.id, actions: { ...activityView.actions, join: { allowed: false, reasonCode: "REGISTRATION_CLOSED" } } });
+        return true;
+      }
+      return false;
+    } });
+    await page.goto("/dashboard?view=activities");
+    await page.getByRole("region", { name: locale === "en" ? "Public activities" : "Kegiatan publik" })
+      .getByRole("button", { name: new RegExp(publicActivity.title) }).click();
+    const dialog = page.getByRole("dialog", { name: locale === "en" ? "Volunteer activity details" : "Detail kegiatan relawan" });
+    await expect(dialog.getByText(locale === "en" ? "Registration has closed." : "Pendaftaran telah ditutup.", { exact: true })).toBeVisible();
+    await expect(dialog).not.toContainText("REGISTRATION_CLOSED");
+    expect(requests.every(request => request.method === "GET")).toBe(true);
+  });
+}
+
 test("populated workspace shows API statuses, consistent times, and private meeting points only in detail", async ({ page }, testInfo) => {
   const accepted = populatedRegistrations[0].activity;
   const requests = await fixtureApi(page, { handler: async (route, path) => {
     if (path === "/activities") { await json(route, { items: populatedActivities, nextCursor: null }); return true; }
-    if (path === "/users/me/activities") { await json(route, { items: [...populatedRegistrations, { ...populatedRegistrations[0], isCoordinator: true }], nextCursor: null }); return true; }
+    if (path === "/users/me/activities") { await json(route, { items: [{ ...populatedRegistrations[0], isCoordinator: true }, ...populatedRegistrations.slice(1)], nextCursor: null }); return true; }
     if (path === "/users/me/coordinator-assignments") { await json(route, { items: populatedAssignments, nextCursor: null }); return true; }
     if (path === `/activities/${accepted.id}`) { await json(route, accepted); return true; }
     if (path === `/activities/${accepted.id}/viewer`) { await json(route, { ...activityView, membership: { ...membership, status: "accepted" }, meetingPoint: { instructions: "Titik kumpul privat · TEST", latitude: null, longitude: null } }); return true; }

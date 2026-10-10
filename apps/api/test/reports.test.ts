@@ -2,11 +2,12 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import type { HttpException } from '@nestjs/common';
 import { ReportsService } from '../src/reports/reports.service.js';
 import { isOccurredAtValid, type ReportRecord } from '../src/reports/report.types.js';
 import { toH3Cell } from '../src/reports/geo.js';
-import { ReportUpdateInputDto, type ReportInputDto } from '../src/reports/dto.js';
+import { ReportInputDto, ReportUpdateInputDto } from '../src/reports/dto.js';
 import type { UpdateReportResult } from '../src/reports/report.repository.js';
 
 function errorCode(error: unknown): string {
@@ -47,6 +48,7 @@ function record(over: Partial<ReportRecord> = {}): ReportRecord {
 interface Stub {
   service: ReportsService;
   state: { created: number };
+  createArgs: Array<Record<string, unknown>>;
   updateArgs: Array<{ reportId: string; revision: number; changes: Record<string, unknown> }>;
 }
 
@@ -61,6 +63,7 @@ function makeService(opts: {
   recentCount?: number;
 } = {}): Stub {
   const state = { created: 0 };
+  const createArgs: Array<Record<string, unknown>> = [];
   const updateArgs: Array<{ reportId: string; revision: number; changes: Record<string, unknown> }> = [];
   const media = {
     findStoredForOwner: async (id: string) => (opts.ownedMedia === false ? null : { id, ownerId: 'u1', purpose: opts.mediaPurpose ?? 'report' }),
@@ -69,9 +72,9 @@ function makeService(opts: {
     findByIdForOwner: async (id: string) => (opts.ownedScan === false ? null : { id }),
   };
   const reports = {
-    createIdempotent: async (input: { userId: string }) => {
+    createIdempotent: async (input: Record<string, unknown>) => {
       state.created += 1;
-      void input;
+      createArgs.push(input);
       return { view: {} as never, replayed: opts.createReplayed ?? false };
     },
     findForViewer: async () => opts.found ?? null,
@@ -86,7 +89,7 @@ function makeService(opts: {
     }),
   };
   const service = new ReportsService(reports as never, media as never, scans as never);
-  return { service, state, updateArgs };
+  return { service, state, createArgs, updateArgs };
 }
 
 function nowIso(offsetMs = 0): string {
@@ -147,6 +150,31 @@ test('createReport creates a report for valid, owned input', async () => {
   const stub = makeService();
   await stub.service.createReport('u1', input(), KEY);
   assert.equal(stub.state.created, 1);
+});
+
+test('createReport passes publication consent into the atomic report creation input', async () => {
+  const stub = makeService();
+  await stub.service.createReport('u1', input({ publicationChannels: ['web', 'instagram'] }), KEY, true);
+  assert.deepEqual(stub.createArgs[0]?.publicationChannels, ['web', 'instagram']);
+});
+
+test('createReport requires a verified email before granting publication consent', async () => {
+  const stub = makeService();
+  await assert.rejects(
+    stub.service.createReport('u1', input({ publicationChannels: ['web'] }), KEY),
+    (error) => errorCode(error) === 'EMAIL_VERIFICATION_REQUIRED',
+  );
+  assert.equal(stub.state.created, 0);
+});
+
+test('ReportInputDto accepts only unique publication channels', async () => {
+  const valid = plainToInstance(ReportInputDto, input({ publicationChannels: ['web', 'instagram'] }));
+  assert.equal((await validate(valid)).some(error => error.property === 'publicationChannels'), false);
+
+  for (const publicationChannels of [['web', 'web'], ['web', 'public'], null]) {
+    const dto = plainToInstance(ReportInputDto, input({ publicationChannels } as never));
+    assert.equal((await validate(dto)).some(error => error.property === 'publicationChannels'), true);
+  }
 });
 
 test('createReport enforces the per-account rate limit with RATE_LIMITED', async () => {

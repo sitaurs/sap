@@ -75,6 +75,7 @@ export const volunteer: Record<string, string> = {
   "Saya menerima jadwal baru": "Accept the new schedule",
   "Batalkan kepesertaan": "Cancel participation",
   "Pendaftaran Anda:": "Your registration:",
+  "Pendaftaran Anda: {0}": "Your registration: {0}",
   "Ajukan untuk bergabung": "Request to join",
   "Batalkan pendaftaran": "Cancel registration",
   "Pendaftaran saat ini tidak tersedia:": "Registration is currently unavailable:",

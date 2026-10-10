@@ -116,7 +116,7 @@ export class AdminService {
         case 'summary_required':
           throw new UnprocessableEntityException({
             code: 'REPORT_INVALID',
-            message: 'Verifikasi awal memerlukan publicSummary.',
+            message: 'Ringkasan publik harus berisi 20–500 karakter sebelum laporan dipublikasikan.',
           });
         case 'resolution_media_required':
           throw new UnprocessableEntityException({

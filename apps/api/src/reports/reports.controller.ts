@@ -36,7 +36,7 @@ export class ReportsController {
     if (!idempotencyKey || !UUID_RE.test(idempotencyKey)) {
       throw new BadRequestException({ code: 'VALIDATION_ERROR', message: 'Header Idempotency-Key (uuid) wajib.' });
     }
-    return this.reports.createReport(user.id, dto, idempotencyKey);
+    return this.reports.createReport(user.id, dto, idempotencyKey, user.emailVerified);
   }
 
   @Get('mine')

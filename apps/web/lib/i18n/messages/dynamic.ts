@@ -15,10 +15,12 @@ Kardus|Cardboard
 Logam|Metal
 Kaca|Glass
 Organik|Organic
+Sampah organik|Organic waste
 Baterai|Battery
 Pakaian|Clothes
 Sepatu|Shoes
 Residu|Residual waste
+Sampah lainnya|Other waste
 Tidak diketahui|Unknown
 Fitur kegiatan relawan belum diaktifkan oleh pengelola SAP.|Volunteer activities have not been enabled by the SAP administrator.
 Data berubah sejak Anda membuka halaman. Muat versi terbaru, periksa kembali input, lalu simpan ulang.|The data has changed since you opened the page. Load the latest version, review your input, and save again.
@@ -80,4 +82,58 @@ Lihat detail {0}, {1}, {2}|View details: {0}, {1}, {2}
 Menampilkan {0} dari {1} hasil scan|Showing {0} of {1} scan results
 Menampilkan {0} hasil scan|Showing {0} scan results
 Foto yang dipilih: {0}|Selected photo: {0}
+Perubahan tercatat|Change recorded
+Keputusan laporan|Report decision
+Bukti tambahan diminta|Additional evidence requested
+Izin publikasi bukti diubah|Evidence publication consent changed
+Versi publik bukti diminta|Public evidence rendition requested
+Persetujuan bukti publik diubah|Public evidence approval changed
+Peran pengguna diubah|User role changed
+Penugasan laporan diubah|Report assignment changed
+Progres penugasan diperbarui|Assignment progress updated
+Nama wilayah diperbarui|Area name updated
+Kegiatan dibuat|Activity created
+Kegiatan diperbarui|Activity updated
+Penugasan koordinator diperbarui|Coordinator assignment updated
+Pendaftaran kegiatan dibuka|Activity registration opened
+Pendaftaran kegiatan ditutup|Activity registration closed
+Kegiatan dimulai|Activity started
+Hasil kegiatan diminta|Activity results requested
+Kegiatan ditunda|Activity put on hold
+Kegiatan dilanjutkan|Activity resumed
+Kegiatan dibatalkan|Activity cancelled
+Pendaftaran peserta diperbarui|Participant registration updated
+Keputusan peserta diperbarui|Participant decision updated
+Kehadiran peserta diperbarui|Participant attendance updated
+Perubahan jadwal dikonfirmasi|Schedule change acknowledged
+Hasil kegiatan dikirim|Activity result submitted
+Hasil kegiatan diperbarui|Activity result updated
+Hasil kegiatan disetujui|Activity result approved
+Hasil kegiatan perlu diperbaiki|Activity result needs changes
+Pengukuran dampak dikirim|Impact measurement submitted
+Pengukuran dampak diverifikasi|Impact measurement verified
+Pengukuran dampak ditolak|Impact measurement rejected
+Koreksi pengukuran dikirim|Measurement correction submitted
+Peninjauan diminta|Review requested
+Pembaruan warga disetujui|Community update approved
+Pembaruan warga ditolak|Community update rejected
+Bukti tambahan pembaruan warga diminta|Additional evidence requested for community update
+Kejadian diikuti|Incident followed
+Kejadian berhenti diikuti|Incident unfollowed
+Draf Instagram dibuat|Instagram draft created
+Draf Instagram diperbarui|Instagram draft updated
+Konten Instagram disetujui|Instagram content approved
+Posting Instagram diminta|Instagram post requested
+Draf Instagram dibatalkan|Instagram draft cancelled
+Penarikan posting Instagram diminta|Instagram post retraction requested
+Operasi Instagram dicoba ulang|Instagram operation retried
+Penarikan Instagram dikonfirmasi manual|Instagram retraction manually confirmed
+Pengaturan Instagram diubah|Instagram settings changed
+Publikasi laporan ditarik|Report publication withdrawn
+Publikasi laporan dipulihkan|Report publication restored
+Akun Instagram dihubungkan|Instagram account connected
+Pemutusan akun Instagram diminta|Instagram account disconnection requested
+oleh {0}|by {0}
+{0}/{1} peserta · {2} tempat tersedia|{0}/{1} participants · {2} places available
+{0} dukungan warga|{0} community supporters
 `.trim().split("\n").map(line => line.split("|")));

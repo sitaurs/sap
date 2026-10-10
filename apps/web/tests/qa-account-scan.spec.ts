@@ -14,27 +14,34 @@ test("invalid scan files have explicit feedback, never upload, and allow a valid
   await page.goto("/dashboard?view=scan");
   const input = page.getByLabel("Unggah foto dari perangkat");
   const invalid = [
-    { name: "picture.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>') },
-    { name: "script.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>window.qaScriptExecuted=true</script></svg>') },
-    { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("not a photo") },
-    { name: "large.jpg", mimeType: "image/jpeg", buffer: Buffer.alloc(12 * 1024 * 1024) },
+    { file: { name: "picture.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>') }, message: "Format file tidak didukung. Pilih foto JPG, PNG, atau WebP." },
+    { file: { name: "script.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>window.qaScriptExecuted=true</script></svg>') }, message: "Format file tidak didukung. Pilih foto JPG, PNG, atau WebP." },
+    { file: { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("not a photo") }, message: "Format file tidak didukung. Pilih foto JPG, PNG, atau WebP." },
+    { file: { name: "large.jpg", mimeType: "image/jpeg", buffer: Buffer.alloc(12 * 1024 * 1024) }, message: "Ukuran foto melebihi 10 MB. Pilih foto yang lebih kecil." },
   ];
-  for (const file of invalid) {
+  for (const { file, message } of invalid) {
     await input.setInputFiles(photo);
     await expect(page.getByRole("button", { name: "Pindai dengan AI" })).toBeEnabled();
     await input.setInputFiles(file);
-    await expect(page.locator('p[role="alert"]')).toHaveText("Pilih foto JPG, PNG, atau WebP dengan ukuran maksimal 10 MB.");
+    await expect(page.locator('p[role="alert"]')).toHaveText(message);
     await expect(page.getByRole("button", { name: "Pindai dengan AI" })).toHaveCount(0);
     await expect(page.getByText(file.name, { exact: true })).toHaveCount(0);
     // Re-selecting the same rejected file must still give feedback.
     await input.setInputFiles(file);
-    await expect(page.locator('p[role="alert"]')).toBeVisible();
+    await expect(page.locator('p[role="alert"]')).toHaveText(message);
   }
   expect(await page.evaluate(() => "qaScriptExecuted" in window)).toBe(false);
   expect(requests.filter(request => request.method === "POST")).toEqual([]);
-  await input.setInputFiles(photo);
-  await expect(page.locator('p[role="alert"]')).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Pindai dengan AI" })).toBeEnabled();
+  for (const valid of [
+    photo,
+    { name: "waste.jpg", mimeType: "image/jpeg", buffer: png },
+    { name: "waste.webp", mimeType: "image/webp", buffer: png },
+  ]) {
+    await input.setInputFiles(valid);
+    await expect(page.locator('p[role="alert"]')).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Pindai dengan AI" })).toBeEnabled();
+    await expect(page.getByText(valid.name, { exact: true })).toBeVisible();
+  }
 });
 
 test("English scan prompts, rejection, and material labels stay translated", async ({ page }) => {
@@ -51,12 +58,29 @@ test("English scan prompts, rejection, and material labels stay translated", asy
   await expect(page.getByText("Take a photo or upload an image")).toBeVisible();
   const input = page.getByLabel("Upload a photo from your device");
   await input.setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("invalid") });
-  await expect(page.locator('p[role="alert"]')).toHaveText("Choose a JPG, PNG, or WebP photo no larger than 10 MB.");
+  await expect(page.locator('p[role="alert"]')).toHaveText("Unsupported file type. Choose a JPG, PNG, or WebP photo.");
   await input.setInputFiles(photo);
   await page.getByRole("button", { name: "Scan with AI" }).click();
   await expect(page.getByRole("heading", { name: "Scan result", exact: true })).toBeVisible();
   await expect(page.getByText("Plastic", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Heater", { exact: true })).toHaveCount(0);
+});
+
+test("a slow scan explains that its result is still checked automatically", async ({ page }) => {
+  await fixtureApi(page, { handler: async (route, path) => {
+    if (path === "/media") { await json(route, { id: ids.media }); return true; }
+    if (path === "/scans" && route.request().method() === "POST") {
+      await json(route, { id: ids.operation, status: "queued", outcome: null, categoryId: null, predictions: [], pointsAwarded: 0, createdAt: time, completedAt: null, errorCode: null }); return true;
+    }
+    if (path === `/scans/${ids.operation}`) {
+      await json(route, { id: ids.operation, status: "processing", outcome: null, categoryId: null, predictions: [], pointsAwarded: 0, createdAt: time, completedAt: null, errorCode: null }); return true;
+    }
+    return false;
+  } });
+  await page.goto("/dashboard?view=scan");
+  await page.getByLabel("Unggah foto dari perangkat").setInputFiles(photo);
+  await page.getByRole("button", { name: "Pindai dengan AI" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Pemindaian masih berlangsung." })).toBeVisible({ timeout: 15_000 });
 });
 
 test("English help searches and displays translated FAQ questions and answers", async ({ page }) => {
@@ -109,8 +133,14 @@ for (const locale of ["id", "en"] as const) {
 }
 
 test("first login click succeeds even when remembering an email is unavailable", async ({ page }) => {
+  let authenticated = false;
   const requests = await fixtureApi(page, { handler: async (route, path) => {
-    if (path === "/auth/login") { await json(route, user); return true; }
+    if (path === "/auth/me") {
+      if (authenticated) await json(route, user);
+      else await route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: { code: "UNAUTHORIZED", message: "Unauthorized" } }) });
+      return true;
+    }
+    if (path === "/auth/login") { authenticated = true; await json(route, user); return true; }
     return false;
   } });
   const errors: string[] = [];
@@ -136,8 +166,14 @@ test("first login click succeeds even when remembering an email is unavailable",
 });
 
 test("autofilled credentials submit once when two submit events arrive together", async ({ page }) => {
+  let authenticated = false;
   const requests = await fixtureApi(page, { handler: async (route, path) => {
-    if (path === "/auth/login") { await json(route, user); return true; }
+    if (path === "/auth/me") {
+      if (authenticated) await json(route, user);
+      else await route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: { code: "UNAUTHORIZED", message: "Unauthorized" } }) });
+      return true;
+    }
+    if (path === "/auth/login") { authenticated = true; await json(route, user); return true; }
     return false;
   } });
   await page.goto("/login");
@@ -189,6 +225,7 @@ test("server email validation produces a specific signup error instead of a gene
   await page.getByLabel("Kata sandi", { exact: true }).fill("synthetic-password");
   await page.getByRole("button", { name: "Daftar akun", exact: true }).click();
   await expect(page.locator('p[role="alert"]')).toHaveText("Alamat email tidak valid atau tidak dapat menerima pesan. Periksa alamat dan domain email Anda.");
+  await expect(page.locator('p[role="alert"]')).toHaveCount(1);
 });
 
 test("SAPA sends and renders one reply for simultaneous submissions, then accepts another turn", async ({ page }, testInfo) => {

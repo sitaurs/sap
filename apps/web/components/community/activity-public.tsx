@@ -77,7 +77,7 @@ export function ActivityExplore() {
             <div className={p.cardMetadata}>
               <span className={p.metadataItem}><MapPin size={16} aria-hidden="true" />{publicAreaLabel(activity.area, t)}</span>
               <span className={p.metadataItem}><CalendarDays size={16} aria-hidden="true" /><time dateTime={activity.startsAt}>{date(activity.startsAt, intlLocale)}</time></span>
-              <span className={p.metadataItem}><UsersRound size={17} aria-hidden="true" /><span>{activity.acceptedCount}/{activity.capacity}{" "}{t("peserta")} · {activity.registrationOpen ? <>{activity.availableSeats}{" "}{t("tempat tersedia")}</> : t(status === "completed" ? "Kegiatan selesai" : "Pendaftaran ditutup")}</span></span>
+              <span className={p.metadataItem}><UsersRound size={17} aria-hidden="true" /><span>{activity.registrationOpen ? t("{0}/{1} peserta · {2} tempat tersedia", { "0": activity.acceptedCount, "1": activity.capacity, "2": activity.availableSeats }) : <>{activity.acceptedCount}/{activity.capacity} {t("peserta")} · {t(status === "completed" ? "Kegiatan selesai" : "Pendaftaran ditutup")}</>}</span></span>
             </div>
             <div className={p.cardFooter}><Link className={p.cardButton} href={"/activities/" + activity.id}>{t("Lihat kegiatan")}<ChevronRight size={18} aria-hidden="true" /></Link></div>
           </article>;

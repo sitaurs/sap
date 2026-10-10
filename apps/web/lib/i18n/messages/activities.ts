@@ -206,9 +206,20 @@ Kehadiran belum dicatat|Attendance not recorded
 Tinjau|Review
 dari|of
 peserta dimuat · terbaru lebih dahulu|participants loaded · newest first
+{0} dari {1} peserta dimuat · terbaru lebih dahulu|{0} of {1} participants loaded · newest first
 Catatan sebelumnya:|Previous note:
+Catatan sebelumnya: {0}|Previous note: {0}
 Versi terbaru · revisi|Latest version · revision
 · kehadiran:|· attendance:
+Kegiatan dibuat|Activity created
+Kegiatan diperbarui|Activity updated
+Pendaftaran kegiatan dibuka|Activity registration opened
+Pendaftaran kegiatan ditutup|Activity registration closed
+Penugasan koordinator diperbarui|Coordinator assignment updated
+Pendaftaran peserta diperbarui|Participant registration updated
+Keputusan peserta diperbarui|Participant decision updated
+Kehadiran peserta diperbarui|Participant attendance updated
+Perubahan jadwal dikonfirmasi|Schedule change acknowledged
 Saya sudah meninjau, pertahankan input saya|I have reviewed it; keep my input
 Keputusan peserta|Participant decision
 Status baru|New status

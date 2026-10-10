@@ -136,6 +136,7 @@ export const landing: Record<string, string> = {
   "hari.": "days.",
   "Ringkasan berasal dari API SAP. Area tanpa data tidak berarti bersih.": "Summaries come from the SAP API. An area without data is not necessarily clean.",
   "Coba Sekarang": "Try Now",
+  "Ke Dashboard": "Go to dashboard",
   "Buka menu": "Open menu",
   "Tutup menu": "Close menu",
   "Jelajahi SAP": "Explore SAP",

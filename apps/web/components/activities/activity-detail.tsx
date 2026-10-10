@@ -440,10 +440,7 @@ export default function ActivityDetail({
                             <span />
                             <div>
                               <strong>{t(auditLabel(e.action))}</strong>
-                              <p>
-                                {e.actorDisplayName} ·{" "}
-                                {t(dateLabel(e.createdAt, true, intlLocale))}
-                              </p>
+                              <p>{`${e.actorDisplayName} · ${t(dateLabel(e.createdAt, true, intlLocale))}`}</p>
                             </div>
                           </div>
                         ))
@@ -718,12 +715,24 @@ export default function ActivityDetail({
 function auditLabel(action: string) {
   const known: Record<string, string> = {
     activity_created: "Kegiatan dibuat",
+    activity_edited: "Kegiatan diperbarui",
     activity_updated: "Kegiatan diperbarui",
+    activity_publish: "Pendaftaran kegiatan dibuka",
     activity_published: "Pendaftaran dibuka",
+    activity_close_registration: "Pendaftaran kegiatan ditutup",
     activity_cancelled: "Kegiatan dibatalkan",
+    activity_cancel: "Kegiatan dibatalkan",
     activity_started: "Kegiatan dimulai",
+    activity_start: "Kegiatan dimulai",
     activity_held: "Kegiatan ditunda",
+    activity_hold: "Kegiatan ditunda",
     activity_resumed: "Kegiatan dilanjutkan",
+    activity_resume: "Kegiatan dilanjutkan",
+    coordinator_acceptance: "Penugasan koordinator diperbarui",
+    membership_changed: "Pendaftaran peserta diperbarui",
+    membership_decided: "Keputusan peserta diperbarui",
+    attendance_changed: "Kehadiran peserta diperbarui",
+    schedule_acknowledged: "Perubahan jadwal dikonfirmasi",
   };
   return known[action] || "Perubahan kegiatan tercatat";
 }

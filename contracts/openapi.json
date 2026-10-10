@@ -10741,6 +10741,15 @@
                 "type": "null"
               }
             ]
+          },
+          "publicationChannels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["web", "instagram"]
+            },
+            "maxItems": 2,
+            "uniqueItems": true
           }
         },
         "required": [

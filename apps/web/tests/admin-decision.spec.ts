@@ -74,9 +74,12 @@ test("verification explains disabled save and succeeds without photo consent or 
   const save = dialog.getByRole("button", { name: "Simpan keputusan", exact: true });
   await expect(save).toBeDisabled();
   await expect(dialog.getByText("Isi alasan keputusan sepanjang 5–1000 karakter.")).toBeVisible();
-  await expect(dialog.getByText("Isi ringkasan publik untuk verifikasi awal.")).toBeVisible();
+  await expect(dialog.getByText("Tulis ringkasan publik sepanjang 20–500 karakter untuk verifikasi awal.")).toBeVisible();
   await dialog.getByLabel("Alasan keputusan").fill("Lokasi dan kondisi sudah diperiksa.");
-  await dialog.getByLabel("Ringkasan publik").fill("Sampah plastik ditemukan di taman.");
+  await dialog.getByLabel("Ringkasan publik").fill("bagus");
+  await expect(save).toBeDisabled();
+  await expect(dialog.getByText("Tulis ringkasan publik sepanjang 20–500 karakter untuk verifikasi awal.")).toBeVisible();
+  await dialog.getByLabel("Ringkasan publik").fill("Sampah plastik ditemukan di taman dengan bukti yang sudah ditinjau.");
   await expect(dialog.getByText("Web: foto belum disetujui", { exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Tandai untuk publikasi" })).toHaveCount(0);
   await expect(dialog.getByRole("button", { name: "Siapkan pratinjau bukti", exact: true })).toBeVisible();
@@ -86,7 +89,7 @@ test("verification explains disabled save and succeeds without photo consent or 
   await expect(dialog).toHaveCount(0);
   expect(requests.find(r => r.path.endsWith("/decisions"))?.body).toEqual({
     nextStatus: "verified", reason: "Lokasi dan kondisi sudah diperiksa.",
-    publicSummary: "Sampah plastik ditemukan di taman.",
+    publicSummary: "Sampah plastik ditemukan di taman dengan bukti yang sudah ditinjau.",
   });
   expect(requests.some(r => /consent/.test(r.path))).toBe(false);
   expect(requests.some(r => r.path.endsWith("/approvals"))).toBe(false);
@@ -208,7 +211,7 @@ test("requirements update progressively and switch with the chosen decision", as
   await expect(checklist.getByText("Terpenuhi", { exact: true })).toHaveCount(2);
   await dialog.getByLabel("Status baru").selectOption("rejected");
   await expect(checklist.getByText("Terpenuhi", { exact: true })).toHaveCount(1);
-  await expect(checklist.getByText("Ringkasan publik 1–500 karakter tanpa data pribadi")).toHaveCount(0);
+  await expect(checklist.getByText("Ringkasan publik 20–500 karakter tanpa data pribadi")).toHaveCount(0);
   await expect(dialog.getByRole("button", { name: "Simpan keputusan", exact: true })).toBeEnabled();
 });
 
@@ -222,16 +225,37 @@ test("automatic suggestions load before choosing duplicate and exclude ineligibl
   const suggestions = dialog.getByRole("region", { name: "Saran duplikat", exact: true });
   await expect(dialog.getByLabel("Status baru")).toHaveValue("verified");
   await expect(suggestions.getByRole("button")).toHaveCount(3);
+  await expect(suggestions.getByText("Terverifikasi", { exact: true })).toHaveCount(1);
+  await expect(suggestions.getByText("Dalam penanganan", { exact: true })).toHaveCount(1);
+  await expect(suggestions.getByText("Selesai", { exact: true })).toHaveCount(1);
   await expect(suggestions.getByText("Menunggu pemeriksaan", { exact: true })).toHaveCount(0);
   await expect(suggestions.getByText("Ditolak", { exact: true })).toHaveCount(0);
   await suggestions.getByRole("button", { name: /Dalam penanganan/ }).click();
   await expect(dialog.getByLabel("Status baru")).toHaveValue("duplicate");
+  const checklist = dialog.getByRole("region", { name: "Prasyarat keputusan", exact: true });
+  await expect(checklist.getByText("Laporan kanonis yang memenuhi syarat dipilih", { exact: true })).toBeVisible();
+  await expect(checklist.getByText("Terpenuhi", { exact: true })).toBeVisible();
   await dialog.getByLabel("Alasan keputusan").fill("Lokasi dan waktu cocok dengan laporan kanonis.");
   await dialog.getByRole("button", { name: "Simpan keputusan", exact: true }).click();
   await expect(dialog).toHaveCount(0);
   expect(requests.find(request => request.path.endsWith("/decisions"))?.body).toEqual({
     nextStatus: "duplicate", reason: "Lokasi dan waktu cocok dengan laporan kanonis.", duplicateOfId: candidates[2].reportId,
   });
+});
+
+test("duplicate canonical guidance is localized and matches eligible candidate statuses", async ({ page }) => {
+  await page.context().addCookies([{ name: "sap_locale", value: "en", url: test.info().project.use.baseURL as string }]);
+  const candidates: SapDuplicateCandidate[] = ["verified", "in_progress", "resolved"].map((status, index) => ({
+    reportId: `0000000${index + 2}-1000-4000-8000-000000000002`, status: status as SapReport["status"],
+    distanceMeters: 10 + index, occurredAt: time, reasonCodes: ["proximity", "temporal_proximity"],
+  }));
+  const { dialog } = await setup(page, "submitted", true, 1, candidates);
+  const suggestions = dialog.getByRole("region", { name: "Duplicate suggestions", exact: true });
+  await expect(suggestions.getByText("Candidates within 100 m and 24 hours: Verified, In progress, or Resolved.", { exact: true })).toBeVisible();
+  await suggestions.getByRole("button", { name: /In progress/ }).click();
+  const checklist = dialog.getByRole("region", { name: "Decision requirements", exact: true });
+  await expect(checklist.getByText("An eligible canonical report is selected", { exact: true })).toBeVisible();
+  await expect(checklist.getByText("Met", { exact: true })).toBeVisible();
 });
 
 test("Instagram approval stays separate from the public web evidence", async ({ page }) => {

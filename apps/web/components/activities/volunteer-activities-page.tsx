@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Leaf, UserRound, UsersRound } from "lucide-react";
 import { ApiError, type SapCategory } from "../../lib/api/client";
+import { permissionReason } from "../../lib/api/r1";
 import {
   acknowledgeActivitySchedule,
   decideCoordinatorAssignment,
@@ -193,7 +194,7 @@ export default function VolunteerActivitiesPage({ categories }: { categories: Sa
   if (screen === "unsupported")
     return <div className={s.page}><PageHead title={t("Kegiatan relawan")} subtitle={t(message)} onBack={() => setScreen("manage")} kicker="KEGIATAN RELAWAN" /><Notice>{t(message)}</Notice></div>;
 
-  const registrations = myActivities.filter((item) => !item.isCoordinator);
+  const registrations = myActivities.filter((item) => item.membership !== null);
 
   return <section className={`${s.page} ${v.workspace}`} aria-labelledby="volunteer-workspace-title">
     <WorkspaceHeading />
@@ -235,8 +236,8 @@ export default function VolunteerActivitiesPage({ categories }: { categories: Sa
           {selectedPublic.wasteHandoverPlan && <p><strong>{t("Rencana serah-terima:")}</strong> {selectedPublic.wasteHandoverPlan}</p>}
           {viewer?.meetingPoint && <div className={s.meeting}><strong>{t("Titik kumpul")}</strong><p>{viewer.meetingPoint.instructions}</p>{viewer.meetingPoint.latitude !== null && viewer.meetingPoint.longitude !== null && <small>{t("Koordinat hanya terlihat oleh peserta diterima dan koordinator.")}</small>}</div>}
           {viewer?.scheduleAcknowledgementRequired && <div className={s.warning}><strong>{t("Jadwal kegiatan berubah.")}</strong><p>{t("Konfirmasikan apakah Anda menerima perubahan jadwal. Menolak akan membatalkan kepesertaan.")}</p><div className={s.buttonRow}><button className={s.primary} type="button" onClick={() => void acknowledge(viewer.scheduleRevision, true)} disabled={busy}>{t("Saya menerima jadwal baru")}</button><button className={s.secondary} type="button" onClick={() => void acknowledge(viewer.scheduleRevision, false)} disabled={busy}>{t("Batalkan kepesertaan")}</button></div></div>}
-          {viewer?.membership && <p className={s.memberStatus}>{t("Pendaftaran Anda:")}{" "}{t(memberLabels[viewer.membership.status])}{viewer.membership.reason ? ` · ${viewer.membership.reason}` : ""}</p>}
-          {viewer?.actions.join.allowed ? <button type="button" className={s.primary} onClick={() => void join(true)} disabled={busy}>{t("Ajukan untuk bergabung")}</button> : viewer?.actions.cancelMembership.allowed ? <button type="button" className={s.secondary} onClick={() => void join(false)} disabled={busy}>{t("Batalkan pendaftaran")}</button> : <p className={s.helper}>{t("Pendaftaran saat ini tidak tersedia:")}{" "}{viewer?.actions.join.reasonCode ?? t("status kegiatan tidak memungkinkan")}.</p>}
+          {viewer?.membership && <p className={s.memberStatus}>{t("Pendaftaran Anda: {0}", { "0": t(memberLabels[viewer.membership.status]) })}{viewer.membership.reason ? ` · ${viewer.membership.reason}` : ""}</p>}
+          {viewer?.actions.join.allowed ? <button type="button" className={s.primary} onClick={() => void join(true)} disabled={busy}>{t("Ajukan untuk bergabung")}</button> : viewer?.actions.cancelMembership.allowed ? <button type="button" className={s.secondary} onClick={() => void join(false)} disabled={busy}>{t("Batalkan pendaftaran")}</button> : <p className={s.helper}>{t(permissionReason(viewer?.actions.join.reasonCode))}</p>}
           {error && <Notice error>{t(error)}</Notice>}{message && <Notice>{t(message)}</Notice>}
         </> : selectedPublic?.kind === "activity_notice" ? <><h2>{t("Informasi kegiatan berubah")}</h2><p>{selectedPublic.message}</p>{selectedPublic.cancellationReason && <p>{selectedPublic.cancellationReason}</p>}</> : null}
       </div>

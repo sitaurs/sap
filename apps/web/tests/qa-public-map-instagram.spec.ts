@@ -11,9 +11,15 @@ for (const locale of ["id", "en"] as const) {
     await language(page, locale);
     const summary = "Synthetic summary: verified evidence awaits community follow-up. ".repeat(7).trim();
     const requests = await fixtureApi(page, { guest: true, handler: async (route, path) => {
-      if (path !== "/public/incidents") return false;
-      await json(route, { items: [{ ...incident, summary, supportCount: 0 }], nextCursor: null });
-      return true;
+      if (path === "/public/incidents") {
+        await json(route, { items: [{ ...incident, summary, supportCount: 0 }], nextCursor: null });
+        return true;
+      }
+      if (path === `/public/incidents/${ids.incident}`) {
+        await json(route, { ...incident, summary, supportCount: 0 });
+        return true;
+      }
+      return false;
     } });
     await page.goto("/incidents");
     const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name: incident.title }) });
@@ -25,6 +31,11 @@ for (const locale of ["id", "en"] as const) {
       const style = getComputedStyle(node);
       return style.webkitLineClamp === "none" && node.scrollHeight <= node.clientHeight + 1;
     })).toBe(true);
+    await page.goto(`/incidents/${ids.incident}`);
+    const detailDescription = page.locator("main p").filter({ hasText: summary });
+    await expect(detailDescription).toHaveText(summary);
+    expect(await detailDescription.evaluate(node => getComputedStyle(node).webkitLineClamp)).toBe("none");
+    await expect(page.locator("main")).toContainText(locale === "en" ? "0 community supporters" : "0 dukungan warga");
     expect(await page.locator("main").innerText()).not.toMatch(/ADMIN SAP/i);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     expect(requests.every(request => request.method === "GET")).toBe(true);
@@ -41,10 +52,13 @@ for (const locale of ["id", "en"] as const) {
     } });
     await page.goto("/activities");
     const card = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "Bersih taman · TEST" }) });
-    await expect(card).toContainText(locale === "en" ? "0/1 participants" : "0/1 peserta");
+    await expect(card.locator('[class*="metadataItem"]').nth(2)).toHaveText(locale === "en" ? "0/1 participants · 1 places available" : "0/1 peserta · 1 tempat tersedia");
     expect(await page.locator("main").innerText()).not.toMatch(/ADMIN SAP/i);
     await page.goto(`/activities/${ids.activity}`);
     await expect(page.getByRole("heading", { name: "Bersih taman · TEST" })).toBeVisible();
+    const participation = page.getByRole("complementary", { name: locale === "en" ? "Join activity" : "Ikut kegiatan" });
+    await expect(participation.locator("strong")).toHaveText(locale === "en" ? "0 / 1 participants accepted" : "0 / 1 peserta diterima");
+    await expect(participation.locator("p").first()).toHaveText(locale === "en" ? "1 places available" : "1 tempat tersedia");
     await expect(page.getByRole("link", { name: locale === "en" ? "Sign in to join" : "Masuk untuk ikut" })).toBeVisible();
     expect(await page.locator("main").innerText()).not.toMatch(/ADMIN SAP/i);
     expect(requests.every(request => request.method === "GET")).toBe(true);
@@ -105,7 +119,7 @@ test("area list and detail show provided names, translated risks and no internal
   await page.route("https://*.tile.openstreetmap.org/**", route => route.fulfill({ status: 200, contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aY9sAAAAASUVORK5CYII=", "base64") }));
   await page.goto("/dashboard?view=map");
   await expect(page.getByText("1 area memiliki data.", { exact: true })).toBeVisible();
-  await expect(page.getByText(/^Diperbarui:/)).toBeVisible();
+  await expect(page.getByText(/^Diperbarui: /)).toBeVisible();
   await page.getByRole("button", { name: "Daftar", exact: true }).click();
   const row = page.getByRole("button", { name: /Kelurahan uji, Kecamatan uji/ });
   await expect(row).toContainText("3 laporan · 2 terbuka · Risiko Sedang");
@@ -126,6 +140,30 @@ test("area list and detail show provided names, translated risks and no internal
   expect(requests.filter(request => request.path === "/area-localities")).toHaveLength(1);
   expect(requests.filter(request => request.path.endsWith("/locality"))).toHaveLength(0);
   await page.screenshot({ path: test.info().outputPath("area-labels-and-method.png"), fullPage: true });
+});
+
+test("map category options are localized from API names", async ({ page }) => {
+  const categories = [
+    { id: "battery", name: "Baterai" }, { id: "biological", name: "Sampah organik" },
+    { id: "cardboard", name: "Kardus" }, { id: "clothes", name: "Pakaian" },
+    { id: "glass", name: "Kaca" }, { id: "metal", name: "Logam" },
+    { id: "paper", name: "Kertas" }, { id: "plastic", name: "Plastik" },
+    { id: "shoes", name: "Sepatu" }, { id: "trash", name: "Sampah lainnya" },
+  ];
+  const requests = await fixtureApi(page, { handler: async (route, path) => {
+    if (path === "/categories") { await json(route, { items: categories, nextCursor: null }); return true; }
+    return false;
+  } });
+
+  for (const locale of ["id", "en"] as const) {
+    await language(page, locale);
+    await page.goto("/dashboard?view=map");
+    const categorySelect = page.getByRole("combobox", { name: locale === "en" ? "Map waste category" : "Kategori sampah peta" });
+    await expect(categorySelect.locator("option")).toHaveText(locale === "en"
+      ? ["All categories", "Battery", "Organic waste", "Cardboard", "Clothes", "Glass", "Metal", "Paper", "Plastic", "Shoes", "Other waste"]
+      : ["Semua kategori", ...categories.map(category => category.name)]);
+  }
+  expect(requests.every(request => request.method === "GET")).toBe(true);
 });
 
 test("locality lookup batches at most 100 cells and fetches the selected remainder once", async ({ page }) => {
@@ -164,5 +202,32 @@ test("locality lookup batches at most 100 cells and fetches the selected remaind
   expect(batchedCells).toEqual(cells.slice(0, 100));
   expect(requests.filter(request => request.path === "/area-localities")).toHaveLength(1);
   expect(requests.filter(request => request.path.endsWith("/locality"))).toHaveLength(1);
+  expect(requests.every(request => request.method === "GET")).toBe(true);
+});
+
+test("Instagram picker explains when the public source summary is too short", async ({ page }) => {
+  const requests = await fixtureApi(page, { role: "admin", handler: async (route, path) => {
+    if (path === "/admin/instagram/reports") {
+      await json(route, { items: [{ reportId: ids.incident, scanId: ids.operation, status: "verified", publicSummary: "bagus",
+        categoryName: "Plastik", occurredAt: time, createdAt: time, mediaIds: [ids.media] }], nextCursor: null });
+      return true;
+    }
+    if (path === `/admin/reports/${ids.incident}/lifecycle`) {
+      await json(route, { reportId: ids.incident, sourceRevision: 1, publicVisibility: "public", instagramAllowed: true,
+        publicationAssets: [{ mediaId: ids.media, renditionId: ids.rendition, channels: ["instagram"], sourceType: "report", sourceId: ids.incident }],
+        publicationMilestones: [], instagramPublicationSeries: [], approvedResolutionEvidence: [], actions: { createInstagramDraft: permission } });
+      return true;
+    }
+    if (path === `/public/incidents/${ids.incident}`) { await json(route, incident); return true; }
+    if (path === `/admin/reports/${ids.incident}/publications`) { await json(route, { items: [], nextCursor: null }); return true; }
+    return false;
+  } });
+  await page.goto("/dashboard?view=admin-instagram");
+  await page.locator("header").getByRole("button", { name: "Pilih laporan", exact: true }).click();
+  const picker = page.getByRole("dialog", { name: "Pilih sumber publikasi" });
+  await expect(picker.getByRole("heading", { name: "bagus", exact: true })).toBeVisible();
+  await picker.getByRole("button", { name: "Periksa kelayakan publikasi" }).click();
+  await expect(picker.getByText("Ringkasan publik sumber terlalu singkat. Perbarui menjadi minimal 20 karakter lewat moderasi sebelum membuat draf Instagram.")).toBeVisible();
+  await expect(picker.getByRole("button", { name: /Pilih foto berizin/ })).toHaveCount(0);
   expect(requests.every(request => request.method === "GET")).toBe(true);
 });

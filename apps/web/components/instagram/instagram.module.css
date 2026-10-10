@@ -199,7 +199,7 @@
 .sourceHead{display:flex;align-items:center;gap:8px;font-size:11px;color:#789180;flex-wrap:wrap}
 .sourceHead>svg{color:#459374;flex-shrink:0}
 .sourceVerified{display:flex;align-items:center;gap:5px;margin-left:auto;color:#1d8053;font-size:11px}
-.sourceCard h3{font-size:16px;font-weight:700;color:#2d4c40;margin:0;line-height:1.6;overflow-wrap:anywhere}
+.sourceCard h3{font-size:16px;font-weight:700;color:#2d4c40;margin:0;line-height:1.6;overflow-wrap:anywhere;white-space:pre-wrap}
 .sourceMeta{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .sourceMeta>span{color:#197353;background:#e7f5eb;font-size:12px;border-radius:7px;padding:6px 10px}
 .sourceMeta .date{flex-direction:row;font-size:11px;gap:10px;flex-wrap:wrap}

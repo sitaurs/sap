@@ -83,7 +83,7 @@ export default function ImpactSummaryCards({ data, onMethod }: { data: ImpactSum
           <li><CheckCircle2 size={17} aria-hidden="true" />{t("Sumber publik yang disetujui")}</li>
           <li><CheckCircle2 size={17} aria-hidden="true" />{t("Periode dan cakupan mengikuti filter")}</li>
           <li><CheckCircle2 size={17} aria-hidden="true" />{t("Tanpa estimasi berat dari foto")}</li>
-        </ul><p className={s.updated}>{t("Diperbarui")}{" "}{t(updatedLabel(data.asOf, intlLocale))}</p></div>
+        </ul><p className={s.updated}>{t("Diperbarui: {0}", { "0": t(updatedLabel(data.asOf, intlLocale)) })}</p></div>
         <button className={s.methodLink} type="button" onClick={onMethod}>{t("Lihat metode")}{" "}<ChevronRight size={17} aria-hidden="true" /></button>
       </section>
     </div>

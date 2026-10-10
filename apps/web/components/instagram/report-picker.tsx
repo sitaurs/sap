@@ -180,10 +180,11 @@ function EligibleSource({
         series.milestoneId === (kind === "resolution" ? selected?.id ?? null : null),
     ),
     seriesBlocked = currentSeries !== undefined && !currentSeries.canCreate,
+    summaryNeedsRevision = (report.publicSummary?.trim().length ?? 0) < 20,
     eligible =
       lifecycle?.actions.createInstagramDraft.allowed &&
       lifecycle.instagramAllowed &&
-      incident;
+      incident && !summaryNeedsRevision;
   const assets =
     lifecycle?.publicationAssets.filter(
       (a) =>
@@ -261,9 +262,10 @@ function EligibleSource({
             </div>
           ) : !eligible ? (
             <Notice warning>
-              {t("Publikasi belum diizinkan:")}{" "}
-              {t(permissionReason(lifecycle?.actions.createInstagramDraft.reasonCode) ||
-                "Sumber laporan belum memenuhi syarat publikasi.")}
+              {summaryNeedsRevision
+                ? t("Ringkasan publik sumber terlalu singkat. Perbarui menjadi minimal 20 karakter lewat moderasi sebelum membuat draf Instagram.")
+                : <>{t("Publikasi belum diizinkan:")} {t(permissionReason(lifecycle?.actions.createInstagramDraft.reasonCode) ||
+                  "Sumber laporan belum memenuhi syarat publikasi.")}</>}
             </Notice>
           ) : (
             <>

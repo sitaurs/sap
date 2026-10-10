@@ -25,7 +25,10 @@ export class ReportsService {
     private readonly scans: ScanRepository,
   ) {}
 
-  async createReport(userId: string, dto: ReportInputDto, idempotencyKey: string): Promise<ReportView> {
+  async createReport(userId: string, dto: ReportInputDto, idempotencyKey: string, emailVerified = false): Promise<ReportView> {
+    if ((dto.publicationChannels?.length ?? 0) > 0 && !emailVerified) {
+      throw new ForbiddenException({ code: 'EMAIL_VERIFICATION_REQUIRED', message: 'Verifikasi email diperlukan untuk memberi izin publikasi.' });
+    }
     await this.enforceRateLimit(userId);
 
     const occurredAt = new Date(dto.occurredAt);
@@ -49,6 +52,7 @@ export class ReportsService {
       reportedSeverity: dto.reportedSeverity,
       categoryId,
       scanId,
+      publicationChannels: dto.publicationChannels ?? [],
     });
 
     const { view } = await this.reports.createIdempotent({
@@ -62,6 +66,7 @@ export class ReportsService {
       reportedSeverity: dto.reportedSeverity,
       categoryId,
       scanId,
+      publicationChannels: dto.publicationChannels ?? [],
       actorScope: `user:${userId}`,
       route: REPORTS_ROUTE,
       key: idempotencyKey,

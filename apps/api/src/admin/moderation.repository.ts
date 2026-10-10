@@ -139,7 +139,9 @@ export class ModerationRepository {
       }
       if (!isValidTransition(from, to) && !(from==='verified' && to==='resolved' && claimIds.length)) throw new DecisionAbort('invalid_transition');
       const decisionObservedAt=to==='resolved'?(resolutionObservedAt??new Date()):null;
-      if (requiresInitialPublicSummary(from, to) && !(input.publicSummary && input.publicSummary.trim().length > 0)) {
+      const summaryLength = input.publicSummary?.trim().length ?? 0;
+      if ((requiresInitialPublicSummary(from, to) && summaryLength < 20)
+        || (input.publicSummary !== undefined && summaryLength > 0 && summaryLength < 20)) {
         throw new DecisionAbort('summary_required');
       }
 

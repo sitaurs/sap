@@ -26,6 +26,63 @@ const MODE_INFO: Record<SapScanSettings["mode"], { label: string; hint: string }
   full_llm: { label: "LLM saja", hint: "Selalu pakai vision LLM (fallback ke ML bila gagal)." },
 };
 
+const auditActionLabels: Record<string, string> = {
+  "report.decision": "Keputusan laporan",
+  "report.evidence_requested": "Bukti tambahan diminta",
+  "media.consent.changed": "Izin publikasi bukti diubah",
+  "evidence.rendition.requested": "Versi publik bukti diminta",
+  "media.approval.changed": "Persetujuan bukti publik diubah",
+  "user.role.changed": "Peran pengguna diubah",
+  "report.assignment.changed": "Penugasan laporan diubah",
+  "report.assignment.progress": "Progres penugasan diperbarui",
+  "area.locality.changed": "Nama wilayah diperbarui",
+  activity_created: "Kegiatan dibuat",
+  activity_edited: "Kegiatan diperbarui",
+  coordinator_acceptance: "Penugasan koordinator diperbarui",
+  activity_publish: "Pendaftaran kegiatan dibuka",
+  activity_close_registration: "Pendaftaran kegiatan ditutup",
+  activity_start: "Kegiatan dimulai",
+  activity_request_result: "Hasil kegiatan diminta",
+  activity_hold: "Kegiatan ditunda",
+  activity_resume: "Kegiatan dilanjutkan",
+  activity_cancel: "Kegiatan dibatalkan",
+  membership_changed: "Pendaftaran peserta diperbarui",
+  membership_decided: "Keputusan peserta diperbarui",
+  attendance_changed: "Kehadiran peserta diperbarui",
+  schedule_acknowledged: "Perubahan jadwal dikonfirmasi",
+  activity_result_submitted: "Hasil kegiatan dikirim",
+  activity_result_edited: "Hasil kegiatan diperbarui",
+  activity_result_approved: "Hasil kegiatan disetujui",
+  activity_result_rejected: "Hasil kegiatan perlu diperbaiki",
+  measurement_submitted: "Pengukuran dampak dikirim",
+  measurement_verify: "Pengukuran dampak diverifikasi",
+  measurement_reject: "Pengukuran dampak ditolak",
+  measurement_correction_submitted: "Koreksi pengukuran dikirim",
+  "review.requested": "Peninjauan diminta",
+  "community_update.approve": "Pembaruan warga disetujui",
+  "community_update.reject": "Pembaruan warga ditolak",
+  "community_update.request_evidence": "Bukti tambahan pembaruan warga diminta",
+  "community.rate.follow": "Kejadian diikuti",
+  "community.rate.unfollow": "Kejadian berhenti diikuti",
+  "instagram.draft.created": "Draf Instagram dibuat",
+  "instagram.draft.edited": "Draf Instagram diperbarui",
+  "instagram.post.approved": "Konten Instagram disetujui",
+  "instagram.publish.requested": "Posting Instagram diminta",
+  "instagram.post.cancelled": "Draf Instagram dibatalkan",
+  "instagram.retract.requested": "Penarikan posting Instagram diminta",
+  "instagram.operation.retry": "Operasi Instagram dicoba ulang",
+  "instagram.retraction.manual_confirmed": "Penarikan Instagram dikonfirmasi manual",
+  "instagram.settings.changed": "Pengaturan Instagram diubah",
+  "report.publication.withdrawn": "Publikasi laporan ditarik",
+  "report.publication.restored": "Publikasi laporan dipulihkan",
+  "instagram.account.connected": "Akun Instagram dihubungkan",
+  "instagram.account.disconnect.requested": "Pemutusan akun Instagram diminta",
+};
+
+function auditActionLabel(action: string) {
+  return auditActionLabels[action] ?? "Perubahan tercatat";
+}
+
 function fmt(value: string, locale = "id-ID") {
   return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
@@ -250,8 +307,8 @@ function ModerationPanel({ categories }: { categories: SapCategory[] }) {
         : <div className={admin.auditList}>
             {audit.map(event => (
               <div key={event.id} className={admin.auditRow}>
-                <span className={admin.auditAction}>{t(event.action === "report.decision" ? "Keputusan laporan" : event.action === "report.evidence_requested" ? "Permintaan klarifikasi laporan" : event.action)}</span>
-                <span>{t("oleh")}{" "}{event.actorDisplayName}</span>
+                <span className={admin.auditAction}>{t(auditActionLabel(event.action))}</span>
+                <span>{t("oleh {0}", { "0": event.actorDisplayName })}</span>
                 <time>{fmt(event.createdAt, intlLocale)}</time>
               </div>
             ))}

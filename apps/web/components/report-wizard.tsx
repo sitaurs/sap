@@ -58,6 +58,7 @@ export default function ReportWizard({ onClose, onSubmitted, categories }: Props
   const [pointConfirmed, setPointConfirmed] = useState(false);
   const [date, setDate] = useState(() => localDateTime().date);
   const [time, setTime] = useState(() => localDateTime().time);
+  const [publicationChannels, setPublicationChannels] = useState<Array<"web" | "instagram">>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -156,6 +157,7 @@ export default function ReportWizard({ onClose, onSubmitted, categories }: Props
         occurredAt,
         reportedSeverity: severity,
         categoryId: categoryId || null,
+        publicationChannels,
       }, csrfToken, idempotencyRef.current);
       if (!result.id || result.status !== "submitted") throw new Error("Server belum mengonfirmasi status laporan. Coba buka Laporan saya sebelum mengirim ulang.");
       onSubmitted({
@@ -225,10 +227,18 @@ export default function ReportWizard({ onClose, onSubmitted, categories }: Props
 
     {step === 3 && <>
       <section className={`${styles.card} ${styles.reviewCard}`} aria-label={t("Ringkasan laporan")}>
-        <div className={styles.reviewColumn}><div className={styles.sectionHeading}><h2>{t("Bukti temuan")}</h2><button type="button" onClick={() => { setError(""); setStep(1); }}>{t("Ubah")}</button></div><div className={styles.reviewPhotos}>{previews.map((url, index) => <div className={styles.reviewPhoto} key={url}><Image src={url} alt={t("Bukti temuan {0}", { "0": index + 1 })} fill unoptimized sizes="(max-width: 760px) 80vw, 350px" /></div>)}</div><div className={styles.reviewChips}><span><Recycle size={17} />{t(categoryLabel)}</span><span><SignalMedium size={18} />{t("Tumpukan")}{" "}{t(severityLabel)}</span></div><p className={styles.reviewDescription}>{description.trim()}</p></div>
-        <div className={styles.reviewColumn}><div className={styles.sectionHeading}><h2>{t("Lokasi & waktu")}</h2><button type="button" onClick={() => { setError(""); setStep(2); }}>{t("Ubah")}</button></div><div className={styles.reviewMap}><ReportMap point={point} readOnly /></div><div className={styles.reviewFacts}><span><MapPin size={19} />{point?.latitude.toFixed(5)}, {point?.longitude.toFixed(5)}</span><span><CalendarDays size={19} />{occurredAt && !Number.isNaN(occurredAt.getTime()) ? formatDateTime(occurredAt.toISOString(), intlLocale) : t("Waktu belum dipilih")}</span><span><SignalMedium size={19} />{t("Tingkat tumpukan:")}{" "}{t(severityLabel)}</span></div></div>
+        <div className={styles.reviewColumn}><div className={styles.sectionHeading}><h2>{t("Bukti temuan")}</h2><button type="button" onClick={() => { setError(""); setStep(1); }}>{t("Ubah")}</button></div><div className={styles.reviewPhotos}>{previews.map((url, index) => <div className={styles.reviewPhoto} key={url}><Image src={url} alt={t("Bukti temuan {0}", { "0": index + 1 })} fill unoptimized sizes="(max-width: 760px) 80vw, 350px" /></div>)}</div><div className={styles.reviewChips}><span><Recycle size={17} />{t(categoryLabel)}</span><span><SignalMedium size={18} />{`${t("Tumpukan")} ${t(severityLabel)}`}</span></div><p className={styles.reviewDescription}>{description.trim()}</p></div>
+        <div className={styles.reviewColumn}><div className={styles.sectionHeading}><h2>{t("Lokasi & waktu")}</h2><button type="button" onClick={() => { setError(""); setStep(2); }}>{t("Ubah")}</button></div><div className={styles.reviewMap}><ReportMap point={point} readOnly /></div><div className={styles.reviewFacts}><span><MapPin size={19} />{point?.latitude.toFixed(5)}, {point?.longitude.toFixed(5)}</span><span><CalendarDays size={19} />{occurredAt && !Number.isNaN(occurredAt.getTime()) ? formatDateTime(occurredAt.toISOString(), intlLocale) : t("Waktu belum dipilih")}</span><span><SignalMedium size={19} />{t("Tingkat tumpukan: {0}", { "0": t(severityLabel) })}</span></div></div>
       </section>
       <div className={styles.infoBar}><ShieldCheck size={23} /><span>{t("Laporan akan ditinjau sebelum dipublikasikan. Foto dan koordinat rinci tidak langsung tampil di peta publik.")}</span></div>
+      <fieldset className={styles.consentSection}>
+        <legend>{t("Izin penggunaan foto")}</legend>
+        <p>{t("Pilihan ini hanya memberi izin untuk peninjauan publikasi. Moderator tetap harus menyetujui foto sebelum tampil.")}</p>
+        <div className={styles.consentOptions}>
+          <label><input type="checkbox" checked={publicationChannels.includes("web")} onChange={event => setPublicationChannels(current => event.target.checked ? [...current, "web"] : current.filter(channel => channel !== "web"))} />{t("Publik di SAP")}</label>
+          <label><input type="checkbox" checked={publicationChannels.includes("instagram")} onChange={event => setPublicationChannels(current => event.target.checked ? [...current, "instagram"] : current.filter(channel => channel !== "instagram"))} />{t("Instagram SAP")}</label>
+        </div>
+      </fieldset>
       <div className={styles.actions}><button className={styles.textButton} type="button" disabled={busy} onClick={() => { setError(""); setStep(2); }}><ArrowLeft size={18} />{t("Kembali")}</button><button className={styles.primaryButton} type="button" disabled={busy} onClick={submit}>{busy ? t(phase) : t("Kirim laporan")}{!busy && <Send size={21} />}</button></div>
     </>}
 

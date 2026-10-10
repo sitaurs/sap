@@ -90,18 +90,18 @@ export function DecisionModal({ report, categoryName, onClose, onDecided }: {
   }
 
   const reasonOk = reason.trim().length >= 5 && reason.trim().length <= 1000;
-  const summaryOk = publicSummary.trim().length > 0 && publicSummary.trim().length <= 500;
+  const summaryOk = publicSummary.trim().length >= 20 && publicSummary.trim().length <= 500;
   const duplicateOk = Boolean(duplicates?.some(candidate => candidate.reportId === duplicateOfId));
   const requirements = [
     { label: "Alasan keputusan 5–1000 karakter", met: reasonOk },
-    ...(isInitialVerify ? [{ label: "Ringkasan publik 1–500 karakter tanpa data pribadi", met: summaryOk }] : []),
-    ...(needsDuplicate ? [{ label: "Laporan kanonis terverifikasi dipilih", met: duplicateOk }] : []),
+    ...(isInitialVerify ? [{ label: "Ringkasan publik 20–500 karakter tanpa data pribadi", met: summaryOk }] : []),
+    ...(needsDuplicate ? [{ label: "Laporan kanonis yang memenuhi syarat dipilih", met: duplicateOk }] : []),
     ...(needsResolutionMedia ? [{ label: "Minimal satu foto bukti penyelesaian", met: resolutionIds.length > 0 && !uploading }] : []),
   ];
   const saveBlockers = [
     ...(!reasonOk ? ["Isi alasan keputusan sepanjang 5–1000 karakter."] : []),
     ...(needsDuplicate && !duplicateOk ? ["Pilih laporan kanonis untuk keputusan duplikat."] : []),
-    ...(isInitialVerify && !summaryOk ? ["Isi ringkasan publik untuk verifikasi awal."] : []),
+    ...(isInitialVerify && !summaryOk ? ["Tulis ringkasan publik sepanjang 20–500 karakter untuk verifikasi awal."] : []),
     ...(needsResolutionMedia && !resolutionIds.length ? ["Unggah minimal satu foto bukti penyelesaian."] : []),
     ...(uploading ? ["Tunggu unggahan bukti penyelesaian selesai."] : []),
     ...(evidenceBusy ? ["Tunggu perubahan bukti publik selesai."] : []),

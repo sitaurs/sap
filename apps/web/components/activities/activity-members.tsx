@@ -310,7 +310,7 @@ export default function ActivityMembers({
           )}
           <footer className={s.listFooter}>
             <small>
-              {visible.length} {" "}{t("dari")}{" "}{items.length} {" "}{t("peserta dimuat · terbaru lebih dahulu")}</small>
+              {t("{0} dari {1} peserta dimuat · terbaru lebih dahulu", { "0": visible.length, "1": items.length })}</small>
             {cursor && (
               <button
                 className={s.secondary}
@@ -337,7 +337,7 @@ export default function ActivityMembers({
               </p>
               {selected.reason && (
                 <p className={s.preserve}>
-                  {t("Catatan sebelumnya:")}{" "}{selected.reason}
+                  {t("Catatan sebelumnya: {0}", { "0": selected.reason })}
                 </p>
               )}
               {panelError && <Notice error>{panelError}</Notice>}

@@ -133,6 +133,8 @@ export const common: Record<string, string> = {
   "Tumpukan kecil": "Small pile",
   "Tumpukan sedang": "Medium pile",
   "Tumpukan besar": "Large pile",
+  "Ditolak": "Rejected",
+  "Duplikat": "Duplicate",
   "pembaruan": "updates",
   "Tidak ada laporan untuk status ini.": "No reports with this status.",
   "Belum ada laporan yang dikirim.": "You haven't submitted any reports yet.",

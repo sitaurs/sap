@@ -149,7 +149,7 @@ export function IncidentExplore() {
             {incident.evidence.length > 0 && <div className={p.evidenceFrame}><Evidence items={incident.evidence.slice(0, 1)} /><span className={p.evidenceLabel}><ImageIcon size={12} aria-hidden="true" />{t("Bukti yang disetujui SAP")}</span></div>}
           </div>
           {!incident.evidence.length && <p className={p.evidenceNotice}><Info size={19} aria-hidden="true" /><span>{t("Bukti publik belum tersedia; pembaruan warga masih bisa dikirim untuk ditinjau.")}</span></p>}
-          <div className={p.cardFooter}><span className={p.supportCount}><UsersRound size={17} aria-hidden="true" /><span>{incident.supportCount}{" "}{t("dukungan warga")}</span></span>
+          <div className={p.cardFooter}><span className={p.supportCount}><UsersRound size={17} aria-hidden="true" /><span>{t("{0} dukungan warga", { "0": incident.supportCount })}</span></span>
             <Link className={p.cardButton} href={incident.canonicalPath + "#kontribusi-warga"}>{t("Lihat detail & kontribusi")}<ChevronRight size={18} aria-hidden="true" /></Link>
           </div>
         </article>)}
@@ -396,8 +396,7 @@ export default function IncidentPage({ id }: { id: string }) {
             </div>
             <aside className={s.card}>
               <h2>{t("Ikut peduli")}</h2>
-              <p>
-                {incident.supportCount}{" "}{t("dukungan warga")}</p>
+              <p>{t("{0} dukungan warga", { "0": incident.supportCount })}</p>
               <p className={s.muted}>
                 {t("Dukung kejadian untuk menunjukkan kepedulian. Ikuti kabar untuk menerima pembaruan.")}</p>
               {guest ? (

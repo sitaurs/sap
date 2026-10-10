@@ -62,7 +62,7 @@ function makeService(opts: {
 }
 
 function decision(over: Partial<DecisionInputDto> = {}): DecisionInputDto {
-  return { nextStatus: 'verified', reason: 'looks valid', publicSummary: 'Public summary', ...over } as DecisionInputDto;
+  return { nextStatus: 'verified', reason: 'looks valid', publicSummary: 'A useful public summary for review.', ...over } as DecisionInputDto;
 }
 
 function record(id: string): ReportRecord {

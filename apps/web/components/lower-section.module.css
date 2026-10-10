@@ -207,7 +207,6 @@
   place-items: center;
   height: clamp(135px, 9vw, 175px);
   min-width: 0;
-  overflow: hidden;
 }
 
 .reviewVisual img { width: min(100%, 370px); height: 100%; object-fit: contain; }
@@ -279,7 +278,6 @@
   min-width: 0;
   margin: 0;
   border-radius: 12px;
-  overflow: hidden;
 }
 
 .quoteCard {
@@ -305,10 +303,13 @@
 
 .quoteText {
   display: block;
+  flex: none;
   margin: 0 0 15px;
   color: #4d5c78;
   font-size: clamp(17px, 1.09vw, 24px);
   line-height: 1.24;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .personRow {

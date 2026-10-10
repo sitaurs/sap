@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Eye, EyeOff, LockKeyhole, Mail, RotateCw, UserRound } from "lucide-react";
-import { ApiError, completeMfaLogin, forgotPassword, isMfaLoginRequired, login, register, resendVerification, resetPassword, verifyEmail } from "../lib/api/client";
+import { ApiError, completeMfaLogin, forgotPassword, getMe, isMfaLoginRequired, login, register, resendVerification, resetPassword, verifyEmail } from "../lib/api/client";
 import styles from "./auth-page.module.css";
 import BrandLogo from "./brand-logo";
 import { safeReturnTo } from "../lib/auth-return";
@@ -37,6 +37,7 @@ export default function AuthPage({ mode }: { mode: Mode }) {
   const router = useRouter();
   const [returnTo, setReturnTo] = useState("/dashboard");
   const isSignup = mode === "signup";
+  const [checkingSession, setCheckingSession] = useState(mode === "login");
   const [stage, setStage] = useState<Stage>("form");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
@@ -67,6 +68,26 @@ export default function AuthPage({ mode }: { mode: Mode }) {
     }
   }, [isSignup]);
 
+  useEffect(() => {
+    if (isSignup) {
+      setCheckingSession(false);
+      return;
+    }
+    setCheckingSession(true);
+    const controller = new AbortController();
+    getMe(controller.signal)
+      .then(() => {
+        if (controller.signal.aborted) return;
+        const destination = safeReturnTo(new URLSearchParams(window.location.search).get("returnTo"));
+        router.replace(destination);
+        router.refresh();
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setCheckingSession(false);
+      });
+    return () => controller.abort();
+  }, [isSignup, router]);
+
   function rememberEmail(value: string) {
     try {
       if (remember) window.localStorage.setItem("sap-remembered-email", value);
@@ -82,6 +103,7 @@ export default function AuthPage({ mode }: { mode: Mode }) {
     const submittedPassword = String(fields.get("password") ?? password);
     const submittedName = String(fields.get("displayName") ?? name).trim();
     if (isSignup && stage === "form" && !usableEmailDomain(submittedEmail)) {
+      setNotice("");
       setError("Gunakan alamat email dengan domain publik yang valid. Domain .test, .invalid, .example, dan .localhost tidak dapat menerima kode verifikasi.");
       return;
     }
@@ -153,7 +175,7 @@ export default function AuthPage({ mode }: { mode: Mode }) {
         <section className={styles.paper} aria-label={t(title)}>
           <div className={styles.formSide}>
             <Brand />
-            <div data-motion="card" data-motion-view={stage} className={styles.formContent}>
+            {checkingSession ? <p className={styles.sessionCheck} role="status"><span aria-hidden="true" />{t("Memeriksa sesi akun…")}</p> : <div data-motion="card" data-motion-view={stage} className={styles.formContent}>
               <h1>{t(title)}</h1>
               <p className={styles.intro}>{t(intro)}</p>
 
@@ -199,12 +221,11 @@ export default function AuthPage({ mode }: { mode: Mode }) {
                     <span>{resendingCode ? t("Mengirim…") : t("Kirim ulang kode")}</span>
                   </button>}
                 </div>}
-                {notice && <p className={styles.notice} role="status">{t(notice)}</p>}
-                {error && <p className={styles.notice} role="alert">{t(error)}</p>}
+                {error ? <p className={styles.notice} role="alert">{t(error)}</p> : notice && <p className={styles.notice} role="status">{t(notice)}</p>}
               </form>
 
               {stage === "form" && <p className={styles.switch}>{isSignup ? t("Sudah punya akun?") : t("Belum punya akun?")} <Link href={`${isSignup ? "/login" : "/signup"}?returnTo=${encodeURIComponent(returnTo)}`}>{isSignup ? t("Masuk") : t("Daftar akun")}</Link></p>}
-            </div>
+            </div>}
           </div>
 
           <div className={styles.sceneSide}>

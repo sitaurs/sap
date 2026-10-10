@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronRight, FileText, GraduationCap, House, Info, LayoutGrid, Leaf, MapPin, Menu, X } from "lucide-react";
+import { ChevronRight, FileText, GraduationCap, House, Info, LayoutDashboard, LayoutGrid, Leaf, MapPin, Menu, X } from "lucide-react";
 import BrandLogo from "../brand-logo";
 import styles from "./landing-header.module.css";
 import { useI18n } from "../../lib/i18n/provider";
+import { getMe } from "../../lib/api/client";
 
 
 const links = [
@@ -20,7 +21,23 @@ export default function LandingHeader() {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState("#beranda");
+  const [authState, setAuthState] = useState<"checking" | "guest" | "authenticated">("checking");
   const dialog = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getMe(controller.signal)
+      .then(() => { if (!controller.signal.aborted) setAuthState("authenticated"); })
+      .catch(() => { if (!controller.signal.aborted) setAuthState("guest"); });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const syncActive = () => setActive(window.location.hash || "#beranda");
+    syncActive();
+    window.addEventListener("hashchange", syncActive);
+    return () => window.removeEventListener("hashchange", syncActive);
+  }, []);
 
   useEffect(() => {
     if (!open || !dialog.current) return;
@@ -28,7 +45,7 @@ export default function LandingHeader() {
     const previousOverflow = document.body.style.overflow;
     element.showModal();
     document.body.style.overflow = "hidden";
-    const desktop = window.matchMedia("(min-width: 761px)");
+    const desktop = window.matchMedia("(min-width: 1200px)");
     const closeOnDesktop = () => { if (desktop.matches) setOpen(false); };
     desktop.addEventListener("change", closeOnDesktop);
     closeOnDesktop();
@@ -39,16 +56,36 @@ export default function LandingHeader() {
     };
   }, [open]);
 
+  function authActions(mobile = false) {
+    if (authState === "checking") {
+      return <span className={mobile ? styles.menuPending : styles.actionPlaceholder} aria-hidden="true" />;
+    }
+    if (authState === "authenticated") {
+      return <a href="/dashboard" className={mobile ? styles.primary : styles.primaryAction} onClick={mobile ? () => setOpen(false) : undefined}>
+        <LayoutDashboard aria-hidden="true" />{t("Ke Dashboard")}
+      </a>;
+    }
+    const closeMenu = mobile ? () => setOpen(false) : undefined;
+    return mobile ? <>
+      <a href="/signup" className={styles.primary} onClick={closeMenu}>{t("Coba Sekarang")}</a>
+      <a href="/login" className={styles.secondary} onClick={closeMenu}>{t("Masuk")}</a>
+    </> : <>
+      <a href="/login" className={styles.loginAction}>{t("Masuk")}</a>
+      <a href="/signup" className={styles.primaryAction}>{t("Coba Sekarang")}</a>
+    </>;
+  }
+
   return <>
-    <header className="header">
-      <div className="header-inner">
-        <a className="logo" href="#beranda" aria-label="SAP Sustainable AI Platform"><BrandLogo className="headerBrandImage" /></a>
-        <nav className="nav" aria-label={t("Navigasi utama")}>
-          {links.map(link => <a key={link.href} href={link.href}>{t(link.label)}</a>)}
+    <header className={styles.header}>
+      <div className={styles.bar}>
+        <a className={styles.brand} href="#beranda" aria-label={t("SAP Sustainable AI Platform")} onClick={() => setActive("#beranda")}><BrandLogo className={styles.brandImage} /></a>
+        <nav className={styles.links} aria-label={t("Navigasi utama")}>
+          {links.map(link => <a key={link.href} href={link.href} aria-current={active === link.href ? "location" : undefined} onClick={() => setActive(link.href)}>{t(link.label)}</a>)}
         </nav>
-        <a className="login" href="/login">{t("Masuk")}</a>
-        <a className="header-cta" href="/signup">{t("Coba Sekarang")}</a>
-        <button className={`menu ${styles.trigger}`} type="button" aria-label={t("Buka menu")} aria-haspopup="dialog" aria-expanded={open} aria-controls="landing-mobile-menu" onClick={() => { setActive(window.location.hash || "#beranda"); setOpen(true); }}><Menu aria-hidden="true" /></button>
+        <div className={`${styles.actions} ${authState === "checking" ? styles.actionsPending : ""}`} aria-busy={authState === "checking"}>
+          {authActions()}
+        </div>
+        <button className={styles.menuTrigger} type="button" aria-label={t("Buka menu")} aria-haspopup="dialog" aria-expanded={open} aria-controls="landing-mobile-menu" onClick={() => { setActive(window.location.hash || "#beranda"); setOpen(true); }}><Menu aria-hidden="true" /></button>
       </div>
     </header>
     <dialog ref={dialog} id="landing-mobile-menu" className={styles.menuDialog} aria-labelledby="landing-menu-title" onClose={() => setOpen(false)}>
@@ -60,13 +97,12 @@ export default function LandingHeader() {
         <h2 id="landing-menu-title">{t("Jelajahi SAP")}</h2>
         <p className={styles.intro}>{t("Aksi untuk lingkungan dimulai di sini.")}</p>
         <nav className={styles.menuLinks} aria-label={t("Navigasi mobile")}>
-          {links.map(({ label, href, icon: Icon }) => <a key={href} href={href} aria-current={active === href ? "location" : undefined} onClick={() => setOpen(false)}>
+          {links.map(({ label, href, icon: Icon }) => <a key={href} href={href} aria-current={active === href ? "location" : undefined} onClick={() => { setActive(href); setOpen(false); }}>
             <Icon aria-hidden="true" /><span>{t(label)}</span>{active === href && <i className={styles.activeDot} aria-hidden="true" />}<ChevronRight className={styles.chevron} aria-hidden="true" />
           </a>)}
         </nav>
-        <div className={styles.authActions}>
-          <a href="/signup" className={styles.primary} onClick={() => setOpen(false)}>{t("Coba Sekarang")}</a>
-          <a href="/login" className={styles.secondary} onClick={() => setOpen(false)}>{t("Masuk")}</a>
+        <div className={styles.authActions} aria-busy={authState === "checking"}>
+          {authActions(true)}
         </div>
         <div className={styles.menuNote}>
           <Leaf aria-hidden="true" />

@@ -27,8 +27,12 @@ async function setup(page: Page, partialFailure = false, count = 3) {
         resolvedReports: 0, oldestPendingAt: time }); return true;
     }
     if (path === "/admin/audit") {
-      await json(route, { items: [{ id: ids.update, action: "report.decision", targetId: source.id,
-        actorDisplayName: "Moderator sintetis", createdAt: time }], nextCursor: null }); return true;
+      await json(route, { items: [
+        { id: ids.update, action: "report.decision", targetId: source.id, actorDisplayName: "Moderator sintetis", createdAt: time },
+        { id: ids.post, action: "activity_publish", targetId: source.id, actorDisplayName: "Pohon Delima", createdAt: time },
+        { id: ids.operation, action: "membership_decided", targetId: source.id, actorDisplayName: "Koordinator sintetis", createdAt: time },
+        { id: ids.media, action: "report.assignment.progress", targetId: source.id, actorDisplayName: "Petugas sintetis", createdAt: time },
+      ], nextCursor: null }); return true;
     }
     if (path.endsWith("/url")) {
       await json(route, { url: "/images/instagram/publication-empty.svg", expiresAt: future }); return true;
@@ -73,6 +77,11 @@ async function review(page: Page) {
 test("bulk verification reviews summaries, confirms intent and keeps photos private", async ({ page }, testInfo) => {
   const { requests } = await setup(page);
   await expect(page.getByText("Keputusan laporan", { exact: true })).toBeVisible();
+  await expect(page.getByText("Pendaftaran kegiatan dibuka", { exact: true })).toBeVisible();
+  await expect(page.getByText("Keputusan peserta diperbarui", { exact: true })).toBeVisible();
+  await expect(page.getByText("Progres penugasan diperbarui", { exact: true })).toBeVisible();
+  await expect(page.getByText("oleh Pohon Delima", { exact: true })).toBeVisible();
+  await expect(page.getByText("activity_publish", { exact: true })).toHaveCount(0);
   await expect(page.getByText("report.decision", { exact: true })).toHaveCount(0);
   const dialog = await review(page);
   const submit = dialog.getByRole("button", { name: "Verifikasi laporan", exact: true });

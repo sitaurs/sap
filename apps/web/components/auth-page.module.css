@@ -5,6 +5,8 @@
 .brand{display:flex;flex-direction:column;align-items:flex-start;width:min(100%,440px);color:#243949;transition:transform .25s}
 .brand:hover{transform:translateY(-2px)}
 .formContent{width:min(100%,440px);margin-top:39px}
+.sessionCheck{display:flex;align-items:center;justify-content:center;gap:11px;min-height:56px;margin:39px 0 0;color:#52617a;font-size:15px;line-height:1.4}
+.sessionCheck span{width:18px;height:18px;flex:none;border:2px solid #d7e8de;border-top-color:#1768e8;border-radius:50%;animation:sessionSpin .8s linear infinite}
 .formContent h1{margin:0 0 8px;color:#151719;font:800 clamp(31px,2.5vw,40px)/1.14 var(--font-display),Arial,sans-serif;letter-spacing:-.045em}
 .intro{margin:0 0 29px;color:#54617b;font-size:18px;line-height:1.4;letter-spacing:-.017em}
 .form{display:block}
@@ -64,8 +66,9 @@
 @keyframes sceneEnter{from{opacity:.6;transform:scale(1.035)}to{opacity:1;transform:scale(1)}}
 @keyframes noticeEnter{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
 @keyframes resendSpin{to{transform:rotate(360deg)}}
+@keyframes sessionSpin{to{transform:rotate(360deg)}}
 @media(max-width:1100px){.paper{grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:28px;padding:30px}.formSide{padding:0}.formContent{margin-top:32px}.formContent h1{font-size:clamp(28px,3.3vw,38px)}.signup .formContent h1{font-size:clamp(30px,3.5vw,40px)}.sceneSide{width:min(100%,calc((100svh - 150px)*.882))}}
 @media(max-width:800px){.stage{display:block;padding:0;background:#fff}.browser{max-width:620px;margin:auto}.paper{display:flex;flex-direction:column;align-items:stretch;gap:28px;min-height:100svh;padding:40px 34px;border:0;border-radius:0;box-shadow:none}.formSide{align-items:stretch;height:auto;padding:0}.brand{width:100%}.formContent,.signup .formContent{width:100%;margin-top:29px}.formContent h1,.signup .formContent h1{font-size:clamp(30px,6vw,40px)}.intro,.signup .intro{font-size:18px;margin-bottom:27px}.fieldGroup+.fieldGroup{margin-top:18px}.signup .fieldGroup+.fieldGroup{margin-top:13px}.field,.signup .field{height:55px}.sceneSide{width:100%;height:360px;flex:0 0 360px;aspect-ratio:auto;border-radius:24px}.scene{object-fit:cover}}
 @media(max-width:500px){.paper{gap:24px;padding:30px 22px}.formContent,.signup .formContent{margin-top:26px}.intro,.signup .intro{font-size:16px}.formContent h1,.signup .formContent h1{font-size:clamp(29px,8vw,35px)}.field{gap:12px}.field input{font-size:15px}.signup .agreement{font-size:14px}.submit{min-height:54px;font-size:19px}.switch{font-size:14px}.sceneSide{height:290px;flex-basis:290px}}
 @media(max-width:360px){.secondaryActions{gap:10px}.backAction,.resendAction{font-size:14px}.resendAction{min-width:0;padding:10px 12px}}
-@media(prefers-reduced-motion:reduce){.browser,.scene,.notice,.resendIconBusy{animation:none!important}.scene,.field,.reveal,.submit,.brand,.switch a,.textButton,.backAction,.resendAction{transition:none!important}}
+@media(prefers-reduced-motion:reduce){.browser,.scene,.notice,.resendIconBusy,.sessionCheck span{animation:none!important}.scene,.field,.reveal,.submit,.brand,.switch a,.textButton,.backAction,.resendAction{transition:none!important}}
