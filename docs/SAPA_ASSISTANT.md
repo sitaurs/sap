@@ -362,7 +362,9 @@ Format tiap entri: `id` · `pageContext` (tag retrieval) · pertanyaan · jawaba
 
 Catatan retrieval: kode memilih paling banyak enam entri, memberi boost pada `pageContext`, dan selalu menyertakan safety-net `fallback-unknown` serta `luar-lingkup`. Jalur hybrid menggunakan ranking dense/lexical/trigram jika embedding tersedia; belum ada threshold relevansi yang dievaluasi atau bukti evaluasi sitasi/abstention. Jangan menganggap adanya citation ID atau hasil retrieval sebagai bukti bahwa jawaban benar.
 
-## 19. Batas topik & anti-penyalahgunaan (defense-in-depth)
+## 19. Keamanan, privasi & aksi SAP (defense-in-depth)
+
+**Kebijakan runtime saat ini (2026-10-10):** SAPA membantu fitur SAP dan pertanyaan umum tentang alam, lingkungan, sampah, daur ulang, iklim, serta keberlanjutan. SAPA tidak membantu coding atau topik umum yang tidak terkait SAP/lingkungan. SAPA tetap tidak menjalankan aksi SAP atas nama pengguna maupun membuka data privat. Contoh penolakan topik umum di bawah adalah brief historis dan sudah digantikan kebijakan ini.
 
 Tujuan brief: SAPA tidak menjalankan aksi domain, membocorkan data privat, atau mengikuti instruksi injeksi. Perilaku prompt tepatnya harus diverifikasi karena brief §16/17 berbeda dari prompt runtime.
 

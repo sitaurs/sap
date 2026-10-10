@@ -25,6 +25,7 @@ let AssistantService: typeof import('../src/assistant/assistant.service.js').Ass
 let AssistantProvider: typeof import('../src/assistant/assistant-provider.js').AssistantProvider;
 let ProviderUnavailableError: typeof import('../src/assistant/assistant-provider.js').ProviderUnavailableError;
 let retrieveKnowledge: typeof import('../src/assistant/assistant-knowledge.js').retrieveKnowledge;
+let buildContextBlock: typeof import('../src/assistant/assistant-knowledge.js').buildContextBlock;
 let toCitations: typeof import('../src/assistant/assistant-knowledge.js').toCitations;
 let buildContentSearch: typeof import('../src/assistant/assistant-knowledge.js').buildContentSearch;
 let knowledgeBaseSeedRows: typeof import('../src/assistant/assistant-knowledge.js').knowledgeBaseSeedRows;
@@ -35,6 +36,8 @@ let AssistantTools: typeof import('../src/assistant/assistant-tools.js').Assista
 let AssistantToolError: typeof import('../src/assistant/assistant-tools.js').AssistantToolError;
 let AssistantAgent: typeof import('../src/assistant/assistant-agent.js').AssistantAgent;
 let getConfig: typeof import('@sap/config').getConfig;
+let SYSTEM_PROMPT: typeof import('../src/assistant/assistant.prompt.js').SYSTEM_PROMPT;
+let PRIMING_REPLY: typeof import('../src/assistant/assistant.prompt.js').PRIMING_REPLY;
 
 function errorCode(error: unknown): string {
   const body = (error as HttpException).getResponse?.();
@@ -48,9 +51,10 @@ function httpStatus(error: unknown): number {
 before(async () => {
   ({ AssistantService } = await import('../src/assistant/assistant.service.js'));
   ({ AssistantProvider, ProviderUnavailableError } = await import('../src/assistant/assistant-provider.js'));
-  ({ retrieveKnowledge, toCitations, buildContentSearch, knowledgeBaseSeedRows } = await import(
+  ({ retrieveKnowledge, buildContextBlock, toCitations, buildContentSearch, knowledgeBaseSeedRows } = await import(
     '../src/assistant/assistant-knowledge.js'
   ));
+  ({ SYSTEM_PROMPT, PRIMING_REPLY } = await import('../src/assistant/assistant.prompt.js'));
   ({ stripStopwords } = await import('../src/assistant/indonesian-stopwords.js'));
   ({ HybridRetriever } = await import('../src/assistant/assistant-retrieval.js'));
   ({ AssistantStatsTool } = await import('../src/assistant/assistant-stats-tool.js'));
@@ -428,6 +432,21 @@ test('buildContentSearch and knowledgeBaseSeedRows produce stripped, safety-net-
   assert.equal(fallback?.isSafetyNet, true, 'fallback entry is flagged safety-net');
   assert.equal(normal?.isSafetyNet, false, 'ordinary entries are not safety-net');
   assert.ok((normal?.contentSearch.length ?? 0) > 0, 'seed rows carry stripped search text');
+});
+
+test('SAPA can answer general environmental questions but not coding or unrelated topics', async () => {
+  assert.match(SYSTEM_PROMPT, /pertanyaan umum\s+tentang alam, lingkungan/i);
+  assert.match(SYSTEM_PROMPT, /Jangan menulis, memperbaiki, atau menjelaskan cara membuat kode/i);
+  assert.match(SYSTEM_PROMPT, /Untuk topik lain\s+yang tidak terkait SAP atau lingkungan/i);
+  assert.match(SYSTEM_PROMPT, /READ-ONLY terhadap SAP/i);
+  assert.match(SYSTEM_PROMPT, /data akun lain/i);
+  assert.match(PRIMING_REPLY, /alam, lingkungan, sampah, daur ulang/i);
+  assert.match(PRIMING_REPLY, /tidak membantu membuat kode/i);
+
+  const context = buildContextBlock(retrieveKnowledge('bagaimana sampah plastik mencemari laut?', 'help'), 'help');
+  assert.match(context, /ini bukan batas topik/i);
+  assert.match(context, /Pertanyaan umum tentang alam, lingkungan, sampah/i);
+  assert.doesNotMatch(context, /jawab HANYA dari entri/i);
 });
 
 function makeRetriever(rows: Array<{ id: string; score: number; isSafetyNet: boolean }>, opts: {

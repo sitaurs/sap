@@ -173,17 +173,17 @@ export const KNOWLEDGE_BASE: readonly KnowledgeEntry[] = [
   {
     id: 'fallback-unknown',
     pageContext: 'help',
-    question: 'Pertanyaan di luar KONTEKS',
+    question: 'Fakta SAP yang tidak ada di KONTEKS',
     answer:
-      'Maaf, aku belum punya informasi soal itu. Coba buka halaman Bantuan untuk panduan lebih lengkap.',
+      'KONTEKS adalah referensi untuk fakta khusus SAP, bukan batas topik. Pertanyaan umum tentang alam, lingkungan, ekologi, sampah, daur ulang, iklim, dan keberlanjutan boleh dijawab dengan pengetahuan yang tersedia. Untuk detail produk SAP yang tidak ada di referensi, jelaskan bahwa kamu belum dapat memastikannya dan arahkan ke Bantuan. Jangan membantu coding atau topik yang tidak terkait SAP/lingkungan.',
     suggestedActions: [{ label: 'Buka Bantuan', target: 'help' }],
   },
   {
     id: 'luar-lingkup',
     pageContext: 'help',
-    question: 'SAPA bisa buatkan/kirim laporan untukku?',
+    question: 'SAPA bisa melakukan aksi atau mengubah data SAP untukku?',
     answer:
-      'Aku tidak bisa membuat, mengubah, atau memverifikasi laporan. Kamu melakukannya sendiri lewat halaman Laporan; aku bantu menjelaskan caranya.',
+      'Aku tidak bisa membuat, mengubah, atau memverifikasi data SAP atas namamu. Kamu bisa melakukannya sendiri di halaman terkait; aku tetap bisa membantu menyusun teks atau menjelaskan langkahnya.',
     suggestedActions: [
       { label: 'Laporan saya', target: 'my_reports' },
       { label: 'Bantuan', target: 'help' },
@@ -212,8 +212,9 @@ function tokenize(text: string): string[] {
 /**
  * Retrieve the KB entries most relevant to the active page and the user's
  * question. Page-tagged entries get a boost so suggestions match the current
- * screen; a lightweight token overlap ranks the rest. The two safety-net entries
- * are always present so the model can fall back or refuse without inventing text.
+ * screen; a lightweight token overlap ranks the rest. Safety-net entries preserve
+ * SAP-specific accuracy and explain the read-only boundary without restricting
+ * unrelated general questions.
  */
 export function retrieveKnowledge(message: string, pageContext: PageContext): KnowledgeEntry[] {
   const queryTokens = new Set(tokenize(message));
@@ -241,14 +242,14 @@ export function retrieveKnowledge(message: string, pageContext: PageContext): Kn
   return [...selected.values()];
 }
 
-/** Render retrieved entries as the `KONTEKS` block prepended to the user turn. */
+/** Render SAP reference entries prepended to the user turn. */
 export function buildContextBlock(entries: KnowledgeEntry[], pageContext: PageContext): string {
   const lines = entries.map((entry) => {
     const actions = entry.suggestedActions.map((action) => `${action.label}->${action.target}`).join(', ');
     return `- (${entry.id}) T: ${entry.question}\n  J: ${entry.answer}\n  saran: [${actions}]`;
   });
   return [
-    `KONTEKS (pageContext aktif: ${pageContext}) — jawab HANYA dari entri di bawah:`,
+    `REFERENSI SAP (pageContext aktif: ${pageContext}). Gunakan entri berikut untuk fakta khusus SAP yang relevan; ini bukan batas topik. Pertanyaan umum tentang alam, lingkungan, sampah, daur ulang, iklim, dan keberlanjutan boleh dijawab dengan pengetahuan umum. Jangan mengarang detail produk SAP yang tidak tercantum:`,
     ...lines,
   ].join('\n');
 }
