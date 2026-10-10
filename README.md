@@ -42,17 +42,6 @@ The platform brings these flows together with a personal dashboard, geographic i
 
 **Visit the website: [sap.venlab.tech](https://sap.venlab.tech/).** The application interface is currently in Indonesian.
 
-## Built around real actions
-
-| | Capability | Experience |
-| :---: | --- | --- |
-| 📷 | **Identify waste** | Upload an image and review AI classification results and confidence. |
-| 📍 | **Report a location** | Submit waste accumulation evidence with photos, coordinates, time, and notes. |
-| 🗺️ | **Explore verified reports** | Browse public reports and area summaries derived from reviewed observations. |
-| 🌱 | **Follow your progress** | Access scan history, personal reports, and achievements from your dashboard. |
-| 🤖 | **Ask SAPA** | Get conversational guidance from a bounded, read-only AI assistant. |
-| 🔐 | **Manage your account** | Email verification, sessions, profile management, and optional TOTP MFA. |
-
 ### Community and operations modules
 
 | Module | Purpose |
