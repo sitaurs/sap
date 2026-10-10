@@ -170,7 +170,7 @@ Jelaskan tujuan penyerahan dan cara pengangkutan sampah.|Describe the handover d
 Wajib dilengkapi sebelum publikasi.|Required before publishing.
 Cari pengguna aktif yang telah memverifikasi email.|Search active users with verified email addresses.
 Cari koordinator|Search coordinators
-Ketik minimal 3 karakter nama…|Enter at least 3 characters of a name…
+Ketik minimal 3 karakter nama atau email…|Enter at least 3 characters of a name or email…
 Penugasan telah diterima|Assignment accepted
 Tidak ada kandidat pada hasil yang dimuat.|No candidates in the loaded results.
 Muat kandidat berikutnya|Load more candidates

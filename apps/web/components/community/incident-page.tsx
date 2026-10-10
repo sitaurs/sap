@@ -377,7 +377,7 @@ export default function IncidentPage({ id }: { id: string }) {
                       <li key={event.id}>
                         <strong>{date(event.occurredAt, intlLocale)}</strong>
                         <p>{event.summary}</p>
-                        <Evidence items={event.evidence} />
+                        {event.evidence.length > 0 && <Evidence items={event.evidence} />}
                       </li>
                     ))}
                   </ol>

@@ -96,7 +96,7 @@ export class ActivitiesService {
  }
  async candidates(actor:Actor,query:Record<string,unknown>) {
   requireAdmin(actor);object(query,['search','limit','cursor']);const search=text(query.search,3,100);const page=this.store.cursor(query,{route:'candidates',search});const pattern=`%${search.replace(/[\\%_]/g,'\\$&')}%`;
-  const rows=await this.store.db<{id:string;display_name:string;created_at:Date}[]>`SELECT id,display_name,created_at FROM users WHERE deleted_at IS NULL AND email_verified_at IS NOT NULL AND display_name ILIKE ${pattern} ESCAPE '\\' AND (${page.boundary?.at??null}::timestamptz IS NULL OR (created_at,id)<(${page.boundary?.at??null}::timestamptz,${page.boundary?.id??null}::uuid)) ORDER BY created_at DESC,id DESC LIMIT ${page.limit+1}`;
+  const rows=await this.store.db<{id:string;display_name:string;created_at:Date}[]>`SELECT id,display_name,created_at FROM users WHERE deleted_at IS NULL AND email_verified_at IS NOT NULL AND (display_name ILIKE ${pattern} ESCAPE '\\' OR email_normalized ILIKE ${pattern} ESCAPE '\\') AND (${page.boundary?.at??null}::timestamptz IS NULL OR (created_at,id)<(${page.boundary?.at??null}::timestamptz,${page.boundary?.id??null}::uuid)) ORDER BY created_at DESC,id DESC LIMIT ${page.limit+1}`;
   const selected=rows.slice(0,page.limit);return {items:selected.map(r=>({id:r.id,displayName:r.display_name})),nextCursor:rows.length>page.limit?page.encode(selected[selected.length-1]!):null};
  }
  async validateCoordinator(tx:Tx,id:string|null):Promise<void> {if(id===null)return;const rows=await tx`SELECT id FROM users WHERE id=${id} AND deleted_at IS NULL AND email_verified_at IS NOT NULL FOR SHARE`;if(!rows.length)fail(422,'COORDINATOR_INVALID');}

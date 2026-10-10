@@ -12,7 +12,8 @@ async function english(page: Page) {
 test("invalid scan files have explicit feedback, never upload, and allow a valid replacement", async ({ page }) => {
   const requests = await fixtureApi(page);
   await page.goto("/dashboard?view=scan");
-  const input = page.getByLabel("Unggah foto dari perangkat");
+  const input = page.locator('input[type="file"][aria-label="Unggah foto dari perangkat"]');
+  await expect(input).toBeHidden();
   const invalid = [
     { file: { name: "picture.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>') }, message: "Format file tidak didukung. Pilih foto JPG, PNG, atau WebP." },
     { file: { name: "script.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>window.qaScriptExecuted=true</script></svg>') }, message: "Format file tidak didukung. Pilih foto JPG, PNG, atau WebP." },
@@ -56,7 +57,8 @@ test("English scan prompts, rejection, and material labels stay translated", asy
   } });
   await page.goto("/dashboard?view=scan");
   await expect(page.getByText("Take a photo or upload an image")).toBeVisible();
-  const input = page.getByLabel("Upload a photo from your device");
+  const input = page.locator('input[type="file"][aria-label="Upload a photo from your device"]');
+  await expect(input).toBeHidden();
   await input.setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("invalid") });
   await expect(page.locator('p[role="alert"]')).toHaveText("Unsupported file type. Choose a JPG, PNG, or WebP photo.");
   await input.setInputFiles(photo);
@@ -64,6 +66,24 @@ test("English scan prompts, rejection, and material labels stay translated", asy
   await expect(page.getByRole("heading", { name: "Scan result", exact: true })).toBeVisible();
   await expect(page.getByText("Plastic", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Heater", { exact: true })).toHaveCount(0);
+});
+
+test("English scan upload button opens the native picker from the keyboard", async ({ page }) => {
+  await english(page);
+  await fixtureApi(page);
+  await page.goto("/dashboard?view=scan");
+
+  const upload = page.getByRole("button", { name: "Upload photo", exact: true });
+  const input = page.locator('input[type="file"][aria-label="Upload a photo from your device"]');
+  await expect(input).toBeHidden();
+  await expect(upload).toBeVisible();
+  await upload.focus();
+  const chooserPromise = page.waitForEvent("filechooser");
+  await page.keyboard.press("Enter");
+  const chooser = await chooserPromise;
+  await chooser.setFiles(photo);
+
+  await expect(page.getByText(photo.name, { exact: true })).toBeVisible();
 });
 
 test("a slow scan explains that its result is still checked automatically", async ({ page }) => {
@@ -78,7 +98,7 @@ test("a slow scan explains that its result is still checked automatically", asyn
     return false;
   } });
   await page.goto("/dashboard?view=scan");
-  await page.getByLabel("Unggah foto dari perangkat").setInputFiles(photo);
+  await page.locator('input[type="file"][aria-label="Unggah foto dari perangkat"]').setInputFiles(photo);
   await page.getByRole("button", { name: "Pindai dengan AI" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Pemindaian masih berlangsung." })).toBeVisible({ timeout: 15_000 });
 });

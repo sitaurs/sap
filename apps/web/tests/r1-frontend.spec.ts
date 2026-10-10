@@ -5,6 +5,7 @@ import {
   activity,
   fixtureApi,
   failure,
+  future,
   ids,
   incident,
   json,
@@ -63,6 +64,45 @@ test("guest sees public detail and login returns to the incident", async ({
         r.path.startsWith("/media/") || r.path === `/reports/${ids.incident}`,
     ),
   ).toHaveLength(0);
+});
+test("timeline entries without evidence do not show a false empty state when the report has a photo", async ({ page }) => {
+  const reportEvidence: R1["PublicEvidence"] = {
+    id: ids.media,
+    url: "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
+    expiresAt: future,
+    observedAt: null,
+    caption: "Foto utama laporan · TEST",
+  };
+  await fixtureApi(page, {
+    handler: async (route, path) => {
+      if (path === `/public/incidents/${ids.incident}`) {
+        await json(route, { ...incident, evidence: [reportEvidence] });
+        return true;
+      }
+      if (path === `/public/incidents/${ids.incident}/timeline`) {
+        await json(route, {
+          items: [{
+            id: ids.update,
+            kind: "condition_updated",
+            occurredAt: time,
+            observedAt: time,
+            summary: "Pembaruan tanpa lampiran · TEST",
+            evidence: [],
+          }],
+          nextCursor: null,
+        });
+        return true;
+      }
+      return false;
+    },
+  });
+
+  await page.goto(`/incidents/${ids.incident}`);
+  await expect(page.getByRole("img", { name: "Foto utama laporan · TEST" })).toBeVisible();
+  const timeline = page.getByRole("heading", { name: "Perjalanan kejadian" }).locator("..");
+  await expect(timeline.getByText("Pembaruan tanpa lampiran · TEST", { exact: true })).toBeVisible();
+  await expect(timeline.getByText("Belum ada bukti yang disetujui untuk publik.", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Belum ada bukti yang disetujui untuk publik.", { exact: true })).toHaveCount(0);
 });
 test("email verification keeps the original activity destination", async ({
   page,

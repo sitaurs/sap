@@ -525,7 +525,7 @@ export default function ActivityForm({
                 value={candidateSearch}
                 onChange={(e) => setCandidateSearch(e.target.value)}
                 maxLength={100}
-                placeholder={t("Ketik minimal 3 karakter nama…")}
+                placeholder={t("Ketik minimal 3 karakter nama atau email…")}
               />
             </label>
             {coordinatorId && (

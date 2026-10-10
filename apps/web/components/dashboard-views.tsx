@@ -160,7 +160,7 @@ function ScanView({ onScanFinished, onScanActivity, onOpenReport, onNavigate, ca
         <div className={styles.scanActions}>
           <button className={styles.primaryButton} type="button" onClick={() => setCameraOpen(true)} disabled={busy}><Camera size={23} strokeWidth={2.2} />{t("Buka kamera")}</button>
           <button className={styles.outlineButton} type="button" onClick={() => uploadRef.current?.click()} disabled={busy}><Upload size={23} />{t("Unggah foto")}</button>
-          <input ref={uploadRef} className={styles.srOnly} type="file" onChange={event => { selectFile(event.target.files?.[0] || null); event.target.value = ""; }} aria-label={t("Unggah foto dari perangkat")} />
+          <input ref={uploadRef} type="file" hidden onChange={event => { selectFile(event.target.files?.[0] || null); event.target.value = ""; }} aria-label={t("Unggah foto dari perangkat")} />
         </div>
         <button className={styles.scanDrop} type="button" onClick={() => uploadRef.current?.click()} disabled={busy} aria-label={t("Pilih foto sampah dari perangkat")}>
           <span className={styles.scanDropInner}>

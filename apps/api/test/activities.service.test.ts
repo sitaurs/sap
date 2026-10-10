@@ -268,7 +268,38 @@ test('resolved public source remains eligible for volunteer publication and regi
   h.row.status = 'registration_open';
   const published = await h.service.publicDto(h.tx as never, h.row);
   assert.equal(published.kind, 'activity');
-  if (published.kind === 'activity') assert.equal(published.registrationOpen, true);
+  if (published.kind === 'activity') {
+    assert.equal(published.registrationOpen, true);
+    assert.equal(published.coordinatorDisplayName, 'Koordinator SAP', 'public names stay generic without explicit coordinator consent');
+  }
+  h.row.publish_display_name = true;
+  const namedPublic = await h.service.publicDto(h.tx as never, h.row);
+  if (namedPublic.kind === 'activity') assert.equal(namedPublic.coordinatorDisplayName, 'Dewi Lestari');
+});
+
+test('coordinator candidate search matches verified accounts by display name or email without returning email', async () => {
+  const statements: { sql: string; values: unknown[] }[] = [];
+  const db = async (parts: TemplateStringsArray, ...values: unknown[]) => {
+    statements.push({ sql: parts.join(' ').replace(/\s+/g, ' ').trim(), values });
+    return [{ id: COORDINATOR_ID, display_name: 'Mawar Putri', created_at: new Date('2026-10-01T00:00:00.000Z') }];
+  };
+  const service = new ActivitiesService({
+    db,
+    cursor: () => ({ limit: 20, boundary: null, encode: () => 'next' }),
+  } as never);
+
+  const result = await service.candidates(actor({ id: MEMBER_ID, role: 'admin', emailVerified: true }), {
+    search: 'mawar@example.com',
+  });
+
+  assert.match(statements[0]!.sql, /email_verified_at IS NOT NULL/);
+  assert.match(statements[0]!.sql, /display_name ILIKE .* OR email_normalized ILIKE/);
+  assert.deepEqual(statements[0]!.values.slice(0, 2), ['%mawar@example.com%', '%mawar@example.com%']);
+  assert.deepEqual(result, {
+    items: [{ id: COORDINATOR_ID, displayName: 'Mawar Putri' }],
+    nextCursor: null,
+  });
+  assert.equal(JSON.stringify(result).includes('@example.com'), false);
 });
 
 test('available-only public activity query includes resolved report sources', async () => {
